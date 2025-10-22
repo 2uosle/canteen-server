@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const logger = require('./logger');
 
 // Import validation middleware and schemas
 const {
@@ -108,7 +109,7 @@ async function checkDb() {
     const [rows] = await pool.query('SELECT 1 AS ok');
     return rows && rows.length ? true : false;
   } catch (err) {
-    console.error('DB check failed:', err.message);
+    logger.error('Database health check failed', { error: err.message });
     return false;
   }
 }
@@ -1139,16 +1140,21 @@ async function cleanupPendingRecords() {
     
     const total = (salesResult.affectedRows || 0) + (reloadsResult.affectedRows || 0) + (linksResult.affectedRows || 0);
     if (total > 0) {
-      console.log(`[Cleanup] Removed ${total} old pending records (sales: ${salesResult.affectedRows}, reloads: ${reloadsResult.affectedRows}, links: ${linksResult.affectedRows})`);
+      logger.info('Cleanup: Removed old pending records', { 
+        total, 
+        sales: salesResult.affectedRows, 
+        reloads: reloadsResult.affectedRows, 
+        links: linksResult.affectedRows 
+      });
     }
   } catch (err) {
-    console.error('[Cleanup] Error cleaning up pending records:', err);
+    logger.error('Cleanup: Failed to clean up pending records', { error: err.message });
   }
 }
 
 // Run cleanup every 10 minutes
 setInterval(cleanupPendingRecords, 10 * 60 * 1000);
-console.log('[Cleanup] Scheduled cleanup job every 10 minutes');
+logger.info('Cleanup job scheduled to run every 10 minutes');
 
 /* ==================== ADMIN USER MANAGEMENT (PRIVACY-FOCUSED) ==================== */
 
@@ -1273,7 +1279,7 @@ app.get('/admin/users', adminAuth, async (req, res) => {
       }
     });
   } catch (err) {
-    console.error('Admin users list error:', err);
+    logger.error('Admin: Failed to load users list', { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -1552,7 +1558,11 @@ app.post('/admin/users/bulk-role', adminAuth, async (req, res) => {
 const port = process.env.PORT || 3000;
 app.use(express.static('public'));
 app.listen(port, async () => {
-  console.log(`API running on http://localhost:${port}`);
+  logger.info(`API server started on http://localhost:${port}`);
   const ok = await checkDb();
-  console.log('DB reachable:', ok);
+  if (ok) {
+    logger.info('Database connection established successfully');
+  } else {
+    logger.error('Database connection failed');
+  }
 });
