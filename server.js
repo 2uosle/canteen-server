@@ -1127,6 +1127,397 @@ async function cleanupPendingRecords() {
 setInterval(cleanupPendingRecords, 10 * 60 * 1000);
 console.log('[Cleanup] Scheduled cleanup job every 10 minutes');
 
+/* ==================== ADMIN USER MANAGEMENT (PRIVACY-FOCUSED) ==================== */
+
+// Admin middleware - requires 'admin' role
+function adminAuth(req, res, next) {
+  const header = req.headers['authorization'];
+  if (!header) return res.status(401).json({ error: "No token provided" });
+
+  const token = header.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    if (decoded.role !== 'admin') {
+      return res.status(403).json({ error: "Forbidden: Admin access required" });
+    }
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: "Invalid token" });
+  }
+}
+
+// GET /admin/users - List all users with pagination and filters (privacy-focused)
+app.get('/admin/users', adminAuth, async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 20, 
+      search = '', 
+      role = '', 
+      card_status = '', 
+      rfid_status = '',
+      sort = 'name'
+    } = req.query;
+
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Build query
+    let whereConditions = [];
+    let params = [];
+
+    // Search by name, username, email, or RFID
+    if (search) {
+      whereConditions.push('(u.name LIKE ? OR u.username LIKE ? OR u.email LIKE ? OR u.rfid_uid LIKE ?)');
+      const searchPattern = `%${search}%`;
+      params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+    }
+
+    // Filter by role
+    if (role) {
+      whereConditions.push('u.role = ?');
+      params.push(role);
+    }
+
+    // Filter by card lock status
+    if (card_status === 'locked') {
+      whereConditions.push('u.is_card_locked = 1');
+    } else if (card_status === 'unlocked') {
+      whereConditions.push('u.is_card_locked = 0');
+    }
+
+    // Filter by RFID status
+    if (rfid_status === 'paired') {
+      whereConditions.push('u.rfid_uid IS NOT NULL');
+    } else if (rfid_status === 'unpaired') {
+      whereConditions.push('u.rfid_uid IS NULL');
+    }
+
+    const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
+
+    // Determine sort column
+    let sortColumn = 'u.name';
+    if (sort === 'username') sortColumn = 'u.username';
+    else if (sort === 'created') sortColumn = 'u.created_at';
+    else if (sort === 'role') sortColumn = 'u.role';
+
+    // Get total count
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) as total FROM users u ${whereClause}`,
+      params
+    );
+
+    // Get users (NO BALANCE - privacy!)
+    const [users] = await pool.query(
+      `SELECT 
+        u.user_id,
+        u.username,
+        u.name,
+        u.email,
+        u.role,
+        u.rfid_uid,
+        u.is_card_locked,
+        u.created_at,
+        (SELECT COUNT(*) FROM transactions WHERE user_id = u.user_id) as transaction_count,
+        (SELECT COUNT(*) FROM reloads WHERE user_id = u.user_id) as reload_count,
+        (SELECT MAX(timestamp) FROM transactions WHERE user_id = u.user_id) as last_transaction
+      FROM users u
+      ${whereClause}
+      ORDER BY ${sortColumn} ASC
+      LIMIT ? OFFSET ?`,
+      [...params, parseInt(limit), offset]
+    );
+
+    res.json({
+      users,
+      pagination: {
+        total: total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (err) {
+    console.error('Admin users list error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /admin/users/:id - Get single user details (privacy-focused)
+app.get('/admin/users/:id', adminAuth, async (req, res) => {
+  try {
+    const [[user]] = await pool.query(
+      `SELECT 
+        user_id,
+        username,
+        name,
+        email,
+        role,
+        rfid_uid,
+        is_card_locked,
+        created_at
+      FROM users 
+      WHERE user_id = ?`,
+      [req.params.id]
+    );
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Get activity stats (counts only, no amounts!)
+    const [[stats]] = await pool.query(
+      `SELECT 
+        (SELECT COUNT(*) FROM transactions WHERE user_id = ?) as transaction_count,
+        (SELECT COUNT(*) FROM reloads WHERE user_id = ?) as reload_count,
+        (SELECT MAX(timestamp) FROM transactions WHERE user_id = ?) as last_transaction,
+        (SELECT MAX(timestamp) FROM reloads WHERE user_id = ?) as last_reload
+      FROM DUAL`,
+      [user.user_id, user.user_id, user.user_id, user.user_id]
+    );
+
+    res.json({ ...user, stats });
+  } catch (err) {
+    console.error('Admin user detail error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /admin/users - Create new user
+app.post('/admin/users', adminAuth, async (req, res) => {
+  try {
+    const { username, password, name, email, role } = req.body;
+
+    if (!username || !password || !name || !role) {
+      return res.status(400).json({ error: 'Username, password, name, and role are required' });
+    }
+
+    // Check if username exists
+    const [[existing]] = await pool.query('SELECT 1 FROM users WHERE username = ?', [username]);
+    if (existing) return res.status(400).json({ error: 'Username already exists' });
+
+    // Hash password
+    const hashed = await bcrypt.hash(password, 10);
+
+    // Insert user
+    const [result] = await pool.query(
+      'INSERT INTO users (username, password, name, email, role) VALUES (?, ?, ?, ?, ?)',
+      [username, hashed, name, email || null, role]
+    );
+
+    res.json({ 
+      success: true, 
+      user_id: result.insertId,
+      username,
+      name,
+      role
+    });
+  } catch (err) {
+    console.error('Admin create user error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /admin/users/:id - Update user info
+app.put('/admin/users/:id', adminAuth, async (req, res) => {
+  try {
+    const { name, email, role } = req.body;
+    const updates = [];
+    const params = [];
+
+    if (name) {
+      updates.push('name = ?');
+      params.push(name);
+    }
+    if (email !== undefined) {
+      updates.push('email = ?');
+      params.push(email);
+    }
+    if (role) {
+      updates.push('role = ?');
+      params.push(role);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    params.push(req.params.id);
+
+    await pool.query(
+      `UPDATE users SET ${updates.join(', ')} WHERE user_id = ?`,
+      params
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin update user error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /admin/users/:id - Delete user
+app.delete('/admin/users/:id', adminAuth, async (req, res) => {
+  try {
+    // Prevent deleting yourself
+    if (parseInt(req.params.id) === req.user.user_id) {
+      return res.status(400).json({ error: 'Cannot delete your own account' });
+    }
+
+    await pool.query('DELETE FROM users WHERE user_id = ?', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin delete user error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /admin/users/:id/reset-password - Reset user password
+app.post('/admin/users/:id/reset-password', adminAuth, async (req, res) => {
+  try {
+    // Generate random temporary password
+    const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+    const hashed = await bcrypt.hash(tempPassword, 10);
+
+    await pool.query('UPDATE users SET password = ? WHERE user_id = ?', [hashed, req.params.id]);
+
+    res.json({ 
+      success: true, 
+      temporary_password: tempPassword 
+    });
+  } catch (err) {
+    console.error('Admin reset password error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /admin/users/:id/lock - Lock user's card
+app.post('/admin/users/:id/lock', adminAuth, async (req, res) => {
+  try {
+    const { reason } = req.body;
+
+    await pool.query('UPDATE users SET is_card_locked = 1 WHERE user_id = ?', [req.params.id]);
+
+    // TODO: Store lock reason in a separate table if needed
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin lock card error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /admin/users/:id/unlock - Unlock user's card
+app.post('/admin/users/:id/unlock', adminAuth, async (req, res) => {
+  try {
+    await pool.query('UPDATE users SET is_card_locked = 0 WHERE user_id = ?', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin unlock card error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /admin/users/:id/unpair-rfid - Unpair RFID from user
+app.post('/admin/users/:id/unpair-rfid', adminAuth, async (req, res) => {
+  try {
+    await pool.query('UPDATE users SET rfid_uid = NULL WHERE user_id = ?', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin unpair RFID error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /admin/stats - Overall system statistics
+app.get('/admin/stats', adminAuth, async (req, res) => {
+  try {
+    const [[stats]] = await pool.query(`
+      SELECT 
+        (SELECT COUNT(*) FROM users) as total_users,
+        (SELECT COUNT(*) FROM users WHERE role = 'student') as total_students,
+        (SELECT COUNT(*) FROM users WHERE role = 'staff') as total_staff,
+        (SELECT COUNT(*) FROM users WHERE role = 'vendor') as total_vendors,
+        (SELECT COUNT(*) FROM users WHERE is_card_locked = 1) as locked_cards,
+        (SELECT COUNT(*) FROM users WHERE rfid_uid IS NOT NULL) as paired_cards,
+        (SELECT COUNT(*) FROM users WHERE rfid_uid IS NULL) as unpaired_users
+      FROM DUAL
+    `);
+
+    res.json(stats);
+  } catch (err) {
+    console.error('Admin stats error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /admin/users/bulk-lock - Bulk lock cards
+app.post('/admin/users/bulk-lock', adminAuth, async (req, res) => {
+  try {
+    const { user_ids, reason } = req.body;
+    
+    if (!user_ids || !Array.isArray(user_ids) || user_ids.length === 0) {
+      return res.status(400).json({ error: 'user_ids array is required' });
+    }
+
+    const placeholders = user_ids.map(() => '?').join(',');
+    await pool.query(
+      `UPDATE users SET is_card_locked = 1 WHERE user_id IN (${placeholders})`,
+      user_ids
+    );
+
+    res.json({ success: true, affected: user_ids.length });
+  } catch (err) {
+    console.error('Admin bulk lock error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /admin/users/bulk-unlock - Bulk unlock cards
+app.post('/admin/users/bulk-unlock', adminAuth, async (req, res) => {
+  try {
+    const { user_ids } = req.body;
+    
+    if (!user_ids || !Array.isArray(user_ids) || user_ids.length === 0) {
+      return res.status(400).json({ error: 'user_ids array is required' });
+    }
+
+    const placeholders = user_ids.map(() => '?').join(',');
+    await pool.query(
+      `UPDATE users SET is_card_locked = 0 WHERE user_id IN (${placeholders})`,
+      user_ids
+    );
+
+    res.json({ success: true, affected: user_ids.length });
+  } catch (err) {
+    console.error('Admin bulk unlock error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /admin/users/bulk-role - Bulk change role
+app.post('/admin/users/bulk-role', adminAuth, async (req, res) => {
+  try {
+    const { user_ids, new_role } = req.body;
+    
+    if (!user_ids || !Array.isArray(user_ids) || user_ids.length === 0) {
+      return res.status(400).json({ error: 'user_ids array is required' });
+    }
+    if (!new_role) {
+      return res.status(400).json({ error: 'new_role is required' });
+    }
+
+    const placeholders = user_ids.map(() => '?').join(',');
+    await pool.query(
+      `UPDATE users SET role = ? WHERE user_id IN (${placeholders})`,
+      [new_role, ...user_ids]
+    );
+
+    res.json({ success: true, affected: user_ids.length });
+  } catch (err) {
+    console.error('Admin bulk role change error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /* ---------- STATIC + START ---------- */
 const port = process.env.PORT || 3000;
 app.use(express.static('public'));
