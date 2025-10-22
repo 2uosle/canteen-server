@@ -37,7 +37,24 @@ Then click the **⚡ lightning bolt icon** to execute (or press `Ctrl+Enter`)
 
 You should see: `1 row(s) affected`
 
-### Step 4: Find Your Username
+### Step 4: ⚠️ IMPORTANT - Add 'admin' to Allowed Roles
+
+**You MUST do this first, or you'll get an error!**
+
+Type and execute:
+
+```sql
+ALTER TABLE users 
+MODIFY COLUMN role ENUM('student', 'staff', 'vendor', 'admin') DEFAULT 'student';
+```
+
+Click **⚡ Execute**
+
+You should see: `Records: X  Duplicates: 0  Warnings: 0`
+
+This updates your database to accept 'admin' as a valid role!
+
+### Step 5: Find Your Username
 
 First, let's see what users you have. Type:
 
@@ -58,7 +75,7 @@ user_id | username      | name          | role
 
 **Remember the username** you want to make admin!
 
-### Step 5: Make User an Admin
+### Step 6: Make User an Admin
 
 Type this SQL (replace `cedrick` with YOUR username):
 
@@ -72,7 +89,7 @@ Click **⚡ Execute**
 
 You should see: `1 row(s) affected`
 
-### Step 6: Verify It Worked
+### Step 7: Verify It Worked
 
 Check that it was updated:
 
@@ -91,7 +108,7 @@ user_id | username | name          | role
 
 ✅ **DONE!** Your account is now an admin!
 
-### Step 7: Test Login
+### Step 8: Test Login
 
 1. Go to `http://localhost:3000`
 2. **Logout** if you're currently logged in
@@ -110,7 +127,16 @@ If you don't have any existing accounts, use this method:
 2. Connect to database
 3. Run: `USE canteen_db;`
 
-### Step 4: Create Admin Account
+### Step 4: Add 'admin' to Allowed Roles
+
+**IMPORTANT - Do this first!**
+
+```sql
+ALTER TABLE users 
+MODIFY COLUMN role ENUM('student', 'staff', 'vendor', 'admin') DEFAULT 'student';
+```
+
+### Step 5: Create Admin Account
 
 Run this SQL:
 
@@ -130,7 +156,7 @@ Click **⚡ Execute**
 
 You should see: `1 row(s) affected`
 
-### Step 5: Test Login
+### Step 6: Test Login
 
 1. Go to `http://localhost:3000`
 2. Login with:
