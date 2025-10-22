@@ -179,7 +179,7 @@
     .pill-amount { background: color-mix(in srgb, var(--accent-2) 12%, transparent); color: var(--accent-2); border:1px solid color-mix(in srgb, var(--accent-2) 35%, var(--border)); }
     .pill-info   { background: color-mix(in srgb, var(--accent) 12%, transparent);   color: var(--accent);   border:1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); }
 
-    #reloadChart { width: 100% !important; height: 140px !important; display:block; }
+    #reloadChart, #salesChart { width: 100% !important; height: 140px !important; display:block; }
 
     #loginStage { min-height: calc(100vh - 68px); display: grid; place-items: center; padding: 26px 12px; }
     #loginCard { width: min(840px, 92vw); }
@@ -639,106 +639,16 @@
 
       <!-- STAFF -->
       <section id="staffDashboard" class="d-none">
-        <div class="d-flex align-items-center justify-content-end mb-3">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <button class="btn btn-success btn-lg" onclick="openTopupModal()">
+            <i class="bi bi-wallet2 me-2"></i>Quick Top-Up
+          </button>
           <button class="btn btn-accent" onclick="openRegisterModal()">
             <i class="bi bi-person-plus me-1"></i> Register New User
           </button>
         </div>
         <div class="row g-4">
-          <div class="col-lg-4">
-            <!-- POS-Style Tap-to-Top-Up -->
-            <div class="card glass pos-card">
-              <div class="card-header d-flex align-items-center justify-content-between">
-                <span>Quick Top-Up (POS Mode)</span>
-                <span class="badge bg-success">Fast Mode</span>
-              </div>
-              <div class="card-body p-3">
-                <!-- Step 1: Enter Amount -->
-                <div id="topupStep1" class="pos-step">
-                  <div class="pos-label">ENTER AMOUNT</div>
-                  <div class="pos-amount-display">
-                    <span class="currency">₱</span>
-                    <input id="posTopupAmount" type="text" class="pos-amount-input" placeholder="0.00" inputmode="decimal" />
-                  </div>
-                  <div class="pos-keypad">
-                    <button class="pos-key" onclick="posAddDigit('topup', '1')">1</button>
-                    <button class="pos-key" onclick="posAddDigit('topup', '2')">2</button>
-                    <button class="pos-key" onclick="posAddDigit('topup', '3')">3</button>
-                    <button class="pos-key" onclick="posAddDigit('topup', '4')">4</button>
-                    <button class="pos-key" onclick="posAddDigit('topup', '5')">5</button>
-                    <button class="pos-key" onclick="posAddDigit('topup', '6')">6</button>
-                    <button class="pos-key" onclick="posAddDigit('topup', '7')">7</button>
-                    <button class="pos-key" onclick="posAddDigit('topup', '8')">8</button>
-                    <button class="pos-key" onclick="posAddDigit('topup', '9')">9</button>
-                    <button class="pos-key pos-key-special" onclick="posAddDigit('topup', '00')">00</button>
-                    <button class="pos-key" onclick="posAddDigit('topup', '0')">0</button>
-                    <button class="pos-key pos-key-clear" onclick="posClearAmount('topup')"><i class="bi bi-backspace"></i></button>
-                  </div>
-                  <div class="pos-quick-amounts">
-                    <button class="pos-quick-btn" onclick="posSetAmount('topup', '50')">₱50</button>
-                    <button class="pos-quick-btn" onclick="posSetAmount('topup', '100')">₱100</button>
-                    <button class="pos-quick-btn" onclick="posSetAmount('topup', '200')">₱200</button>
-                    <button class="pos-quick-btn" onclick="posSetAmount('topup', '500')">₱500</button>
-                  </div>
-                  <button class="pos-btn pos-btn-primary" onclick="posConfirmTopup()">
-                    <i class="bi bi-check-circle me-2"></i>CONTINUE
-                  </button>
-                </div>
-
-                <!-- Step 2: Confirm -->
-                <div id="topupStep2" class="pos-step d-none">
-                  <div class="pos-confirm-header">CONFIRM TOP-UP</div>
-                  <div class="pos-confirm-amount">
-                    <div class="pos-confirm-label">Amount to reload:</div>
-                    <div id="topupConfirmAmount" class="pos-confirm-value">₱0.00</div>
-                  </div>
-                  <div class="pos-btn-group">
-                    <button class="pos-btn pos-btn-secondary" onclick="posBackToStep('topup', 1)">
-                      <i class="bi bi-arrow-left me-2"></i>BACK
-                    </button>
-                    <button class="pos-btn pos-btn-success" onclick="posStartTopupTap()">
-                      <i class="bi bi-check-circle me-2"></i>CONFIRM
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Step 3: Tap Card -->
-                <div id="topupStep3" class="pos-step d-none">
-                  <div class="pos-tap-screen">
-                    <div class="pos-tap-icon">
-                      <i class="bi bi-credit-card-2-front"></i>
-                    </div>
-                    <div class="pos-tap-text">TAP CARD NOW</div>
-                    <div class="pos-tap-amount" id="topupTapAmount">₱0.00</div>
-                    <div class="pos-tap-status" id="topupTapStatus">Waiting for card...</div>
-                    <div class="pos-loading">
-                      <div class="pos-loading-bar"></div>
-                    </div>
-                  </div>
-                  <button class="pos-btn pos-btn-danger mt-3" onclick="posCancelTopup()">
-                    <i class="bi bi-x-circle me-2"></i>CANCEL
-                  </button>
-                </div>
-
-                <!-- Step 4: Success -->
-                <div id="topupStep4" class="pos-step d-none">
-                  <div class="pos-success-screen">
-                    <div class="pos-success-icon">
-                      <i class="bi bi-check-circle-fill"></i>
-                    </div>
-                    <div class="pos-success-text">TOP-UP SUCCESSFUL!</div>
-                    <div class="pos-success-amount" id="topupSuccessAmount">₱0.00</div>
-                    <div class="pos-success-details" id="topupSuccessDetails"></div>
-                  </div>
-                  <button class="pos-btn pos-btn-primary" onclick="posResetTopup()">
-                    <i class="bi bi-arrow-repeat me-2"></i>NEW TOP-UP
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="col-lg-8">
+          <div class="col-12">
             <div class="card glass mb-4">
               <div class="card-header d-flex align-items-center justify-content-between">
                 <span>Recent Reloads</span>
@@ -790,118 +700,31 @@
 
       <!-- VENDOR -->
       <section id="vendorDashboard" class="d-none">
+        <div class="d-flex align-items-center justify-content-start mb-3">
+          <button class="btn btn-danger btn-lg" onclick="openSaleModal()">
+            <i class="bi bi-cart-plus me-2"></i>Record Sale
+          </button>
+        </div>
         <div class="row g-4">
-          <div class="col-lg-4">
-            <!-- POS-Style Sale Interface -->
-            <div class="card glass pos-card">
-              <div class="card-header d-flex align-items-center justify-content-between">
-                <span>Record Sale (POS Mode)</span>
-                <span class="badge bg-danger">Live Mode</span>
-              </div>
-              <div class="card-body p-3">
-                <!-- Step 1: Select Item & Amount -->
-                <div id="saleStep1" class="pos-step">
-                  <div class="pos-label">SELECT ITEM</div>
-                  <select id="posSaleItemSelect" class="pos-select mb-3" onchange="posUpdateSalePrice()">
-                    <option value="">-- Choose from menu --</option>
-                  </select>
-                  <div class="text-center small text-secondary mb-2">OR</div>
-                  <input id="posSaleItemManual" type="text" class="pos-input mb-3" placeholder="Enter custom item name" />
-                  
-                  <div class="pos-label mt-3">ENTER AMOUNT</div>
-                  <div class="pos-amount-display">
-                    <span class="currency">₱</span>
-                    <input id="posSaleAmount" type="text" class="pos-amount-input" placeholder="0.00" inputmode="decimal" />
-                  </div>
-                  <div class="pos-keypad">
-                    <button class="pos-key" onclick="posAddDigit('sale', '1')">1</button>
-                    <button class="pos-key" onclick="posAddDigit('sale', '2')">2</button>
-                    <button class="pos-key" onclick="posAddDigit('sale', '3')">3</button>
-                    <button class="pos-key" onclick="posAddDigit('sale', '4')">4</button>
-                    <button class="pos-key" onclick="posAddDigit('sale', '5')">5</button>
-                    <button class="pos-key" onclick="posAddDigit('sale', '6')">6</button>
-                    <button class="pos-key" onclick="posAddDigit('sale', '7')">7</button>
-                    <button class="pos-key" onclick="posAddDigit('sale', '8')">8</button>
-                    <button class="pos-key" onclick="posAddDigit('sale', '9')">9</button>
-                    <button class="pos-key pos-key-special" onclick="posAddDigit('sale', '00')">00</button>
-                    <button class="pos-key" onclick="posAddDigit('sale', '0')">0</button>
-                    <button class="pos-key pos-key-clear" onclick="posClearAmount('sale')"><i class="bi bi-backspace"></i></button>
-                  </div>
-                  <button class="pos-btn pos-btn-primary" onclick="posConfirmSale()">
-                    <i class="bi bi-check-circle me-2"></i>CONTINUE
-                  </button>
-                </div>
-
-                <!-- Step 2: Confirm Sale -->
-                <div id="saleStep2" class="pos-step d-none">
-                  <div class="pos-confirm-header">CONFIRM SALE</div>
-                  <div class="pos-confirm-details">
-                    <div class="pos-confirm-row">
-                      <span class="pos-confirm-label">Item:</span>
-                      <span id="saleConfirmItem" class="pos-confirm-value">-</span>
-                    </div>
-                    <div class="pos-confirm-row">
-                      <span class="pos-confirm-label">Amount:</span>
-                      <span id="saleConfirmAmount" class="pos-confirm-value">₱0.00</span>
-                    </div>
-                  </div>
-                  <div class="pos-btn-group">
-                    <button class="pos-btn pos-btn-secondary" onclick="posBackToStep('sale', 1)">
-                      <i class="bi bi-arrow-left me-2"></i>BACK
-                    </button>
-                    <button class="pos-btn pos-btn-danger" onclick="posStartSaleTap()">
-                      <i class="bi bi-check-circle me-2"></i>CONFIRM
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Step 3: Tap Card -->
-                <div id="saleStep3" class="pos-step d-none">
-                  <div class="pos-tap-screen">
-                    <div class="pos-tap-icon">
-                      <i class="bi bi-credit-card-2-front"></i>
-                    </div>
-                    <div class="pos-tap-text">TAP CARD NOW</div>
-                    <div class="pos-tap-item" id="saleTapItem">Item</div>
-                    <div class="pos-tap-amount" id="saleTapAmount">₱0.00</div>
-                    <div class="pos-tap-status" id="saleTapStatus">Waiting for card...</div>
-                    <div class="pos-loading">
-                      <div class="pos-loading-bar"></div>
-                    </div>
-                  </div>
-                  <button class="pos-btn pos-btn-danger mt-3" onclick="posCancelSale()">
-                    <i class="bi bi-x-circle me-2"></i>CANCEL
-                  </button>
-                </div>
-
-                <!-- Step 4: Success -->
-                <div id="saleStep4" class="pos-step d-none">
-                  <div class="pos-success-screen">
-                    <div class="pos-success-icon">
-                      <i class="bi bi-check-circle-fill"></i>
-                    </div>
-                    <div class="pos-success-text">SALE COMPLETED!</div>
-                    <div class="pos-success-amount" id="saleSuccessAmount">₱0.00</div>
-                    <div class="pos-success-details" id="saleSuccessDetails"></div>
-                  </div>
-                  <button class="pos-btn pos-btn-primary" onclick="posResetSale()">
-                    <i class="bi bi-arrow-repeat me-2"></i>NEW SALE
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="col-lg-8">
+          <div class="col-12">
             <div class="card glass">
               <div class="card-header d-flex align-items-center justify-content-between">
                 <span>Recent Sales</span>
-                <button class="btn btn-outline-secondary btn-sm" onclick="loadSales()">
-                  <i class="bi bi-arrow-clockwise me-1"></i>Refresh
-                </button>
+                <div class="d-flex align-items-center gap-2">
+                  <span id="salesKpiToday" class="pill pill-amount d-none"></span>
+                  <span id="salesKpi7d" class="pill pill-info d-none"></span>
+                  <button class="btn btn-outline-secondary btn-sm" onclick="loadSales()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                  </button>
+                </div>
               </div>
               <div class="card-body">
-                <div class="table-responsive">
+                <div class="row g-3">
+                  <div class="col-12">
+                    <canvas id="salesChart" height="140"></canvas>
+                  </div>
+                  <div class="col-12">
+                    <div class="table-responsive">
                   <table class="table align-middle mb-0">
                     <thead>
                       <tr>
@@ -915,6 +738,8 @@
                       <tr><td colspan="4" class="text-center text-secondary">No data</td></tr>
                     </tbody>
                   </table>
+                </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1115,6 +940,204 @@
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top-Up Modal (Staff) -->
+  <div class="modal fade" id="topupModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass">
+        <div class="modal-header border-0">
+          <h5 class="modal-title"><i class="bi bi-wallet2 me-2"></i>Quick Top-Up</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Step 1: Enter Amount -->
+          <div id="topupStep1" class="pos-step">
+            <div class="pos-label">ENTER AMOUNT</div>
+            <div class="pos-amount-display">
+              <span class="currency">₱</span>
+              <input id="posTopupAmount" type="text" class="pos-amount-input" placeholder="0.00" inputmode="decimal" />
+            </div>
+            <div class="pos-keypad">
+              <button class="pos-key" onclick="posAddDigit('topup', '1')">1</button>
+              <button class="pos-key" onclick="posAddDigit('topup', '2')">2</button>
+              <button class="pos-key" onclick="posAddDigit('topup', '3')">3</button>
+              <button class="pos-key" onclick="posAddDigit('topup', '4')">4</button>
+              <button class="pos-key" onclick="posAddDigit('topup', '5')">5</button>
+              <button class="pos-key" onclick="posAddDigit('topup', '6')">6</button>
+              <button class="pos-key" onclick="posAddDigit('topup', '7')">7</button>
+              <button class="pos-key" onclick="posAddDigit('topup', '8')">8</button>
+              <button class="pos-key" onclick="posAddDigit('topup', '9')">9</button>
+              <button class="pos-key pos-key-special" onclick="posAddDigit('topup', '00')">00</button>
+              <button class="pos-key" onclick="posAddDigit('topup', '0')">0</button>
+              <button class="pos-key pos-key-clear" onclick="posClearAmount('topup')"><i class="bi bi-backspace"></i></button>
+            </div>
+            <div class="pos-quick-amounts">
+              <button class="pos-quick-btn" onclick="posSetAmount('topup', '50')">₱50</button>
+              <button class="pos-quick-btn" onclick="posSetAmount('topup', '100')">₱100</button>
+              <button class="pos-quick-btn" onclick="posSetAmount('topup', '200')">₱200</button>
+              <button class="pos-quick-btn" onclick="posSetAmount('topup', '500')">₱500</button>
+            </div>
+            <button class="pos-btn pos-btn-primary" onclick="posConfirmTopup()">
+              <i class="bi bi-check-circle me-2"></i>CONTINUE
+            </button>
+          </div>
+
+          <!-- Step 2: Confirm -->
+          <div id="topupStep2" class="pos-step d-none">
+            <div class="pos-confirm-header">CONFIRM TOP-UP</div>
+            <div class="pos-confirm-amount">
+              <div class="pos-confirm-label">Amount to reload:</div>
+              <div id="topupConfirmAmount" class="pos-confirm-value">₱0.00</div>
+            </div>
+            <div class="pos-btn-group">
+              <button class="pos-btn pos-btn-secondary" onclick="posBackToStep('topup', 1)">
+                <i class="bi bi-arrow-left me-2"></i>BACK
+              </button>
+              <button class="pos-btn pos-btn-success" onclick="posStartTopupTap()">
+                <i class="bi bi-check-circle me-2"></i>CONFIRM
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 3: Tap Card -->
+          <div id="topupStep3" class="pos-step d-none">
+            <div class="pos-tap-screen">
+              <div class="pos-tap-icon">
+                <i class="bi bi-credit-card-2-front"></i>
+              </div>
+              <div class="pos-tap-text">TAP CARD NOW</div>
+              <div class="pos-tap-amount" id="topupTapAmount">₱0.00</div>
+              <div class="pos-tap-status" id="topupTapStatus">Waiting for card...</div>
+              <div class="pos-loading">
+                <div class="pos-loading-bar"></div>
+              </div>
+            </div>
+            <button class="pos-btn pos-btn-danger mt-3" onclick="posCancelTopup()">
+              <i class="bi bi-x-circle me-2"></i>CANCEL
+            </button>
+          </div>
+
+          <!-- Step 4: Success -->
+          <div id="topupStep4" class="pos-step d-none">
+            <div class="pos-success-screen">
+              <div class="pos-success-icon">
+                <i class="bi bi-check-circle-fill"></i>
+              </div>
+              <div class="pos-success-text">TOP-UP SUCCESSFUL!</div>
+              <div class="pos-success-amount" id="topupSuccessAmount">₱0.00</div>
+              <div class="pos-success-details" id="topupSuccessDetails"></div>
+            </div>
+            <button class="pos-btn pos-btn-primary" onclick="posResetTopup()">
+              <i class="bi bi-arrow-repeat me-2"></i>NEW TOP-UP
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sale Modal (Vendor) -->
+  <div class="modal fade" id="saleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass">
+        <div class="modal-header border-0">
+          <h5 class="modal-title"><i class="bi bi-cart-plus me-2"></i>Record Sale</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Step 1: Select Item & Amount -->
+          <div id="saleStep1" class="pos-step">
+            <div class="pos-label">SELECT ITEM</div>
+            <select id="posSaleItemSelect" class="pos-select mb-3" onchange="posUpdateSalePrice()">
+              <option value="">-- Choose from menu --</option>
+            </select>
+            <div class="text-center small text-secondary mb-2">OR</div>
+            <input id="posSaleItemManual" type="text" class="pos-input mb-3" placeholder="Enter custom item name" />
+            
+            <div class="pos-label mt-3">ENTER AMOUNT</div>
+            <div class="pos-amount-display">
+              <span class="currency">₱</span>
+              <input id="posSaleAmount" type="text" class="pos-amount-input" placeholder="0.00" inputmode="decimal" />
+            </div>
+            <div class="pos-keypad">
+              <button class="pos-key" onclick="posAddDigit('sale', '1')">1</button>
+              <button class="pos-key" onclick="posAddDigit('sale', '2')">2</button>
+              <button class="pos-key" onclick="posAddDigit('sale', '3')">3</button>
+              <button class="pos-key" onclick="posAddDigit('sale', '4')">4</button>
+              <button class="pos-key" onclick="posAddDigit('sale', '5')">5</button>
+              <button class="pos-key" onclick="posAddDigit('sale', '6')">6</button>
+              <button class="pos-key" onclick="posAddDigit('sale', '7')">7</button>
+              <button class="pos-key" onclick="posAddDigit('sale', '8')">8</button>
+              <button class="pos-key" onclick="posAddDigit('sale', '9')">9</button>
+              <button class="pos-key pos-key-special" onclick="posAddDigit('sale', '00')">00</button>
+              <button class="pos-key" onclick="posAddDigit('sale', '0')">0</button>
+              <button class="pos-key pos-key-clear" onclick="posClearAmount('sale')"><i class="bi bi-backspace"></i></button>
+            </div>
+            <button class="pos-btn pos-btn-primary" onclick="posConfirmSale()">
+              <i class="bi bi-check-circle me-2"></i>CONTINUE
+            </button>
+          </div>
+
+          <!-- Step 2: Confirm Sale -->
+          <div id="saleStep2" class="pos-step d-none">
+            <div class="pos-confirm-header">CONFIRM SALE</div>
+            <div class="pos-confirm-details">
+              <div class="pos-confirm-row">
+                <span class="pos-confirm-label">Item:</span>
+                <span id="saleConfirmItem" class="pos-confirm-value">-</span>
+              </div>
+              <div class="pos-confirm-row">
+                <span class="pos-confirm-label">Amount:</span>
+                <span id="saleConfirmAmount" class="pos-confirm-value">₱0.00</span>
+              </div>
+            </div>
+            <div class="pos-btn-group">
+              <button class="pos-btn pos-btn-secondary" onclick="posBackToStep('sale', 1)">
+                <i class="bi bi-arrow-left me-2"></i>BACK
+              </button>
+              <button class="pos-btn pos-btn-danger" onclick="posStartSaleTap()">
+                <i class="bi bi-check-circle me-2"></i>CONFIRM
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 3: Tap Card -->
+          <div id="saleStep3" class="pos-step d-none">
+            <div class="pos-tap-screen">
+              <div class="pos-tap-icon">
+                <i class="bi bi-credit-card-2-front"></i>
+              </div>
+              <div class="pos-tap-text">TAP CARD NOW</div>
+              <div class="pos-tap-item" id="saleTapItem">Item</div>
+              <div class="pos-tap-amount" id="saleTapAmount">₱0.00</div>
+              <div class="pos-tap-status" id="saleTapStatus">Waiting for card...</div>
+              <div class="pos-loading">
+                <div class="pos-loading-bar"></div>
+              </div>
+            </div>
+            <button class="pos-btn pos-btn-danger mt-3" onclick="posCancelSale()">
+              <i class="bi bi-x-circle me-2"></i>CANCEL
+            </button>
+          </div>
+
+          <!-- Step 4: Success -->
+          <div id="saleStep4" class="pos-step d-none">
+            <div class="pos-success-screen">
+              <div class="pos-success-icon">
+                <i class="bi bi-check-circle-fill"></i>
+              </div>
+              <div class="pos-success-text">SALE COMPLETED!</div>
+              <div class="pos-success-amount" id="saleSuccessAmount">₱0.00</div>
+              <div class="pos-success-details" id="saleSuccessDetails"></div>
+            </div>
+            <button class="pos-btn pos-btn-primary" onclick="posResetSale()">
+              <i class="bi bi-arrow-repeat me-2"></i>NEW SALE
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1493,6 +1516,8 @@
       posState.topup = { amount: '', pendingId: null, interval: null };
       $('posTopupAmount').value = '';
       posShowStep('topup', 1);
+      // Close modal
+      bootstrap.Modal.getInstance(document.getElementById('topupModal'))?.hide();
     }
 
     // ========== SALE FLOW ==========
@@ -1612,6 +1637,8 @@
       $('posSaleItemManual').value = '';
       $('posSaleItemSelect').selectedIndex = 0;
       posShowStep('sale', 1);
+      // Close modal
+      bootstrap.Modal.getInstance(document.getElementById('saleModal'))?.hide();
     }
 
     function posUpdateSalePrice() {
@@ -1650,17 +1677,128 @@
       const list = rows.slice(0,10);
       if (!list.length){
         tbody.innerHTML = `<tr><td colspan="4" class="text-center text-secondary">No data</td></tr>`;
-        return;
+      } else {
+        let todayTotal = 0;
+        const todayStr = new Date().toDateString();
+
+        const now = new Date();
+        const start7d = new Date(now.getFullYear(), now.getMonth(), now.getDate()-6);
+        let sevenDayTotal = 0;
+
+        list.forEach(r=>{
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td class="text-secondary">${fmtTime(r.timestamp)}</td>
+            <td>${r.user_name || ""}</td>
+            <td>${r.item_name || ""}</td>
+            <td class="text-end fw-semibold">${fmtMoney(r.amount)}</td>`;
+          tbody.appendChild(tr);
+        });
+
+        rows.forEach(r=>{
+          const t = new Date(r.timestamp);
+          if (t.toDateString() === todayStr) todayTotal += Number(r.amount||0);
+          if (t >= start7d) sevenDayTotal += Number(r.amount||0);
+        });
+
+        const kpiToday = $("salesKpiToday");
+        const kpi7d = $("salesKpi7d");
+        kpiToday.textContent = `Today: ${fmtMoney(todayTotal)}`;
+        kpi7d.textContent = `7-day: ${fmtMoney(sevenDayTotal)}`;
+        show(kpiToday); show(kpi7d);
+
+        try {
+          const daysBack = 7;
+          const totals = {};
+          for (let i=0;i<daysBack;i++){
+            const d = new Date(); d.setDate(d.getDate()-i);
+            totals[new Date(d.getFullYear(), d.getMonth(), d.getDate()).toDateString()] = 0;
+          }
+          rows.forEach(r=>{
+            const d = new Date(new Date(r.timestamp).getFullYear(), new Date(r.timestamp).getMonth(), new Date(r.timestamp).getDate()).toDateString();
+            if (Object.prototype.hasOwnProperty.call(totals, d)) totals[d] += Number(r.amount||0);
+          });
+
+          const labels = Object.keys(totals).reverse();
+          const dataPoints = labels.map(l=>totals[l]);
+
+          const theme = getThemeColors();
+          const canvas = document.getElementById('salesChart');
+          if (!canvas) return;
+
+          const ctx = canvas.getContext('2d');
+          const gradient = ctx.createLinearGradient(0,0,0,canvas.height);
+          gradient.addColorStop(0, hexToRgba(theme.danger, 0.25));
+          gradient.addColorStop(1, hexToRgba(theme.danger, 0.05));
+
+          if (window._salesChartInstance) {
+            const ch = window._salesChartInstance;
+            ch.data.labels = labels;
+            ch.data.datasets[0].data = dataPoints;
+            ch.data.datasets[0].borderColor = theme.danger;
+            ch.data.datasets[0].backgroundColor = gradient;
+            ch.update();
+          } else {
+            window._salesChartInstance = new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels: labels,
+                datasets: [{
+                  label: 'Sales (₱)',
+                  data: dataPoints,
+                  borderColor: theme.danger,
+                  backgroundColor: gradient,
+                  borderWidth: 3,
+                  pointRadius: 4,
+                  pointBackgroundColor: theme.danger,
+                  pointBorderColor: '#fff',
+                  pointBorderWidth: 2,
+                  pointHoverRadius: 6,
+                  fill: true,
+                  tension: 0.4
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
+                plugins: {
+                  legend: { display: false },
+                  tooltip: {
+                    backgroundColor: theme.surface2,
+                    titleColor: theme.text,
+                    bodyColor: theme.text,
+                    borderColor: theme.border,
+                    borderWidth: 1,
+                    padding: 12,
+                    displayColors: false,
+                    callbacks: {
+                      label: c=> 'Sales: ' + fmtMoney(c.parsed.y)
+                    }
+                  }
+                },
+                scales: {
+                  x: {
+                    ticks: { color: theme.text, font:{ size:10 }, callback:(v,i,ticks)=>{
+                      const l = labels[i];
+                      const d = new Date(l);
+                      return (d.getMonth()+1) + '/' + d.getDate();
+                    }},
+                    grid: { color: theme.border, drawBorder: false }
+                  },
+                  y: {
+                    beginAtZero: true,
+                    ticks: { color: theme.text, font:{size:10}, callback: v=>'₱'+v },
+                    grid: { color: theme.border, drawBorder: false }
+                  }
+                }
+              }
+            });
+          }
+        } catch(e){
+          console.error('Sales chart error:', e);
+        }
       }
-      list.forEach(r=>{
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td class="text-secondary">${fmtTime(r.timestamp)}</td>
-          <td>${r.user_name || ""}</td>
-          <td>${r.item_name || ""}</td>
-          <td class="text-end fw-semibold">${fmtMoney(r.amount)}</td>`;
-        tbody.appendChild(tr);
-      });
     }
 
     /* Staff: reloads + tap-to-top-up */
@@ -1818,25 +1956,49 @@
     }
     function refreshChartStyles(){
       const ch = window._reloadChartInstance;
-      if (!ch) return;
-      const theme = getThemeColors();
-      ch.options.scales.x.ticks.color = theme.text;
-      ch.options.scales.y.ticks.color = theme.text;
-      ch.options.scales.x.grid.color = theme.border;
-      ch.options.scales.y.grid.color = theme.border;
-      ch.options.plugins.tooltip.backgroundColor = theme.surface2;
-      ch.options.plugins.tooltip.titleColor = theme.text;
-      ch.options.plugins.tooltip.bodyColor = theme.text;
-      ch.options.plugins.tooltip.borderColor = theme.border;
-      ch.data.datasets[0].borderColor = theme.accent2;
+      if (ch) {
+        const theme = getThemeColors();
+        ch.options.scales.x.ticks.color = theme.text;
+        ch.options.scales.y.ticks.color = theme.text;
+        ch.options.scales.x.grid.color = theme.border;
+        ch.options.scales.y.grid.color = theme.border;
+        ch.options.plugins.tooltip.backgroundColor = theme.surface2;
+        ch.options.plugins.tooltip.titleColor = theme.text;
+        ch.options.plugins.tooltip.bodyColor = theme.text;
+        ch.options.plugins.tooltip.borderColor = theme.border;
+        ch.data.datasets[0].borderColor = theme.accent2;
 
-      const canvas = ch.canvas;
-      const ctx = canvas.getContext('2d');
-      const gradient = ctx.createLinearGradient(0,0,0,canvas.height);
-      gradient.addColorStop(0, hexToRgba(theme.accent2, 0.25));
-      gradient.addColorStop(1, hexToRgba(theme.accent2, 0.05));
-      ch.data.datasets[0].backgroundColor = gradient;
-      ch.update();
+        const canvas = ch.canvas;
+        const ctx = canvas.getContext('2d');
+        const gradient = ctx.createLinearGradient(0,0,0,canvas.height);
+        gradient.addColorStop(0, hexToRgba(theme.accent2, 0.25));
+        gradient.addColorStop(1, hexToRgba(theme.accent2, 0.05));
+        ch.data.datasets[0].backgroundColor = gradient;
+        ch.update();
+      }
+
+      // Update sales chart
+      const ch2 = window._salesChartInstance;
+      if (ch2) {
+        const theme = getThemeColors();
+        ch2.options.scales.x.ticks.color = theme.text;
+        ch2.options.scales.y.ticks.color = theme.text;
+        ch2.options.scales.x.grid.color = theme.border;
+        ch2.options.scales.y.grid.color = theme.border;
+        ch2.options.plugins.tooltip.backgroundColor = theme.surface2;
+        ch2.options.plugins.tooltip.titleColor = theme.text;
+        ch2.options.plugins.tooltip.bodyColor = theme.text;
+        ch2.options.plugins.tooltip.borderColor = theme.border;
+        ch2.data.datasets[0].borderColor = theme.danger;
+
+        const canvas2 = ch2.canvas;
+        const ctx2 = canvas2.getContext('2d');
+        const gradient2 = ctx2.createLinearGradient(0,0,0,canvas2.height);
+        gradient2.addColorStop(0, hexToRgba(theme.danger, 0.25));
+        gradient2.addColorStop(1, hexToRgba(theme.danger, 0.05));
+        ch2.data.datasets[0].backgroundColor = gradient2;
+        ch2.update();
+      }
     }
 
     async function downloadReport(){
@@ -1860,6 +2022,12 @@
     function bsModal(id){ return new bootstrap.Modal(document.getElementById(id)); }
     function openRegisterModal(){
       bsModal('registerModal').show();
+    }
+    function openTopupModal(){
+      bsModal('topupModal').show();
+    }
+    function openSaleModal(){
+      bsModal('saleModal').show();
     }
     async function openSettings(){
       // Fill common info
