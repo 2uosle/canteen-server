@@ -29,8 +29,11 @@ const generalLimiter = rateLimit({
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   skip: (req) => {
     // Skip rate limiting for localhost in development
+    const isDev = process.env.NODE_ENV !== 'production';
     const isLocalhost = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
-    return process.env.NODE_ENV !== 'production' && isLocalhost;
+    const shouldSkip = isDev && isLocalhost;
+    console.log(`[Rate Limit] IP: ${req.ip}, isDev: ${isDev}, isLocalhost: ${isLocalhost}, skip: ${shouldSkip}`);
+    return shouldSkip;
   }
 });
 
@@ -42,8 +45,11 @@ const authLimiter = rateLimit({
   skipSuccessfulRequests: true, // Don't count successful requests
   skip: (req) => {
     // Skip rate limiting for localhost in development
+    const isDev = process.env.NODE_ENV !== 'production';
     const isLocalhost = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
-    return process.env.NODE_ENV !== 'production' && isLocalhost;
+    const shouldSkip = isDev && isLocalhost;
+    console.log(`[Auth Rate Limit] IP: ${req.ip}, isDev: ${isDev}, isLocalhost: ${isLocalhost}, skip: ${shouldSkip}`);
+    return shouldSkip;
   }
 });
 

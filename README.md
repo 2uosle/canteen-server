@@ -19,9 +19,24 @@ npm install
 ```
 
 ### 2. Configure Environment
+
+**Option 1: Interactive Setup (Recommended)**
 ```bash
-cp .env.example .env
-# Edit .env with your database credentials
+.\setup-env.ps1
+# Follow the wizard to create .env
+```
+
+**Option 2: Manual Setup**
+```bash
+copy env.template .env
+notepad .env
+# Fill in your database credentials and other settings
+```
+
+**Option 3: Validate Existing .env**
+```bash
+.\validate-env.ps1
+# Checks if your .env is properly configured
 ```
 
 ### 3. Setup Database
