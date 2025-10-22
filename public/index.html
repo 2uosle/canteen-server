@@ -1567,7 +1567,10 @@
           if (userRole === "staff") { show($("staffDashboard")); loadReloads(); }
           else if (userRole === "vendor") { show($("vendorDashboard")); loadMenuItems(); loadSales(); }
           else if (userRole === "student") { show($("studentDashboard")); loadMyBalance(); loadMyTransactions(); loadMyReloads(); }
-          else if (userRole === "admin") { show($("adminDashboard")); adminLoadStats(); adminLoadUsers(); }
+          else if (userRole === "admin") { 
+            show($("adminDashboard")); 
+            setTimeout(() => { adminLoadStats(); adminLoadUsers(); }, 100);
+          }
 
           toast("Login successful", "success");
         } else {
@@ -1600,7 +1603,10 @@
         if (userRole === "staff") { show($("staffDashboard")); loadReloads(); }
         else if (userRole === "vendor") { show($("vendorDashboard")); loadMenuItems(); loadSales(); }
         else if (userRole === "student") { show($("studentDashboard")); loadMyBalance(); loadMyTransactions(); loadMyReloads(); }
-        else if (userRole === "admin") { show($("adminDashboard")); adminLoadStats(); adminLoadUsers(); }
+        else if (userRole === "admin") { 
+          show($("adminDashboard")); 
+          setTimeout(() => { adminLoadStats(); adminLoadUsers(); }, 100);
+        }
       }
     })();
 
@@ -2611,10 +2617,10 @@ rows.forEach(r => {
     async function adminLoadUsers(page = 1) {
       try {
         adminCurrentPage = page;
-        const search = $("adminSearchInput").value;
-        const role = $("adminFilterRole").value;
-        const cardStatus = $("adminFilterCardStatus").value;
-        const rfidStatus = $("adminFilterRFID").value;
+        const search = $("adminSearchInput")?.value || '';
+        const role = $("adminFilterRole")?.value || '';
+        const cardStatus = $("adminFilterCardStatus")?.value || '';
+        const rfidStatus = $("adminFilterRFID")?.value || '';
 
         const params = new URLSearchParams({
           page,
@@ -2628,6 +2634,11 @@ rows.forEach(r => {
         const res = await fetch(API_BASE + "/admin/users?" + params, {
           headers: { "Authorization": "Bearer " + token }
         });
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        
         const data = await res.json();
 
         const tbody = $("adminUsersTbody");
