@@ -1736,10 +1736,6 @@
         kpi7d.textContent = `7-day: ${fmtMoney(sevenDayTotal)}`;
         show(kpiToday); show(kpi7d);
 
-        const chip = $("reloadsToday");
-        chip.textContent = `Today: ${fmtMoney(todayTotal)}`;
-        show(chip);
-
         try {
           const daysBack = 7;
           const totals = {};
