@@ -421,7 +421,7 @@ app.get('/report/csv', async (req, res) => {
          t.tx_id, 
          u.name AS student, 
          COALESCE(m.item_name, t.custom_item) AS item_name, 
-         CONCAT('₱', FORMAT(t.amount, 2)) AS amount,
+         FORMAT(t.amount, 2) AS amount,
          DATE_FORMAT(t.timestamp, '%m/%d/%Y %H:%i:%s') AS timestamp
        FROM transactions t
        JOIN users u ON t.user_id = u.user_id
@@ -446,7 +446,7 @@ app.get('/reloads/csv', auth('staff'), async (req, res) => {
          r.reload_id, 
          u.name AS student, 
          s.name AS cashier, 
-         CONCAT('₱', FORMAT(r.amount, 2)) AS amount,
+         FORMAT(r.amount, 2) AS amount,
          DATE_FORMAT(r.timestamp, '%m/%d/%Y %H:%i:%s') AS timestamp
        FROM reloads r
        JOIN users u ON r.user_id = u.user_id
