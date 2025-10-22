@@ -31,6 +31,12 @@ const {
 const app = express();
 
 /* =====================
+   WEBSOCKET INTEGRATION
+   ===================== */
+// Import WebSocket server
+const { broadcast, sendToUser, sendToRole, getStats: getWsStats } = require('./config/websocket');
+
+/* =====================
    SECURITY MIDDLEWARE
    ===================== */
 // Helmet: Sets secure HTTP headers
@@ -139,6 +145,12 @@ app.get('/health', async (req, res) => {
   res.json({ ok: true, db: dbOk });
 });
 
+// WebSocket stats (staff only)
+app.get('/ws/stats', auth('staff'), (req, res) => {
+  const stats = getWsStats();
+  res.json(stats);
+});
+
 // Create user (staff-managed account creation)
 app.post('/addUser', auth('staff'), validate(addUserSchema), async (req, res) => {
   try {
@@ -206,6 +218,23 @@ app.post('/reload', auth('staff'), validate(reloadSchema), async (req, res) => {
     } finally {
       conn.release();
     }
+
+    // Broadcast balance update via WebSocket
+    sendToUser(student.user_id, 'balance_updated', {
+      user_id: student.user_id,
+      new_balance: newBal,
+      amount: price,
+      type: 'reload',
+      cashier_id
+    });
+
+    // Notify all staff about the reload
+    sendToRole('staff', 'reload_completed', {
+      user_id: student.user_id,
+      amount: price,
+      new_balance: newBal,
+      cashier_id
+    });
 
     res.json({ success: true, user_id: student.user_id, new_balance: newBal, cashier_id });
   } catch (err) {
@@ -281,7 +310,28 @@ app.post('/transaction', validate(transactionSchema), async (req, res) => {
       conn.release();
     }
 
-    res.json({ success: true, balance: Number(user.balance) - price });
+    const newBalance = Number(user.balance) - price;
+
+    // Broadcast balance update via WebSocket
+    sendToUser(user.user_id, 'balance_updated', {
+      user_id: user.user_id,
+      new_balance: newBalance,
+      amount: -price,
+      type: 'transaction',
+      item_id,
+      device_id
+    });
+
+    // Broadcast transaction to all vendors
+    sendToRole('vendor', 'transaction_completed', {
+      user_id: user.user_id,
+      amount: price,
+      item_id,
+      device_id,
+      new_balance: newBalance
+    });
+
+    res.json({ success: true, balance: newBalance });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -771,6 +821,25 @@ app.post('/pending-sale/confirm', validate(confirmPendingSchema), async (req, re
     }
 
     const newBal = parseFloat(student.balance) - price;
+
+    // Broadcast balance update to student
+    sendToUser(student.user_id, 'balance_updated', {
+      user_id: student.user_id,
+      new_balance: newBal,
+      amount: -price,
+      type: 'sale',
+      item_name: sale.item_name
+    });
+
+    // Broadcast sale completion to vendor
+    sendToRole('vendor', 'sale_completed', {
+      pending_id,
+      user_id: student.user_id,
+      item_name: sale.item_name,
+      amount: price,
+      new_balance: newBal
+    });
+
     res.json({ success: true, balance: newBal });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -870,6 +939,26 @@ app.post('/pending-reload/confirm', validate(confirmPendingSchema), async (req, 
     }
 
     const newBal = parseFloat(user.balance) + parseFloat(reloadReq.amount);
+
+    // Broadcast balance update to student
+    sendToUser(user.user_id, 'balance_updated', {
+      user_id: user.user_id,
+      new_balance: newBal,
+      amount: parseFloat(reloadReq.amount),
+      type: 'reload',
+      cashier_id: reloadReq.cashier_id
+    });
+
+    // Notify staff about completed reload
+    sendToRole('staff', 'reload_completed', {
+      pending_id,
+      user_id: user.user_id,
+      amount: reloadReq.amount,
+      new_balance: newBal,
+      cashier_id: reloadReq.cashier_id,
+      device_id
+    });
+
     res.json({ success: true, balance: newBal, device_id: device_id || null });
   } catch (err) {
     console.error(err);
