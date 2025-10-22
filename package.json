@@ -1,12 +1,22 @@
 {
   "name": "canteen-server",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Smart Canteen Cashless Payment System",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest --coverage --verbose",
+    "test:watch": "jest --watch",
+    "test:quick": "jest --bail"
   },
-  "keywords": [],
+  "jest": {
+    "testEnvironment": "node",
+    "setupFilesAfterEnv": ["<rootDir>/tests/setup.js"],
+    "coveragePathIgnorePatterns": ["/node_modules/"],
+    "testMatch": ["**/tests/**/*.test.js"],
+    "collectCoverageFrom": ["server.js", "middleware/**/*.js", "logger.js"],
+    "testTimeout": 10000
+  },
+  "keywords": ["canteen", "rfid", "cashless", "payment"],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -26,5 +36,10 @@
     "winston": "^3.18.3",
     "winston-daily-rotate-file": "^5.0.0",
     "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "jest": "^30.2.0",
+    "supertest": "^7.1.4"
   }
 }

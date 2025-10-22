@@ -358,7 +358,7 @@ app.post('/transaction', validate(transactionSchema), async (req, res) => {
 });
 
 /* ---------- REPORTS & EXPORTS ---------- */
-app.get('/report', validate(reportQuerySchema, 'query'), async (req, res) => {
+app.get('/report', auth(), validate(reportQuerySchema, 'query'), async (req, res) => {
   try {
     const { from, to } = req.query;
     let q = `
@@ -415,7 +415,7 @@ app.get('/reloads', auth('staff'), async (req, res) => {
   }
 });
 
-app.get('/report/csv', async (req, res) => {
+app.get('/report/csv', auth(), async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT 
@@ -935,6 +935,44 @@ app.get('/pending-sale/status/:id', auth('vendor'), validate(statusParamSchema, 
   }
 });
 
+/* ---------- VENDOR SALES ENDPOINTS ---------- */
+// GET /sales - Get all sales transactions (vendor only)
+app.get('/sales', auth('vendor'), async (req, res) => {
+  try {
+    const [transactions] = await pool.query(
+      `SELECT t.tx_id, u.name AS student, 
+              COALESCE(m.item_name, t.custom_item) AS item_name,
+              t.amount, t.timestamp
+       FROM transactions t
+       JOIN users u ON t.user_id = u.user_id
+       LEFT JOIN menu m ON t.item_id = m.item_id
+       ORDER BY t.timestamp DESC
+       LIMIT 100`
+    );
+    res.json(transactions);
+  } catch (err) {
+    logger.error('Vendor sales list error', { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /sales/week - Get 7-day sales statistics (vendor only)
+app.get('/sales/week', auth('vendor'), async (req, res) => {
+  try {
+    const [stats] = await pool.query(
+      `SELECT DATE(timestamp) as day, SUM(amount) as total, COUNT(*) as count
+       FROM transactions
+       WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+       GROUP BY DATE(timestamp)
+       ORDER BY day ASC`
+    );
+    res.json(stats);
+  } catch (err) {
+    logger.error('Vendor weekly sales error', { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /* ---------- PENDING RELOAD FLOW (BLOCKED IF CARD LOCKED) ---------- */
 app.post('/pending-reload', auth('staff'), async (req, res) => {
   try {
@@ -1417,7 +1455,8 @@ app.post('/admin/users/:id/reset-password', adminAuth, async (req, res) => {
 
     res.json({ 
       success: true, 
-      temporary_password: tempPassword 
+      temporary_password: tempPassword,
+      temp_password: tempPassword  // Alias for backward compatibility
     });
   } catch (err) {
     console.error('Admin reset password error:', err);
@@ -1478,7 +1517,13 @@ app.get('/admin/stats', adminAuth, async (req, res) => {
       FROM DUAL
     `);
 
-    res.json(stats);
+    // Add shorthand properties for backward compatibility
+    res.json({
+      ...stats,
+      students: stats.total_students,
+      staff: stats.total_staff,
+      vendors: stats.total_vendors
+    });
   } catch (err) {
     console.error('Admin stats error:', err);
     res.status(500).json({ error: err.message });
@@ -1557,12 +1602,19 @@ app.post('/admin/users/bulk-role', adminAuth, async (req, res) => {
 /* ---------- STATIC + START ---------- */
 const port = process.env.PORT || 3000;
 app.use(express.static('public'));
-app.listen(port, async () => {
-  logger.info(`API server started on http://localhost:${port}`);
-  const ok = await checkDb();
-  if (ok) {
-    logger.info('Database connection established successfully');
-  } else {
-    logger.error('Database connection failed');
-  }
-});
+
+// Only start server if this file is run directly (not imported for testing)
+if (require.main === module) {
+  app.listen(port, async () => {
+    logger.info(`API server started on http://localhost:${port}`);
+    const ok = await checkDb();
+    if (ok) {
+      logger.info('Database connection established successfully');
+    } else {
+      logger.error('Database connection failed');
+    }
+  });
+}
+
+// Export app for testing
+module.exports = app;
