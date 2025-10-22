@@ -657,7 +657,7 @@
                   <div class="pos-label">ENTER AMOUNT</div>
                   <div class="pos-amount-display">
                     <span class="currency">₱</span>
-                    <input id="posTopupAmount" type="text" class="pos-amount-input" placeholder="0.00" readonly />
+                    <input id="posTopupAmount" type="text" class="pos-amount-input" placeholder="0.00" inputmode="decimal" />
                   </div>
                   <div class="pos-keypad">
                     <button class="pos-key" onclick="posAddDigit('topup', '1')">1</button>
@@ -810,7 +810,7 @@
                   <div class="pos-label mt-3">ENTER AMOUNT</div>
                   <div class="pos-amount-display">
                     <span class="currency">₱</span>
-                    <input id="posSaleAmount" type="text" class="pos-amount-input" placeholder="0.00" readonly />
+                    <input id="posSaleAmount" type="text" class="pos-amount-input" placeholder="0.00" inputmode="decimal" />
                   </div>
                   <div class="pos-keypad">
                     <button class="pos-key" onclick="posAddDigit('sale', '1')">1</button>
@@ -1261,40 +1261,131 @@
       sale: { amount: '', itemId: '', itemName: '', pendingId: null, interval: null }
     };
 
+    // Format amount as currency
+    function posFormatAmount(value) {
+      // Remove non-numeric characters except decimal point
+      let cleaned = value.replace(/[^0-9.]/g, '');
+      
+      // Only allow one decimal point
+      const parts = cleaned.split('.');
+      if (parts.length > 2) {
+        cleaned = parts[0] + '.' + parts.slice(1).join('');
+      }
+      
+      // Limit to 2 decimal places
+      if (parts.length === 2 && parts[1].length > 2) {
+        cleaned = parts[0] + '.' + parts[1].substring(0, 2);
+      }
+      
+      return cleaned;
+    }
+
     // Keypad functions
     function posAddDigit(mode, digit) {
       const input = $(mode === 'topup' ? 'posTopupAmount' : 'posSaleAmount');
-      let current = input.value.replace(/[^0-9]/g, '');
+      let current = input.value;
       
-      // Add digit
-      current += digit;
-      
-      // Format as currency (insert decimal point 2 digits from end)
-      if (current.length === 0) {
-        input.value = '';
-      } else if (current.length === 1) {
-        input.value = '0.0' + current;
-      } else if (current.length === 2) {
-        input.value = '0.' + current;
+      // If empty or just starting, allow digit
+      if (!current || current === '0' || current === '0.00') {
+        input.value = digit;
       } else {
-        const dollars = current.slice(0, -2);
-        const cents = current.slice(-2);
-        input.value = dollars + '.' + cents;
+        // Check if we already have a decimal point
+        const hasDot = current.includes('.');
+        
+        if (hasDot) {
+          // Check decimal places
+          const parts = current.split('.');
+          if (parts[1] && parts[1].length >= 2) {
+            // Already have 2 decimal places, don't add more
+            return;
+          }
+        }
+        
+        // Add the digit
+        input.value = current + digit;
       }
       
+      input.value = posFormatAmount(input.value);
       posState[mode].amount = input.value;
     }
 
     function posClearAmount(mode) {
       const input = $(mode === 'topup' ? 'posTopupAmount' : 'posSaleAmount');
-      input.value = '';
-      posState[mode].amount = '';
+      const current = input.value;
+      
+      if (current.length > 0) {
+        // Remove last character
+        input.value = current.slice(0, -1);
+        posState[mode].amount = input.value;
+      }
     }
 
     function posSetAmount(mode, amount) {
       const input = $(mode === 'topup' ? 'posTopupAmount' : 'posSaleAmount');
       input.value = amount + '.00';
       posState[mode].amount = amount + '.00';
+    }
+
+    // Setup keyboard input for POS amount fields
+    function setupPosKeyboardInput() {
+      const topupInput = $('posTopupAmount');
+      const saleInput = $('posSaleAmount');
+      
+      [topupInput, saleInput].forEach((input, idx) => {
+        const mode = idx === 0 ? 'topup' : 'sale';
+        
+        input.addEventListener('input', function(e) {
+          let value = e.target.value;
+          
+          // Format the input
+          value = posFormatAmount(value);
+          e.target.value = value;
+          posState[mode].amount = value;
+        });
+        
+        input.addEventListener('keypress', function(e) {
+          // Allow: numbers, decimal point, backspace, delete, arrow keys
+          const char = String.fromCharCode(e.which);
+          
+          // Allow decimal point only once
+          if (char === '.') {
+            if (e.target.value.includes('.')) {
+              e.preventDefault();
+              return;
+            }
+          }
+          // Only allow numbers and decimal point
+          else if (!/[0-9]/.test(char)) {
+            e.preventDefault();
+            return;
+          }
+        });
+        
+        input.addEventListener('blur', function(e) {
+          let value = e.target.value;
+          if (value && !value.includes('.')) {
+            // Add .00 if no decimal
+            e.target.value = value + '.00';
+            posState[mode].amount = e.target.value;
+          } else if (value && value.includes('.')) {
+            // Ensure 2 decimal places
+            const parts = value.split('.');
+            if (parts[1].length === 0) {
+              e.target.value = parts[0] + '.00';
+            } else if (parts[1].length === 1) {
+              e.target.value = parts[0] + '.' + parts[1] + '0';
+            }
+            posState[mode].amount = e.target.value;
+          }
+        });
+      });
+    }
+
+    // Call this when page loads
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', setupPosKeyboardInput);
+    } else {
+      setupPosKeyboardInput();
     }
 
     function posShowStep(mode, step) {
