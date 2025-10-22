@@ -881,7 +881,7 @@
           <div class="card-body">
             <div class="row g-3 mb-3">
               <div class="col-md-4">
-                <input type="text" class="form-control" id="adminSearchInput" placeholder="Search name, username, email, RFID...">
+                <input type="text" class="form-control" id="adminSearchInput" placeholder="Search name, username, RFID...">
               </div>
               <div class="col-md-2">
                 <select class="form-select" id="adminFilterRole">
@@ -1281,10 +1281,6 @@
                 <div class="fw-semibold" id="adminUserDetailUsername">—</div>
               </div>
               <div class="mb-2">
-                <span class="text-secondary small">Email</span>
-                <div class="fw-semibold" id="adminUserDetailEmail">—</div>
-              </div>
-              <div class="mb-2">
                 <span class="text-secondary small">Role</span>
                 <div class="fw-semibold" id="adminUserDetailRole">—</div>
               </div>
@@ -1387,10 +1383,6 @@
             <input type="text" class="form-control" id="adminCreateName" placeholder="Enter full name">
           </div>
           <div class="mb-3">
-            <label class="form-label">Email (optional)</label>
-            <input type="email" class="form-control" id="adminCreateEmail" placeholder="user@example.com">
-          </div>
-          <div class="mb-3">
             <label class="form-label">Role</label>
             <select class="form-select" id="adminCreateRole">
               <option value="student">Student</option>
@@ -1422,10 +1414,6 @@
           <div class="mb-3">
             <label class="form-label">Full Name</label>
             <input type="text" class="form-control" id="adminEditName">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Email</label>
-            <input type="email" class="form-control" id="adminEditEmail">
           </div>
           <div class="mb-3">
             <label class="form-label">Role</label>
@@ -2737,7 +2725,6 @@ rows.forEach(r => {
         // Fill modal
         $("adminUserDetailName").textContent = user.name;
         $("adminUserDetailUsername").textContent = user.username;
-        $("adminUserDetailEmail").textContent = user.email || "—";
         $("adminUserDetailRole").textContent = user.role;
         $("adminUserDetailCreated").textContent = fmtTime(user.created_at);
         $("adminUserDetailRFID").textContent = user.rfid_uid || "Not paired";
@@ -2769,7 +2756,6 @@ rows.forEach(r => {
       $("adminCreateUsername").value = "";
       $("adminCreatePassword").value = "";
       $("adminCreateName").value = "";
-      $("adminCreateEmail").value = "";
       $("adminCreateRole").value = "student";
       
       bsModal("adminCreateUserModal").show();
@@ -2781,7 +2767,6 @@ rows.forEach(r => {
         const username = $("adminCreateUsername").value.trim();
         const password = $("adminCreatePassword").value;
         const name = $("adminCreateName").value.trim();
-        const email = $("adminCreateEmail").value.trim();
         const role = $("adminCreateRole").value;
 
         if (!username || !password || !name) {
@@ -2795,7 +2780,7 @@ rows.forEach(r => {
             "Authorization": "Bearer " + token,
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ username, password, name, email, role })
+          body: JSON.stringify({ username, password, name, role })
         });
 
         const data = await res.json();
@@ -2820,7 +2805,6 @@ rows.forEach(r => {
 
       // Fill form with current data
       $("adminEditName").value = adminCurrentUser.name;
-      $("adminEditEmail").value = adminCurrentUser.email || "";
       $("adminEditRole").value = adminCurrentUser.role;
 
       // Hide detail modal, show edit modal
@@ -2834,7 +2818,6 @@ rows.forEach(r => {
 
       try {
         const name = $("adminEditName").value.trim();
-        const email = $("adminEditEmail").value.trim();
         const role = $("adminEditRole").value;
 
         const res = await fetch(API_BASE + "/admin/users/" + adminCurrentUser.user_id, {
@@ -2843,7 +2826,7 @@ rows.forEach(r => {
             "Authorization": "Bearer " + token,
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ name, email, role })
+          body: JSON.stringify({ name, role })
         });
 
         const data = await res.json();

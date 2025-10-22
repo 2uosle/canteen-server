@@ -1197,11 +1197,11 @@ app.get('/admin/users', adminAuth, async (req, res) => {
     let whereConditions = [];
     let params = [];
 
-    // Search by name, username, email, or RFID
+    // Search by name, username, or RFID
     if (search) {
-      whereConditions.push('(u.name LIKE ? OR u.username LIKE ? OR u.email LIKE ? OR u.rfid_uid LIKE ?)');
+      whereConditions.push('(u.name LIKE ? OR u.username LIKE ? OR u.rfid_uid LIKE ?)');
       const searchPattern = `%${search}%`;
-      params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+      params.push(searchPattern, searchPattern, searchPattern);
     }
 
     // Filter by role
@@ -1244,7 +1244,6 @@ app.get('/admin/users', adminAuth, async (req, res) => {
         u.user_id,
         u.username,
         u.name,
-        u.email,
         u.role,
         u.rfid_uid,
         u.is_card_locked,
@@ -1282,7 +1281,6 @@ app.get('/admin/users/:id', adminAuth, async (req, res) => {
         user_id,
         username,
         name,
-        email,
         role,
         rfid_uid,
         is_card_locked,
@@ -1315,7 +1313,7 @@ app.get('/admin/users/:id', adminAuth, async (req, res) => {
 // POST /admin/users - Create new user
 app.post('/admin/users', adminAuth, async (req, res) => {
   try {
-    const { username, password, name, email, role } = req.body;
+    const { username, password, name, role } = req.body;
 
     if (!username || !password || !name || !role) {
       return res.status(400).json({ error: 'Username, password, name, and role are required' });
@@ -1330,8 +1328,8 @@ app.post('/admin/users', adminAuth, async (req, res) => {
 
     // Insert user
     const [result] = await pool.query(
-      'INSERT INTO users (username, password, name, email, role) VALUES (?, ?, ?, ?, ?)',
-      [username, hashed, name, email || null, role]
+      'INSERT INTO users (username, password, name, role) VALUES (?, ?, ?, ?)',
+      [username, hashed, name, role]
     );
 
     res.json({ 
@@ -1350,17 +1348,13 @@ app.post('/admin/users', adminAuth, async (req, res) => {
 // PUT /admin/users/:id - Update user info
 app.put('/admin/users/:id', adminAuth, async (req, res) => {
   try {
-    const { name, email, role } = req.body;
+    const { name, role } = req.body;
     const updates = [];
     const params = [];
 
     if (name) {
       updates.push('name = ?');
       params.push(name);
-    }
-    if (email !== undefined) {
-      updates.push('email = ?');
-      params.push(email);
     }
     if (role) {
       updates.push('role = ?');
