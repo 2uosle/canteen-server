@@ -666,6 +666,8 @@ app.get('/rfid/link/latest', async (req, res) => {
 app.post('/rfid/link/confirm', validate(rfidLinkConfirmSchema), async (req, res) => {
   try {
     const { pending_id, uid, device_id } = req.body || {};
+    console.log(`[Link Confirm] Attempt: pending_id=${pending_id}, uid=${uid}, device=${device_id}`);
+    
     if (!pending_id || !uid) return res.status(400).json({ error: 'pending_id and uid required' });
 
     const [[pending]] = await pool.query(
@@ -674,7 +676,10 @@ app.post('/rfid/link/confirm', validate(rfidLinkConfirmSchema), async (req, res)
           AND created_at >= (NOW() - INTERVAL ? SECOND)`,
       [pending_id, RFID_LINK_TTL_SEC]
     );
-    if (!pending) return res.status(404).json({ error: 'No active pending link (expired or not found)' });
+    if (!pending) {
+      console.log(`[Link Confirm] FAILED: Link not found or expired (id=${pending_id})`);
+      return res.status(404).json({ error: 'No active pending link (expired or not found)' });
+    }
 
     // RFID must be unique across users
     const [dupe] = await pool.query('SELECT user_id FROM users WHERE rfid_uid=? LIMIT 1', [uid]);
@@ -778,13 +783,18 @@ app.get('/pending-sale/latest', async (req, res) => {
 app.post('/pending-sale/confirm', validate(confirmPendingSchema), async (req, res) => {
   try {
     const { pending_id, uid } = req.body;
+    console.log(`[Sale Confirm] Attempt: pending_id=${pending_id}, uid=${uid}`);
+    
     if (!pending_id || !uid) return res.status(400).json({ error: 'pending_id and uid required' });
 
     const [[sale]] = await pool.query(
       "SELECT * FROM pending_sales WHERE id = ? AND confirmed = 0",
       [pending_id]
     );
-    if (!sale) return res.status(404).json({ error: 'Pending sale not found or already confirmed' });
+    if (!sale) {
+      console.log(`[Sale Confirm] FAILED: Sale not found or already processed (id=${pending_id})`);
+      return res.status(404).json({ error: 'Pending sale not found or already confirmed' });
+    }
 
     const [[student]] = await pool.query(
       "SELECT user_id, balance, is_card_locked FROM users WHERE rfid_uid = ?",
@@ -848,19 +858,47 @@ app.post('/pending-sale/confirm', validate(confirmPendingSchema), async (req, re
 
 app.get('/pending-sale/status/:id', auth('vendor'), validate(statusParamSchema, 'params'), async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      `SELECT item_id, item_name, amount, confirmed FROM pending_sales WHERE id = ?`,
+    const [[row]] = await pool.query(
+      `SELECT ps.id, ps.item_id, ps.item_name, ps.amount, ps.confirmed, ps.created_at,
+              u.name as student_name, u.balance as new_balance
+       FROM pending_sales ps
+       LEFT JOIN users u ON ps.confirmed = 1 AND u.user_id = (
+         SELECT t.user_id FROM transactions t 
+         WHERE t.custom_item = ps.item_name AND t.amount = ps.amount 
+         ORDER BY t.timestamp DESC LIMIT 1
+       )
+       WHERE ps.id = ?`,
       [req.params.id]
     );
-    if (!rows.length) return res.status(404).json({ error: 'Not found' });
-    const row = rows[0];
+    if (!row) return res.status(404).json({ error: 'Not found' });
+
+    // Check if expired (5 minutes timeout)
+    const TIMEOUT_MS = 5 * 60 * 1000;
+    const expired = new Date(row.created_at).getTime() < (Date.now() - TIMEOUT_MS);
+    
+    // Auto-mark as failed if expired and not yet processed
+    if (expired && row.confirmed === 0) {
+      await pool.query('UPDATE pending_sales SET confirmed = 2 WHERE id = ?', [req.params.id]);
+      return res.json({
+        confirmed: false,
+        failed: true,
+        expired: true,
+        item_name: row.item_name,
+        amount: row.amount
+      });
+    }
+
     res.json({
       confirmed: row.confirmed === 1,
       failed: row.confirmed === 2,
+      expired: expired && row.confirmed === 0,
       item_name: row.item_name,
-      amount: row.amount
+      amount: row.amount,
+      student_name: row.student_name || null,
+      new_balance: row.new_balance || null
     });
   } catch (err) {
+    console.error('pending-sale/status error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -902,13 +940,18 @@ app.get('/pending-reload/latest', async (req, res) => {
 app.post('/pending-reload/confirm', validate(confirmPendingSchema), async (req, res) => {
   try {
     const { pending_id, uid, device_id } = req.body;
+    console.log(`[Reload Confirm] Attempt: pending_id=${pending_id}, uid=${uid}, device=${device_id}`);
+    
     if (!pending_id || !uid) return res.status(400).json({ error: 'pending_id and uid required' });
 
     const [[reloadReq]] = await pool.query(
       'SELECT * FROM pending_reloads WHERE id = ? AND confirmed = 0',
       [pending_id]
     );
-    if (!reloadReq) return res.status(404).json({ error: 'Pending reload not found or already handled' });
+    if (!reloadReq) {
+      console.log(`[Reload Confirm] FAILED: Reload not found or already processed (id=${pending_id})`);
+      return res.status(404).json({ error: 'Pending reload not found or already handled' });
+    }
 
     const [[user]] = await pool.query(
       'SELECT user_id, balance, is_card_locked FROM users WHERE rfid_uid = ?',
@@ -968,19 +1011,45 @@ app.post('/pending-reload/confirm', validate(confirmPendingSchema), async (req, 
 
 app.get('/pending-reload/status/:id', auth('staff'), validate(statusParamSchema, 'params'), async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      'SELECT id, amount, confirmed FROM pending_reloads WHERE id = ?',
+    const [[row]] = await pool.query(
+      `SELECT pr.id, pr.amount, pr.confirmed, pr.created_at,
+              u.name as student_name, u.balance as new_balance
+       FROM pending_reloads pr
+       LEFT JOIN users u ON pr.confirmed = 1 AND u.user_id = (
+         SELECT r.user_id FROM reloads r 
+         WHERE r.amount = pr.amount AND r.cashier_id = pr.cashier_id
+         ORDER BY r.timestamp DESC LIMIT 1
+       )
+       WHERE pr.id = ?`,
       [req.params.id]
     );
-    if (!rows.length) return res.status(404).json({ error: 'Not found' });
-    const row = rows[0];
+    if (!row) return res.status(404).json({ error: 'Not found' });
+
+    // Check if expired (5 minutes timeout)
+    const TIMEOUT_MS = 5 * 60 * 1000;
+    const expired = new Date(row.created_at).getTime() < (Date.now() - TIMEOUT_MS);
+    
+    // Auto-mark as failed if expired and not yet processed
+    if (expired && row.confirmed === 0) {
+      await pool.query('UPDATE pending_reloads SET confirmed = 2 WHERE id = ?', [req.params.id]);
+      return res.json({
+        confirmed: false,
+        failed: true,
+        expired: true,
+        amount: row.amount
+      });
+    }
+
     res.json({
       confirmed: row.confirmed === 1,
       failed: row.confirmed === 2,
-      amount: row.amount
+      expired: expired && row.confirmed === 0,
+      amount: row.amount,
+      student_name: row.student_name || null,
+      new_balance: row.new_balance || null
     });
   } catch (err) {
-    console.error(err);
+    console.error('pending-reload/status error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -996,6 +1065,46 @@ app.get('/menu', auth(), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+/* ---------- CLEANUP JOB ---------- */
+// Clean up old pending records every 10 minutes
+async function cleanupPendingRecords() {
+  try {
+    const CLEANUP_AGE_MINUTES = 10;
+    
+    // Clean up old pending sales (older than 10 minutes)
+    const [salesResult] = await pool.query(
+      `DELETE FROM pending_sales 
+       WHERE created_at < (NOW() - INTERVAL ? MINUTE)`,
+      [CLEANUP_AGE_MINUTES]
+    );
+    
+    // Clean up old pending reloads (older than 10 minutes)
+    const [reloadsResult] = await pool.query(
+      `DELETE FROM pending_reloads 
+       WHERE created_at < (NOW() - INTERVAL ? MINUTE)`,
+      [CLEANUP_AGE_MINUTES]
+    );
+    
+    // Clean up old pending RFID links (older than RFID_LINK_TTL_SEC + buffer)
+    const [linksResult] = await pool.query(
+      `DELETE FROM pending_rfid_links 
+       WHERE created_at < (NOW() - INTERVAL ? SECOND)`,
+      [RFID_LINK_TTL_SEC + 60]
+    );
+    
+    const total = (salesResult.affectedRows || 0) + (reloadsResult.affectedRows || 0) + (linksResult.affectedRows || 0);
+    if (total > 0) {
+      console.log(`[Cleanup] Removed ${total} old pending records (sales: ${salesResult.affectedRows}, reloads: ${reloadsResult.affectedRows}, links: ${linksResult.affectedRows})`);
+    }
+  } catch (err) {
+    console.error('[Cleanup] Error cleaning up pending records:', err);
+  }
+}
+
+// Run cleanup every 10 minutes
+setInterval(cleanupPendingRecords, 10 * 60 * 1000);
+console.log('[Cleanup] Scheduled cleanup job every 10 minutes');
 
 /* ---------- STATIC + START ---------- */
 const port = process.env.PORT || 3000;
