@@ -2654,7 +2654,7 @@ rows.forEach(r => {
               u.role === 'student' ? '<span class="badge bg-info">🎓 Student</span>' :
               u.role === 'staff' ? '<span class="badge bg-success">👔 Staff</span>' :
               u.role === 'vendor' ? '<span class="badge bg-warning">🍽️ Vendor</span>' :
-              '<span class="badge bg-purple">👑 Admin</span>';
+              '<span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">👑 Admin</span>';
 
             const tr = document.createElement("tr");
             tr.innerHTML = `
