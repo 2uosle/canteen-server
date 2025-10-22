@@ -1459,8 +1459,7 @@
           
           $('topupSuccessAmount').textContent = fmtMoney(data.amount);
           $('topupSuccessDetails').innerHTML = `
-            <strong>Student:</strong> ${data.student_name || 'N/A'}<br>
-            <strong>New Balance:</strong> ${fmtMoney(data.new_balance || 0)}
+            <strong>Student:</strong> ${data.student_name || 'N/A'}
           `;
           posShowStep('topup', 4);
           loadReloads(); // Refresh the table
@@ -1577,8 +1576,7 @@
           $('saleSuccessAmount').textContent = fmtMoney(data.amount);
           $('saleSuccessDetails').innerHTML = `
             <strong>Item:</strong> ${data.item_name || posState.sale.itemName}<br>
-            <strong>Student:</strong> ${data.student_name || 'N/A'}<br>
-            <strong>Remaining Balance:</strong> ${fmtMoney(data.new_balance || 0)}
+            <strong>Student:</strong> ${data.student_name || 'N/A'}
           `;
           posShowStep('sale', 4);
           loadSales(); // Refresh the table

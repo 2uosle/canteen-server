@@ -797,7 +797,7 @@ app.post('/pending-sale/confirm', validate(confirmPendingSchema), async (req, re
     }
 
     const [[student]] = await pool.query(
-      "SELECT user_id, balance, is_card_locked FROM users WHERE rfid_uid = ?",
+      "SELECT user_id, name, balance, is_card_locked FROM users WHERE rfid_uid = ?",
       [uid]
     );
     if (!student) return res.status(404).json({ error: 'User not found' });
@@ -845,12 +845,13 @@ app.post('/pending-sale/confirm', validate(confirmPendingSchema), async (req, re
     sendToRole('vendor', 'sale_completed', {
       pending_id,
       user_id: student.user_id,
+      student_name: student.name,
       item_name: sale.item_name,
       amount: price,
       new_balance: newBal
     });
 
-    res.json({ success: true, balance: newBal });
+    res.json({ success: true, balance: newBal, student_name: student.name });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -859,14 +860,8 @@ app.post('/pending-sale/confirm', validate(confirmPendingSchema), async (req, re
 app.get('/pending-sale/status/:id', auth('vendor'), validate(statusParamSchema, 'params'), async (req, res) => {
   try {
     const [[row]] = await pool.query(
-      `SELECT ps.id, ps.item_id, ps.item_name, ps.amount, ps.confirmed, ps.created_at,
-              u.name as student_name, u.balance as new_balance
+      `SELECT ps.id, ps.item_id, ps.item_name, ps.amount, ps.confirmed, ps.created_at
        FROM pending_sales ps
-       LEFT JOIN users u ON ps.confirmed = 1 AND u.user_id = (
-         SELECT t.user_id FROM transactions t 
-         WHERE t.custom_item = ps.item_name AND t.amount = ps.amount 
-         ORDER BY t.timestamp DESC LIMIT 1
-       )
        WHERE ps.id = ?`,
       [req.params.id]
     );
@@ -888,14 +883,27 @@ app.get('/pending-sale/status/:id', auth('vendor'), validate(statusParamSchema, 
       });
     }
 
+    // If confirmed, get student info from the most recent transaction
+    let student_name = null;
+    if (row.confirmed === 1) {
+      const [[transactionInfo]] = await pool.query(
+        `SELECT u.name as student_name
+         FROM transactions t
+         JOIN users u ON t.user_id = u.user_id
+         WHERE t.custom_item = ? AND t.amount = ?
+         ORDER BY t.timestamp DESC LIMIT 1`,
+        [row.item_name, row.amount]
+      );
+      student_name = transactionInfo?.student_name || null;
+    }
+
     res.json({
       confirmed: row.confirmed === 1,
       failed: row.confirmed === 2,
       expired: expired && row.confirmed === 0,
       item_name: row.item_name,
       amount: row.amount,
-      student_name: row.student_name || null,
-      new_balance: row.new_balance || null
+      student_name: student_name
     });
   } catch (err) {
     console.error('pending-sale/status error:', err);
@@ -954,7 +962,7 @@ app.post('/pending-reload/confirm', validate(confirmPendingSchema), async (req, 
     }
 
     const [[user]] = await pool.query(
-      'SELECT user_id, balance, is_card_locked FROM users WHERE rfid_uid = ?',
+      'SELECT user_id, name, balance, is_card_locked FROM users WHERE rfid_uid = ?',
       [uid]
     );
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -996,13 +1004,19 @@ app.post('/pending-reload/confirm', validate(confirmPendingSchema), async (req, 
     sendToRole('staff', 'reload_completed', {
       pending_id,
       user_id: user.user_id,
+      student_name: user.name,
       amount: reloadReq.amount,
       new_balance: newBal,
       cashier_id: reloadReq.cashier_id,
       device_id
     });
 
-    res.json({ success: true, balance: newBal, device_id: device_id || null });
+    res.json({ 
+      success: true, 
+      balance: newBal, 
+      student_name: user.name,
+      device_id: device_id || null 
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -1012,14 +1026,8 @@ app.post('/pending-reload/confirm', validate(confirmPendingSchema), async (req, 
 app.get('/pending-reload/status/:id', auth('staff'), validate(statusParamSchema, 'params'), async (req, res) => {
   try {
     const [[row]] = await pool.query(
-      `SELECT pr.id, pr.amount, pr.confirmed, pr.created_at,
-              u.name as student_name, u.balance as new_balance
+      `SELECT pr.id, pr.amount, pr.confirmed, pr.created_at, pr.cashier_id
        FROM pending_reloads pr
-       LEFT JOIN users u ON pr.confirmed = 1 AND u.user_id = (
-         SELECT r.user_id FROM reloads r 
-         WHERE r.amount = pr.amount AND r.cashier_id = pr.cashier_id
-         ORDER BY r.timestamp DESC LIMIT 1
-       )
        WHERE pr.id = ?`,
       [req.params.id]
     );
@@ -1040,13 +1048,26 @@ app.get('/pending-reload/status/:id', auth('staff'), validate(statusParamSchema,
       });
     }
 
+    // If confirmed, get student info from the most recent reload
+    let student_name = null;
+    if (row.confirmed === 1) {
+      const [[reloadInfo]] = await pool.query(
+        `SELECT u.name as student_name
+         FROM reloads r
+         JOIN users u ON r.user_id = u.user_id
+         WHERE r.amount = ? AND r.cashier_id = ?
+         ORDER BY r.timestamp DESC LIMIT 1`,
+        [row.amount, row.cashier_id]
+      );
+      student_name = reloadInfo?.student_name || null;
+    }
+
     res.json({
       confirmed: row.confirmed === 1,
       failed: row.confirmed === 2,
       expired: expired && row.confirmed === 0,
       amount: row.amount,
-      student_name: row.student_name || null,
-      new_balance: row.new_balance || null
+      student_name: student_name
     });
   } catch (err) {
     console.error('pending-reload/status error:', err);
