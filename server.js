@@ -23,21 +23,31 @@ app.use(helmet({
 // General rate limiter: 100 requests per 15 minutes per IP
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // More lenient in development
   message: { error: 'Too many requests from this IP, please try again later.' },
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false // Disable the `X-RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  skip: (req) => {
+    // Skip rate limiting for localhost in development
+    const isLocalhost = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+    return process.env.NODE_ENV !== 'production' && isLocalhost;
+  }
 });
 
 // Strict rate limiter for auth endpoints: 5 requests per 15 minutes
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 requests per windowMs
+  max: process.env.NODE_ENV === 'production' ? 5 : 50, // More lenient in development
   message: { error: 'Too many login attempts, please try again later.' },
-  skipSuccessfulRequests: true // Don't count successful requests
+  skipSuccessfulRequests: true, // Don't count successful requests
+  skip: (req) => {
+    // Skip rate limiting for localhost in development
+    const isLocalhost = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+    return process.env.NODE_ENV !== 'production' && isLocalhost;
+  }
 });
 
-// Apply general rate limiter to all routes
+// Apply general rate limiter to all routes (except in dev mode on localhost)
 app.use(generalLimiter);
 
 app.use(cors());
