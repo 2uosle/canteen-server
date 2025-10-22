@@ -1281,8 +1281,8 @@
 
     /* ==================== POS SYSTEM FUNCTIONS ==================== */
     let posState = {
-      topup: { amount: '', pendingId: null, interval: null },
-      sale: { amount: '', itemId: '', itemName: '', pendingId: null, interval: null }
+      topup: { amount: '', pendingId: null, interval: null, pollCount: 0 },
+      sale: { amount: '', itemId: '', itemName: '', pendingId: null, interval: null, pollCount: 0 }
     };
 
     // Format amount as currency
@@ -1454,12 +1454,14 @@
 
         if (data.success && data.pending_id) {
           posState.topup.pendingId = data.pending_id;
+          posState.topup.pollCount = 0; // Reset counter
           $('topupTapAmount').textContent = fmtMoney(amount);
           $('topupTapStatus').textContent = 'Waiting for card...';
           posShowStep('topup', 3);
 
-          // Start polling
-          posState.topup.interval = setInterval(posCheckTopupStatus, 2000);
+          // Poll immediately, then start fast polling (every 500ms)
+          posCheckTopupStatus();
+          posState.topup.interval = setInterval(posCheckTopupStatus, 500);
         } else {
           toast(data.error || 'Failed to start top-up', 'error');
         }
@@ -1470,6 +1472,17 @@
 
     async function posCheckTopupStatus() {
       if (!posState.topup.pendingId) return;
+
+      // Increment counter and check timeout (300 polls * 500ms = 150 seconds = 2.5 minutes)
+      posState.topup.pollCount++;
+      if (posState.topup.pollCount > 300) {
+        clearInterval(posState.topup.interval);
+        posState.topup.interval = null;
+        $('topupTapStatus').textContent = 'Transaction timeout - please try again';
+        toast('Top-up timed out', 'error');
+        setTimeout(() => posResetTopup(), 3000);
+        return;
+      }
 
       try {
         const res = await fetch(API_BASE + "/pending-reload/status/" + posState.topup.pendingId, {
@@ -1513,7 +1526,7 @@
       if (posState.topup.interval) {
         clearInterval(posState.topup.interval);
       }
-      posState.topup = { amount: '', pendingId: null, interval: null };
+      posState.topup = { amount: '', pendingId: null, interval: null, pollCount: 0 };
       $('posTopupAmount').value = '';
       posShowStep('topup', 1);
       // Close modal
@@ -1571,13 +1584,15 @@
 
         if (data.success && data.pending_id) {
           posState.sale.pendingId = data.pending_id;
+          posState.sale.pollCount = 0; // Reset counter
           $('saleTapItem').textContent = itemName;
           $('saleTapAmount').textContent = fmtMoney(amount);
           $('saleTapStatus').textContent = 'Waiting for card...';
           posShowStep('sale', 3);
 
-          // Start polling
-          posState.sale.interval = setInterval(posCheckSaleStatus, 2000);
+          // Poll immediately, then start fast polling (every 500ms)
+          posCheckSaleStatus();
+          posState.sale.interval = setInterval(posCheckSaleStatus, 500);
         } else {
           toast(data.error || 'Failed to start sale', 'error');
         }
@@ -1588,6 +1603,17 @@
 
     async function posCheckSaleStatus() {
       if (!posState.sale.pendingId) return;
+
+      // Increment counter and check timeout (300 polls * 500ms = 150 seconds = 2.5 minutes)
+      posState.sale.pollCount++;
+      if (posState.sale.pollCount > 300) {
+        clearInterval(posState.sale.interval);
+        posState.sale.interval = null;
+        $('saleTapStatus').textContent = 'Transaction timeout - please try again';
+        toast('Sale timed out', 'error');
+        setTimeout(() => posResetSale(), 3000);
+        return;
+      }
 
       try {
         const res = await fetch(API_BASE + "/pending-sale/status/" + posState.sale.pendingId, {
@@ -1632,7 +1658,7 @@
       if (posState.sale.interval) {
         clearInterval(posState.sale.interval);
       }
-      posState.sale = { amount: '', itemId: '', itemName: '', pendingId: null, interval: null };
+      posState.sale = { amount: '', itemId: '', itemName: '', pendingId: null, interval: null, pollCount: 0 };
       $('posSaleAmount').value = '';
       $('posSaleItemManual').value = '';
       $('posSaleItemSelect').selectedIndex = 0;
