@@ -6,9 +6,11 @@ RFID-based cashless payment system for canteen/cafeteria management.
 
 - 💳 **RFID Payment**: Tap-to-pay with RFID cards
 - 👥 **Multi-Role System**: Staff, Vendor, and Student accounts
-- 🔒 **Security**: Card locking, JWT authentication, password hashing
+- 🔒 **Security**: Card locking, JWT authentication, password hashing, Helmet, rate limiting
 - 📊 **Reports**: Transaction history and CSV exports
 - 🎨 **Modern UI**: Responsive design with dark/light theme
+- 🏪 **POS Interface**: Touch-optimized transaction flow with numeric keypad
+- 🔔 **Real-Time Updates**: WebSocket notifications for live balance updates
 - 🔧 **Hardware Integration**: ESP32 + PN532 RFID reader
 
 ## Quick Start
