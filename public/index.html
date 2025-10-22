@@ -1581,7 +1581,7 @@
       token = null; userRole = null;
       localStorage.removeItem("token"); localStorage.removeItem("role"); localStorage.removeItem("username");
       hide($("dashboard"));
-      hide($("staffDashboard")); hide($("vendorDashboard")); hide($("studentDashboard"));
+      hide($("staffDashboard")); hide($("vendorDashboard")); hide($("studentDashboard")); hide($("adminDashboard"));
       document.querySelectorAll('.auth-only').forEach(hide);
       show($("loginStage"));
       $("loginAlert").classList.add('d-none');
