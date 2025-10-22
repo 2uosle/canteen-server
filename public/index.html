@@ -186,6 +186,376 @@
 
     .alert { border-radius: var(--radius-md); border:1px solid var(--border); background: color-mix(in srgb, var(--surface-2) 80%, transparent); color: var(--text); animation: slideIn var(--trans-normal) forwards; }
     @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ==================== POS SYSTEM STYLES ==================== */
+    .pos-step { animation: posSlideIn 0.3s ease-out; }
+    @keyframes posSlideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+    .pos-label {
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.1rem;
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+    }
+
+    .pos-amount-display {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 1.5rem;
+      background: color-mix(in srgb, var(--surface-2) 95%, transparent);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-md);
+      margin-bottom: 1.5rem;
+    }
+
+    .pos-amount-display .currency {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .pos-amount-input {
+      background: transparent;
+      border: none;
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--text);
+      text-align: center;
+      width: 100%;
+      outline: none;
+      font-family: 'Courier New', monospace;
+    }
+
+    .pos-amount-input::placeholder {
+      color: color-mix(in srgb, var(--text-muted) 40%, transparent);
+    }
+
+    .pos-keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .pos-key {
+      aspect-ratio: 1;
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: var(--surface-2);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-md);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pos-key:hover {
+      background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(10, 132, 255, 0.15);
+    }
+
+    .pos-key:active {
+      transform: scale(0.95);
+    }
+
+    .pos-key-special {
+      background: color-mix(in srgb, var(--accent-2) 8%, var(--surface-2));
+    }
+
+    .pos-key-clear {
+      background: color-mix(in srgb, var(--danger) 8%, var(--surface-2));
+      color: var(--danger);
+    }
+
+    .pos-quick-amounts {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .pos-quick-btn {
+      padding: 0.75rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      background: color-mix(in srgb, var(--accent-2) 8%, var(--surface-2));
+      border: 1px solid color-mix(in srgb, var(--accent-2) 30%, var(--border));
+      border-radius: var(--radius-sm);
+      color: var(--accent-2);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .pos-quick-btn:hover {
+      background: var(--accent-2);
+      color: #fff;
+      transform: translateY(-2px);
+    }
+
+    .pos-btn {
+      width: 100%;
+      padding: 1.25rem;
+      font-size: 1.1rem;
+      font-weight: 700;
+      border-radius: var(--radius-md);
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      letter-spacing: 0.05rem;
+      text-transform: uppercase;
+    }
+
+    .pos-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .pos-btn:active {
+      transform: scale(0.98);
+    }
+
+    .pos-btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .pos-btn-success {
+      background: var(--accent-2);
+      color: #fff;
+    }
+
+    .pos-btn-danger {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    .pos-btn-secondary {
+      background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+      color: var(--text);
+      border: 2px solid var(--border);
+    }
+
+    .pos-btn-group {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 0.75rem;
+    }
+
+    .pos-confirm-header {
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 2rem;
+      letter-spacing: 0.1rem;
+      text-transform: uppercase;
+    }
+
+    .pos-confirm-amount {
+      background: color-mix(in srgb, var(--accent) 8%, var(--surface-2));
+      border: 2px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+      border-radius: var(--radius-md);
+      padding: 2rem;
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .pos-confirm-label {
+      display: block;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05rem;
+    }
+
+    .pos-confirm-value {
+      display: block;
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--accent);
+      font-family: 'Courier New', monospace;
+    }
+
+    .pos-confirm-details {
+      background: var(--surface-2);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .pos-confirm-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .pos-confirm-row:last-child {
+      border-bottom: none;
+    }
+
+    .pos-confirm-row .pos-confirm-label {
+      font-size: 1rem;
+      margin: 0;
+    }
+
+    .pos-confirm-row .pos-confirm-value {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .pos-tap-screen {
+      background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 80%, #000) 100%);
+      border-radius: var(--radius-lg);
+      padding: 3rem 2rem;
+      text-align: center;
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .pos-tap-icon {
+      font-size: 6rem;
+      margin-bottom: 1rem;
+      animation: posPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes posPulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.8; }
+    }
+
+    .pos-tap-text {
+      font-size: 2.5rem;
+      font-weight: 900;
+      letter-spacing: 0.15rem;
+      margin-bottom: 1.5rem;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .pos-tap-item {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      opacity: 0.9;
+    }
+
+    .pos-tap-amount {
+      font-size: 3rem;
+      font-weight: 900;
+      margin-bottom: 1rem;
+      font-family: 'Courier New', monospace;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .pos-tap-status {
+      font-size: 1rem;
+      opacity: 0.8;
+      margin-bottom: 1.5rem;
+    }
+
+    .pos-loading {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .pos-loading-bar {
+      width: 40%;
+      height: 100%;
+      background: #fff;
+      border-radius: 3px;
+      animation: posLoading 1.5s ease-in-out infinite;
+    }
+
+    @keyframes posLoading {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
+
+    .pos-success-screen {
+      text-align: center;
+      padding: 2rem 1rem;
+    }
+
+    .pos-success-icon {
+      font-size: 6rem;
+      color: var(--accent-2);
+      margin-bottom: 1rem;
+      animation: posCheckmark 0.5s ease-out;
+    }
+
+    @keyframes posCheckmark {
+      0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+      50% { transform: scale(1.2) rotate(10deg); }
+      100% { transform: scale(1) rotate(0); opacity: 1; }
+    }
+
+    .pos-success-text {
+      font-size: 2rem;
+      font-weight: 900;
+      color: var(--accent-2);
+      margin-bottom: 1.5rem;
+      letter-spacing: 0.1rem;
+      text-transform: uppercase;
+    }
+
+    .pos-success-amount {
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 1rem;
+      font-family: 'Courier New', monospace;
+    }
+
+    .pos-success-details {
+      font-size: 1rem;
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+
+    .pos-select, .pos-input {
+      width: 100%;
+      padding: 1rem;
+      font-size: 1rem;
+      background: var(--surface-2);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-md);
+      color: var(--text);
+      transition: all 0.2s ease;
+    }
+
+    .pos-select:focus, .pos-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 15%, transparent);
+    }
+
+    @media (max-width: 768px) {
+      .pos-amount-input { font-size: 2rem; }
+      .pos-tap-text { font-size: 1.8rem; }
+      .pos-tap-icon { font-size: 4rem; }
+      .pos-confirm-value { font-size: 2rem; }
+    }
   </style>
 </head>
 <body>
@@ -297,15 +667,94 @@
               </div>
             </div>
 
+            <!-- POS-Style Tap-to-Top-Up -->
             <div class="card glass mt-4">
-              <div class="card-header">Tap-to-Top-Up</div>
+              <div class="card-header d-flex align-items-center justify-content-between">
+                <span>Quick Top-Up (POS Mode)</span>
+                <span class="badge bg-success">Fast Mode</span>
+              </div>
               <div class="card-body">
-                <label class="form-label">Amount</label>
-                <input id="tapReloadAmount" type="number" step="0.01" class="form-control mb-3" placeholder="Amount">
-                <div class="d-grid">
-                  <button id="tapReloadBtn" class="btn btn-success-apple" onclick="startTapReload()"><i class="bi bi-sd-card me-1"></i> Start Tap-to-Top-Up</button>
+                <!-- Step 1: Enter Amount -->
+                <div id="topupStep1" class="pos-step">
+                  <div class="pos-label">ENTER AMOUNT</div>
+                  <div class="pos-amount-display">
+                    <span class="currency">₱</span>
+                    <input id="posTopupAmount" type="text" class="pos-amount-input" placeholder="0.00" />
+                  </div>
+                  <div class="pos-keypad">
+                    <button class="pos-key" onclick="posAddDigit('topup', '1')">1</button>
+                    <button class="pos-key" onclick="posAddDigit('topup', '2')">2</button>
+                    <button class="pos-key" onclick="posAddDigit('topup', '3')">3</button>
+                    <button class="pos-key" onclick="posAddDigit('topup', '4')">4</button>
+                    <button class="pos-key" onclick="posAddDigit('topup', '5')">5</button>
+                    <button class="pos-key" onclick="posAddDigit('topup', '6')">6</button>
+                    <button class="pos-key" onclick="posAddDigit('topup', '7')">7</button>
+                    <button class="pos-key" onclick="posAddDigit('topup', '8')">8</button>
+                    <button class="pos-key" onclick="posAddDigit('topup', '9')">9</button>
+                    <button class="pos-key pos-key-special" onclick="posAddDigit('topup', '00')">00</button>
+                    <button class="pos-key" onclick="posAddDigit('topup', '0')">0</button>
+                    <button class="pos-key pos-key-clear" onclick="posClearAmount('topup')"><i class="bi bi-backspace"></i></button>
+                  </div>
+                  <div class="pos-quick-amounts">
+                    <button class="pos-quick-btn" onclick="posSetAmount('topup', '50')">₱50</button>
+                    <button class="pos-quick-btn" onclick="posSetAmount('topup', '100')">₱100</button>
+                    <button class="pos-quick-btn" onclick="posSetAmount('topup', '200')">₱200</button>
+                    <button class="pos-quick-btn" onclick="posSetAmount('topup', '500')">₱500</button>
+                  </div>
+                  <button class="pos-btn pos-btn-primary" onclick="posConfirmTopup()">
+                    <i class="bi bi-check-circle me-2"></i>CONTINUE
+                  </button>
                 </div>
-                <div id="tapReloadAlert" class="alert mt-3 d-none" role="alert"></div>
+
+                <!-- Step 2: Confirm -->
+                <div id="topupStep2" class="pos-step d-none">
+                  <div class="pos-confirm-header">CONFIRM TOP-UP</div>
+                  <div class="pos-confirm-amount">
+                    <div class="pos-confirm-label">Amount to reload:</div>
+                    <div id="topupConfirmAmount" class="pos-confirm-value">₱0.00</div>
+                  </div>
+                  <div class="pos-btn-group">
+                    <button class="pos-btn pos-btn-secondary" onclick="posBackToStep('topup', 1)">
+                      <i class="bi bi-arrow-left me-2"></i>BACK
+                    </button>
+                    <button class="pos-btn pos-btn-success" onclick="posStartTopupTap()">
+                      <i class="bi bi-check-circle me-2"></i>CONFIRM
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Step 3: Tap Card -->
+                <div id="topupStep3" class="pos-step d-none">
+                  <div class="pos-tap-screen">
+                    <div class="pos-tap-icon">
+                      <i class="bi bi-credit-card-2-front"></i>
+                    </div>
+                    <div class="pos-tap-text">TAP CARD NOW</div>
+                    <div class="pos-tap-amount" id="topupTapAmount">₱0.00</div>
+                    <div class="pos-tap-status" id="topupTapStatus">Waiting for card...</div>
+                    <div class="pos-loading">
+                      <div class="pos-loading-bar"></div>
+                    </div>
+                  </div>
+                  <button class="pos-btn pos-btn-danger mt-3" onclick="posCancelTopup()">
+                    <i class="bi bi-x-circle me-2"></i>CANCEL
+                  </button>
+                </div>
+
+                <!-- Step 4: Success -->
+                <div id="topupStep4" class="pos-step d-none">
+                  <div class="pos-success-screen">
+                    <div class="pos-success-icon">
+                      <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                    <div class="pos-success-text">TOP-UP SUCCESSFUL!</div>
+                    <div class="pos-success-amount" id="topupSuccessAmount">₱0.00</div>
+                    <div class="pos-success-details" id="topupSuccessDetails"></div>
+                  </div>
+                  <button class="pos-btn pos-btn-primary" onclick="posResetTopup()">
+                    <i class="bi bi-arrow-repeat me-2"></i>NEW TOP-UP
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -423,35 +872,102 @@
       <section id="vendorDashboard" class="d-none">
         <div class="row g-4">
           <div class="col-lg-5">
+            <!-- POS-Style Sale Interface -->
             <div class="card glass">
-              <div class="card-header">Record Sale</div>
+              <div class="card-header d-flex align-items-center justify-content-between">
+                <span>Record Sale (POS Mode)</span>
+                <span class="badge bg-danger">Live Mode</span>
+              </div>
               <div class="card-body">
-                <div class="mb-2">
-                  <label class="form-label">Select Item (from Menu)</label>
-                  <select id="saleItemSelect" class="form-select" onchange="updatePrice()">
-                    <option value="">-- Select from menu --</option>
+                <!-- Step 1: Select Item & Amount -->
+                <div id="saleStep1" class="pos-step">
+                  <div class="pos-label">SELECT ITEM</div>
+                  <select id="posSaleItemSelect" class="pos-select mb-3" onchange="posUpdateSalePrice()">
+                    <option value="">-- Choose from menu --</option>
                   </select>
-                  <div class="text-secondary small mt-1"><i class="bi bi-lightning-charge me-1"></i>Price auto-fills. Or enter a custom item.</div>
+                  <div class="text-center small text-secondary mb-2">OR</div>
+                  <input id="posSaleItemManual" type="text" class="pos-input mb-3" placeholder="Enter custom item name" />
+                  
+                  <div class="pos-label mt-3">ENTER AMOUNT</div>
+                  <div class="pos-amount-display">
+                    <span class="currency">₱</span>
+                    <input id="posSaleAmount" type="text" class="pos-amount-input" placeholder="0.00" />
+                  </div>
+                  <div class="pos-keypad">
+                    <button class="pos-key" onclick="posAddDigit('sale', '1')">1</button>
+                    <button class="pos-key" onclick="posAddDigit('sale', '2')">2</button>
+                    <button class="pos-key" onclick="posAddDigit('sale', '3')">3</button>
+                    <button class="pos-key" onclick="posAddDigit('sale', '4')">4</button>
+                    <button class="pos-key" onclick="posAddDigit('sale', '5')">5</button>
+                    <button class="pos-key" onclick="posAddDigit('sale', '6')">6</button>
+                    <button class="pos-key" onclick="posAddDigit('sale', '7')">7</button>
+                    <button class="pos-key" onclick="posAddDigit('sale', '8')">8</button>
+                    <button class="pos-key" onclick="posAddDigit('sale', '9')">9</button>
+                    <button class="pos-key pos-key-special" onclick="posAddDigit('sale', '00')">00</button>
+                    <button class="pos-key" onclick="posAddDigit('sale', '0')">0</button>
+                    <button class="pos-key pos-key-clear" onclick="posClearAmount('sale')"><i class="bi bi-backspace"></i></button>
+                  </div>
+                  <button class="pos-btn pos-btn-primary" onclick="posConfirmSale()">
+                    <i class="bi bi-check-circle me-2"></i>CONTINUE
+                  </button>
                 </div>
 
-                <div class="mb-2">
-                  <label class="form-label">Or Enter Custom Item</label>
-                  <input id="saleItemManual" type="text" class="form-control" placeholder="Custom item name" />
-                </div>
-
-                <div class="mb-3">
-                  <label class="form-label">Amount</label>
-                  <div class="input-group">
-                    <span class="input-group-text">₱</span>
-                    <input id="saleAmount" type="number" step="0.01" class="form-control" placeholder="0.00" />
+                <!-- Step 2: Confirm Sale -->
+                <div id="saleStep2" class="pos-step d-none">
+                  <div class="pos-confirm-header">CONFIRM SALE</div>
+                  <div class="pos-confirm-details">
+                    <div class="pos-confirm-row">
+                      <span class="pos-confirm-label">Item:</span>
+                      <span id="saleConfirmItem" class="pos-confirm-value">-</span>
+                    </div>
+                    <div class="pos-confirm-row">
+                      <span class="pos-confirm-label">Amount:</span>
+                      <span id="saleConfirmAmount" class="pos-confirm-value">₱0.00</span>
+                    </div>
+                  </div>
+                  <div class="pos-btn-group">
+                    <button class="pos-btn pos-btn-secondary" onclick="posBackToStep('sale', 1)">
+                      <i class="bi bi-arrow-left me-2"></i>BACK
+                    </button>
+                    <button class="pos-btn pos-btn-danger" onclick="posStartSaleTap()">
+                      <i class="bi bi-check-circle me-2"></i>CONFIRM
+                    </button>
                   </div>
                 </div>
 
-                <button id="saleBtn" class="btn btn-danger w-100" onclick="recordSale()">
-                  <i class="bi bi-bag-check me-1"></i> Record Sale
-                </button>
+                <!-- Step 3: Tap Card -->
+                <div id="saleStep3" class="pos-step d-none">
+                  <div class="pos-tap-screen">
+                    <div class="pos-tap-icon">
+                      <i class="bi bi-credit-card-2-front"></i>
+                    </div>
+                    <div class="pos-tap-text">TAP CARD NOW</div>
+                    <div class="pos-tap-item" id="saleTapItem">Item</div>
+                    <div class="pos-tap-amount" id="saleTapAmount">₱0.00</div>
+                    <div class="pos-tap-status" id="saleTapStatus">Waiting for card...</div>
+                    <div class="pos-loading">
+                      <div class="pos-loading-bar"></div>
+                    </div>
+                  </div>
+                  <button class="pos-btn pos-btn-danger mt-3" onclick="posCancelSale()">
+                    <i class="bi bi-x-circle me-2"></i>CANCEL
+                  </button>
+                </div>
 
-                <div id="saleAlert" class="alert mt-3 d-none" role="alert"></div>
+                <!-- Step 4: Success -->
+                <div id="saleStep4" class="pos-step d-none">
+                  <div class="pos-success-screen">
+                    <div class="pos-success-icon">
+                      <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                    <div class="pos-success-text">SALE COMPLETED!</div>
+                    <div class="pos-success-amount" id="saleSuccessAmount">₱0.00</div>
+                    <div class="pos-success-details" id="saleSuccessDetails"></div>
+                  </div>
+                  <button class="pos-btn pos-btn-primary" onclick="posResetSale()">
+                    <i class="bi bi-arrow-repeat me-2"></i>NEW SALE
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -749,12 +1265,291 @@
       }
     })();
 
+    /* ==================== POS SYSTEM FUNCTIONS ==================== */
+    let posState = {
+      topup: { amount: '', pendingId: null, interval: null },
+      sale: { amount: '', itemId: '', itemName: '', pendingId: null, interval: null }
+    };
+
+    // Keypad functions
+    function posAddDigit(mode, digit) {
+      const input = $(mode === 'topup' ? 'posTopupAmount' : 'posSaleAmount');
+      let current = input.value.replace(/[^0-9]/g, '');
+      
+      // Add digit
+      current += digit;
+      
+      // Format as currency (insert decimal point 2 digits from end)
+      if (current.length === 0) {
+        input.value = '';
+      } else if (current.length === 1) {
+        input.value = '0.0' + current;
+      } else if (current.length === 2) {
+        input.value = '0.' + current;
+      } else {
+        const dollars = current.slice(0, -2);
+        const cents = current.slice(-2);
+        input.value = dollars + '.' + cents;
+      }
+      
+      posState[mode].amount = input.value;
+    }
+
+    function posClearAmount(mode) {
+      const input = $(mode === 'topup' ? 'posTopupAmount' : 'posSaleAmount');
+      input.value = '';
+      posState[mode].amount = '';
+    }
+
+    function posSetAmount(mode, amount) {
+      const input = $(mode === 'topup' ? 'posTopupAmount' : 'posSaleAmount');
+      input.value = amount + '.00';
+      posState[mode].amount = amount + '.00';
+    }
+
+    function posShowStep(mode, step) {
+      // Hide all steps
+      for (let i = 1; i <= 4; i++) {
+        hide($(`${mode}Step${i}`));
+      }
+      // Show target step
+      show($(`${mode}Step${step}`));
+    }
+
+    function posBackToStep(mode, step) {
+      posShowStep(mode, step);
+    }
+
+    // ========== TOP-UP FLOW ==========
+    function posConfirmTopup() {
+      const amount = $('posTopupAmount').value.trim();
+      if (!amount || parseFloat(amount) <= 0) {
+        toast('Please enter a valid amount', 'warn');
+        return;
+      }
+      
+      $('topupConfirmAmount').textContent = fmtMoney(amount);
+      posShowStep('topup', 2);
+    }
+
+    async function posStartTopupTap() {
+      const amount = $('posTopupAmount').value.trim();
+      if (!amount || parseFloat(amount) <= 0) {
+        toast('Invalid amount', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch(API_BASE + "/pending-reload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+          body: JSON.stringify({ amount: parseFloat(amount) })
+        });
+        const data = await res.json();
+
+        if (data.success && data.pending_id) {
+          posState.topup.pendingId = data.pending_id;
+          $('topupTapAmount').textContent = fmtMoney(amount);
+          $('topupTapStatus').textContent = 'Waiting for card...';
+          posShowStep('topup', 3);
+
+          // Start polling
+          posState.topup.interval = setInterval(posCheckTopupStatus, 2000);
+        } else {
+          toast(data.error || 'Failed to start top-up', 'error');
+        }
+      } catch (e) {
+        toast('Network error', 'error');
+      }
+    }
+
+    async function posCheckTopupStatus() {
+      if (!posState.topup.pendingId) return;
+
+      try {
+        const res = await fetch(API_BASE + "/pending-reload/status/" + posState.topup.pendingId, {
+          headers: { "Authorization": "Bearer " + token }
+        });
+        const data = await res.json();
+
+        if (data.confirmed) {
+          clearInterval(posState.topup.interval);
+          posState.topup.interval = null;
+          
+          $('topupSuccessAmount').textContent = fmtMoney(data.amount);
+          $('topupSuccessDetails').innerHTML = `
+            <strong>Student:</strong> ${data.student_name || 'N/A'}<br>
+            <strong>New Balance:</strong> ${fmtMoney(data.new_balance || 0)}
+          `;
+          posShowStep('topup', 4);
+          loadReloads(); // Refresh the table
+          toast('Top-up completed!', 'success');
+        } else if (data.failed || data.expired) {
+          clearInterval(posState.topup.interval);
+          posState.topup.interval = null;
+          $('topupTapStatus').textContent = 'Transaction failed!';
+          toast('Top-up failed', 'error');
+          setTimeout(() => posResetTopup(), 3000);
+        }
+      } catch (e) {
+        console.error('Status check error:', e);
+      }
+    }
+
+    function posCancelTopup() {
+      if (posState.topup.interval) {
+        clearInterval(posState.topup.interval);
+        posState.topup.interval = null;
+      }
+      posResetTopup();
+      toast('Top-up cancelled', 'info');
+    }
+
+    function posResetTopup() {
+      if (posState.topup.interval) {
+        clearInterval(posState.topup.interval);
+      }
+      posState.topup = { amount: '', pendingId: null, interval: null };
+      $('posTopupAmount').value = '';
+      posShowStep('topup', 1);
+    }
+
+    // ========== SALE FLOW ==========
+    function posConfirmSale() {
+      const itemSelect = $('posSaleItemSelect');
+      const itemManual = $('posSaleItemManual').value.trim();
+      const amount = $('posSaleAmount').value.trim();
+
+      if ((!itemSelect.value && !itemManual) || !amount || parseFloat(amount) <= 0) {
+        toast('Please select/enter an item and valid amount', 'warn');
+        return;
+      }
+
+      let itemName = itemManual;
+      if (itemSelect.value) {
+        posState.sale.itemId = itemSelect.value;
+        itemName = itemSelect.options[itemSelect.selectedIndex].text.split(' — ')[0];
+      } else {
+        posState.sale.itemId = '';
+      }
+      
+      posState.sale.itemName = itemName;
+      posState.sale.amount = amount;
+
+      $('saleConfirmItem').textContent = itemName;
+      $('saleConfirmAmount').textContent = fmtMoney(amount);
+      posShowStep('sale', 2);
+    }
+
+    async function posStartSaleTap() {
+      const amount = posState.sale.amount;
+      const itemId = posState.sale.itemId;
+      const itemName = posState.sale.itemName;
+
+      if (!amount || parseFloat(amount) <= 0) {
+        toast('Invalid amount', 'error');
+        return;
+      }
+
+      try {
+        const body = itemId 
+          ? { item_id: itemId, amount: parseFloat(amount) }
+          : { item_name: itemName, amount: parseFloat(amount) };
+
+        const res = await fetch(API_BASE + "/pending-sale", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+
+        if (data.success && data.pending_id) {
+          posState.sale.pendingId = data.pending_id;
+          $('saleTapItem').textContent = itemName;
+          $('saleTapAmount').textContent = fmtMoney(amount);
+          $('saleTapStatus').textContent = 'Waiting for card...';
+          posShowStep('sale', 3);
+
+          // Start polling
+          posState.sale.interval = setInterval(posCheckSaleStatus, 2000);
+        } else {
+          toast(data.error || 'Failed to start sale', 'error');
+        }
+      } catch (e) {
+        toast('Network error', 'error');
+      }
+    }
+
+    async function posCheckSaleStatus() {
+      if (!posState.sale.pendingId) return;
+
+      try {
+        const res = await fetch(API_BASE + "/pending-sale/status/" + posState.sale.pendingId, {
+          headers: { "Authorization": "Bearer " + token }
+        });
+        const data = await res.json();
+
+        if (data.confirmed) {
+          clearInterval(posState.sale.interval);
+          posState.sale.interval = null;
+          
+          $('saleSuccessAmount').textContent = fmtMoney(data.amount);
+          $('saleSuccessDetails').innerHTML = `
+            <strong>Item:</strong> ${data.item_name || posState.sale.itemName}<br>
+            <strong>Student:</strong> ${data.student_name || 'N/A'}<br>
+            <strong>Remaining Balance:</strong> ${fmtMoney(data.new_balance || 0)}
+          `;
+          posShowStep('sale', 4);
+          loadSales(); // Refresh the table
+          toast('Sale completed!', 'success');
+        } else if (data.failed) {
+          clearInterval(posState.sale.interval);
+          posState.sale.interval = null;
+          $('saleTapStatus').textContent = 'Transaction failed!';
+          toast('Sale failed (insufficient balance or locked card)', 'error');
+          setTimeout(() => posResetSale(), 3000);
+        }
+      } catch (e) {
+        console.error('Status check error:', e);
+      }
+    }
+
+    function posCancelSale() {
+      if (posState.sale.interval) {
+        clearInterval(posState.sale.interval);
+        posState.sale.interval = null;
+      }
+      posResetSale();
+      toast('Sale cancelled', 'info');
+    }
+
+    function posResetSale() {
+      if (posState.sale.interval) {
+        clearInterval(posState.sale.interval);
+      }
+      posState.sale = { amount: '', itemId: '', itemName: '', pendingId: null, interval: null };
+      $('posSaleAmount').value = '';
+      $('posSaleItemManual').value = '';
+      $('posSaleItemSelect').selectedIndex = 0;
+      posShowStep('sale', 1);
+    }
+
+    function posUpdateSalePrice() {
+      const sel = $('posSaleItemSelect');
+      const price = sel.options[sel.selectedIndex]?.getAttribute('data-price');
+      if (price) {
+        $('posSaleAmount').value = parseFloat(price).toFixed(2);
+        posState.sale.amount = parseFloat(price).toFixed(2);
+        $('posSaleItemManual').value = ''; // Clear manual input
+      }
+    }
+
     /* Vendor: menu & sales */
     async function loadMenuItems(){
       const res = await fetch(API_BASE + "/menu", { headers:{ "Authorization":"Bearer " + token }});
       const data = await res.json();
-      const sel = $("saleItemSelect");
-      sel.innerHTML = '<option value="">-- Select from menu --</option>';
+      const sel = $("posSaleItemSelect");
+      sel.innerHTML = '<option value="">-- Choose from menu --</option>';
       if (Array.isArray(data) && data.length){
         data.forEach(item=>{
           const opt = document.createElement("option");
@@ -765,57 +1560,6 @@
         });
       } else {
         toast("No menu items found", "warn");
-      }
-    }
-    function updatePrice(){
-      const sel = $("saleItemSelect");
-      const price = sel.options[sel.selectedIndex]?.getAttribute("data-price");
-      if (price){ $("saleAmount").value = price; $("saleItemManual").value = ""; }
-    }
-    async function recordSale(){
-      const btn = $("saleBtn");
-      btn.disabled = true;
-
-      const itemId = $("saleItemSelect").value;
-      const customItem = $("saleItemManual").value.trim();
-      const amount = $("saleAmount").value.trim();
-
-      if ((!itemId && !customItem) || !amount){
-        setAlert("saleAlert", "Please select or enter an item and provide amount.", "warning");
-        btn.disabled = false; return;
-      }
-      const body = itemId ? { item_id:itemId, amount } : { item_name:customItem, amount };
-
-      const res = await fetch(API_BASE + "/pending-sale", {
-        method: "POST",
-        headers: { "Content-Type":"application/json", "Authorization":"Bearer " + token },
-        body: JSON.stringify(body)
-      });
-      const data = await res.json();
-
-      if (data.success && data.pending_id){
-        pendingSaleId = data.pending_id;
-        setAlert("saleAlert", "Pending sale created. Ask student to tap their card…", "info");
-        pendingCheckInterval = setInterval(checkPendingSale, 2000);
-      } else {
-        setAlert("saleAlert", data.error || "Could not create sale", "danger");
-        btn.disabled = false;
-      }
-    }
-    async function checkPendingSale(){
-      if (!pendingSaleId) return;
-      const res = await fetch(API_BASE + "/pending-sale/status/" + pendingSaleId, {
-        headers:{ "Authorization":"Bearer " + token }
-      });
-      const data = await res.json();
-      if (data.confirmed){
-        clearInterval(pendingCheckInterval); pendingSaleId = null;
-        setAlert("saleAlert", `Sale completed · ${data.item_name || "Item"} — ${fmtMoney(data.amount)}`, "success");
-        $("saleBtn").disabled = false; loadSales();
-      } else if (data.failed){
-        clearInterval(pendingCheckInterval); pendingSaleId = null;
-        setAlert("saleAlert", "Transaction failed (Insufficient balance / Locked card)", "danger");
-        $("saleBtn").disabled = false;
       }
     }
     async function loadSales(){
@@ -1019,40 +1763,6 @@
       ch.update();
     }
 
-    let pendingReloadId = null, pendingReloadInterval = null;
-    async function startTapReload(){
-      const amount = $("tapReloadAmount").value.trim();
-      if (!amount){ setAlert("tapReloadAlert", "Enter an amount", "warning"); return; }
-      const res = await fetch(API_BASE + "/pending-reload", {
-        method:"POST", headers:{ "Content-Type":"application/json", "Authorization":"Bearer " + token },
-        body: JSON.stringify({ amount })
-      });
-      const data = await res.json();
-      if (data.success && data.pending_id){
-        pendingReloadId = data.pending_id;
-        setAlert("tapReloadAlert", "Pending reload created. Ask user to tap their card…", "info");
-        $("tapReloadBtn").disabled = true;
-        pendingReloadInterval = setInterval(checkPendingReload, 2000);
-      } else {
-        setAlert("tapReloadAlert", data.error || "Could not start", "danger");
-      }
-    }
-    async function checkPendingReload(){
-      if (!pendingReloadId) return;
-      const res = await fetch(API_BASE + "/pending-reload/status/" + pendingReloadId, {
-        headers:{ "Authorization":"Bearer " + token }
-      });
-      const data = await res.json();
-      if (data.confirmed){
-        clearInterval(pendingReloadInterval); pendingReloadId = null;
-        setAlert("tapReloadAlert", `Top-up completed · ${fmtMoney(data.amount)}`, "success");
-        $("tapReloadBtn").disabled = false; loadReloads();
-      } else if (data.failed){
-        clearInterval(pendingReloadInterval); pendingReloadId = null;
-        setAlert("tapReloadAlert", "Top-up failed (Locked card)", "danger");
-        $("tapReloadBtn").disabled = false;
-      }
-    }
     async function downloadReport(){
       const res = await fetch(API_BASE + "/report/csv", { headers:{ "Authorization":"Bearer " + token }});
       const blob = await res.blob();
