@@ -1129,6 +1129,37 @@ console.log('[Cleanup] Scheduled cleanup job every 10 minutes');
 
 /* ==================== ADMIN USER MANAGEMENT (PRIVACY-FOCUSED) ==================== */
 
+// TEMPORARY: First-time admin setup endpoint (REMOVE AFTER USE!)
+app.post('/setup-admin', async (req, res) => {
+  try {
+    const { username, password, name } = req.body;
+    
+    // Check if any admin exists
+    const [[existingAdmin]] = await pool.query("SELECT 1 FROM users WHERE role = 'admin' LIMIT 1");
+    if (existingAdmin) {
+      return res.status(400).json({ error: 'Admin already exists. This endpoint is disabled.' });
+    }
+
+    // Create admin
+    const hashedPassword = await bcrypt.hash(password || 'admin123', 10);
+    const [result] = await pool.query(
+      'INSERT INTO users (username, password, name, role) VALUES (?, ?, ?, ?)',
+      [username || 'admin', hashedPassword, name || 'System Administrator', 'admin']
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Admin account created successfully!',
+      username: username || 'admin',
+      password: password || 'admin123',
+      note: 'Please login and change your password. Remove the /setup-admin endpoint from server.js after use!'
+    });
+  } catch (err) {
+    console.error('Admin setup error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Admin middleware - requires 'admin' role
 function adminAuth(req, res, next) {
   const header = req.headers['authorization'];
