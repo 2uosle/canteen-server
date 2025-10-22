@@ -6,8 +6,40 @@ const cors = require('cors');
 const { Parser } = require('json2csv');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
+
+/* =====================
+   SECURITY MIDDLEWARE
+   ===================== */
+// Helmet: Sets secure HTTP headers
+app.use(helmet({
+  contentSecurityPolicy: false, // Allow inline scripts for our frontend
+  crossOriginEmbedderPolicy: false // Allow cross-origin resources
+}));
+
+// General rate limiter: 100 requests per 15 minutes per IP
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: { error: 'Too many requests from this IP, please try again later.' },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false // Disable the `X-RateLimit-*` headers
+});
+
+// Strict rate limiter for auth endpoints: 5 requests per 15 minutes
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 requests per windowMs
+  message: { error: 'Too many login attempts, please try again later.' },
+  skipSuccessfulRequests: true // Don't count successful requests
+});
+
+// Apply general rate limiter to all routes
+app.use(generalLimiter);
+
 app.use(cors());
 app.use(express.json());
 
@@ -324,7 +356,7 @@ app.get('/reloads/csv', auth('staff'), async (req, res) => {
 });
 
 /* ---------- AUTH ---------- */
-app.post('/register', async (req, res) => {
+app.post('/register', authLimiter, async (req, res) => {
   try {
     const { name, username, role = 'student', password } = req.body;
     if (!name || !username || !password) {
@@ -345,7 +377,7 @@ app.post('/register', async (req, res) => {
 });
 
 // Login (username preferred; fallback to name)
-app.post('/login', async (req, res) => {
+app.post('/login', authLimiter, async (req, res) => {
   try {
     const username = (req.body.username ?? '').toString().trim();
     const name     = (req.body.name ?? '').toString().trim();
