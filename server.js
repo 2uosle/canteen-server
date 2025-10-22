@@ -9,6 +9,25 @@ const bcrypt = require('bcryptjs');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
+// Import validation middleware and schemas
+const {
+  validate,
+  registerSchema,
+  loginSchema,
+  addUserSchema,
+  reloadSchema,
+  transactionSchema,
+  pendingSaleSchema,
+  confirmPendingSchema,
+  rfidLinkStartSchema,
+  rfidLinkConfirmSchema,
+  rfidUnlinkSchema,
+  changePasswordSchema,
+  reportQuerySchema,
+  balanceParamSchema,
+  statusParamSchema
+} = require('./middleware/validation');
+
 const app = express();
 
 /* =====================
@@ -121,7 +140,7 @@ app.get('/health', async (req, res) => {
 });
 
 // Create user (staff-managed account creation)
-app.post('/addUser', auth('staff'), async (req, res) => {
+app.post('/addUser', auth('staff'), validate(addUserSchema), async (req, res) => {
   try {
     const { name, username = null, rfid_uid = null, role = 'student', balance = 0, password = null } = req.body;
     if (!name) return res.status(400).json({ error: 'name required' });
@@ -146,7 +165,7 @@ app.post('/addUser', auth('staff'), async (req, res) => {
 });
 
 /* ---------- STAFF TOP-UPS (BLOCKED IF CARD LOCKED) ---------- */
-app.post('/reload', auth('staff'), async (req, res) => {
+app.post('/reload', auth('staff'), validate(reloadSchema), async (req, res) => {
   try {
     const { rfid_uid, amount } = req.body;
     const cashier_id = req.user.user_id;
@@ -196,7 +215,7 @@ app.post('/reload', auth('staff'), async (req, res) => {
 });
 
 /* ---------- BALANCE (INCLUDES LOCK FLAG FOR DEVICES/UI) ---------- */
-app.get('/balance/:uid', async (req, res) => {
+app.get('/balance/:uid', validate(balanceParamSchema, 'params'), async (req, res) => {
   try {
     const uid = req.params.uid;
     const [rows] = await pool.query(
@@ -212,7 +231,7 @@ app.get('/balance/:uid', async (req, res) => {
 });
 
 /* ---------- DEVICE SALE (BLOCKED IF CARD LOCKED) ---------- */
-app.post('/transaction', async (req, res) => {
+app.post('/transaction', validate(transactionSchema), async (req, res) => {
   try {
     const { uid, item_id, amount, device_id } = req.body;
     if (!uid) return res.status(400).json({ error: 'uid required' });
@@ -270,7 +289,7 @@ app.post('/transaction', async (req, res) => {
 });
 
 /* ---------- REPORTS & EXPORTS ---------- */
-app.get('/report', async (req, res) => {
+app.get('/report', validate(reportQuerySchema, 'query'), async (req, res) => {
   try {
     const { from, to } = req.query;
     let q = `
@@ -372,7 +391,7 @@ app.get('/reloads/csv', auth('staff'), async (req, res) => {
 });
 
 /* ---------- AUTH ---------- */
-app.post('/register', authLimiter, async (req, res) => {
+app.post('/register', authLimiter, validate(registerSchema), async (req, res) => {
   try {
     const { name, username, role = 'student', password } = req.body;
     if (!name || !username || !password) {
@@ -393,7 +412,7 @@ app.post('/register', authLimiter, async (req, res) => {
 });
 
 // Login (username preferred; fallback to name)
-app.post('/login', authLimiter, async (req, res) => {
+app.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
   try {
     const username = (req.body.username ?? '').toString().trim();
     const name     = (req.body.name ?? '').toString().trim();
@@ -489,7 +508,7 @@ app.get('/student/reloads', auth('student'), async (req, res) => {
 
 
 // Change my password
-app.put('/student/password', auth('student'), async (req, res) => {
+app.put('/student/password', auth('student'), validate(changePasswordSchema), async (req, res) => {
   try {
     const { current_password, new_password } = req.body || {};
     if (!current_password || !new_password) {
@@ -544,7 +563,7 @@ app.post('/student/card/unlock', auth('student'), async (req, res) => {
 
 // Staff starts a pending RFID link for a student
 // Body: { user_id, override?: boolean }
-app.post('/rfid/link/start', auth('staff'), async (req, res) => {
+app.post('/rfid/link/start', auth('staff'), validate(rfidLinkStartSchema), async (req, res) => {
   try {
     let { user_id, override = false } = req.body || {};
     if (!user_id) return res.status(400).json({ error: 'user_id required' });
@@ -594,7 +613,7 @@ app.get('/rfid/link/latest', async (req, res) => {
 
 // Device confirms link after a tap
 // Body: { pending_id, uid, device_id? }
-app.post('/rfid/link/confirm', async (req, res) => {
+app.post('/rfid/link/confirm', validate(rfidLinkConfirmSchema), async (req, res) => {
   try {
     const { pending_id, uid, device_id } = req.body || {};
     if (!pending_id || !uid) return res.status(400).json({ error: 'pending_id and uid required' });
@@ -634,7 +653,7 @@ app.post('/rfid/link/confirm', async (req, res) => {
 });
 
 // Staff polls pairing status
-app.get('/rfid/link/status/:id', auth('staff'), async (req, res) => {
+app.get('/rfid/link/status/:id', auth('staff'), validate(statusParamSchema, 'params'), async (req, res) => {
   try {
     const [[row]] = await pool.query(
       'SELECT id, user_id, uid, confirmed, created_at FROM pending_rfid_links WHERE id=?',
@@ -655,7 +674,7 @@ app.get('/rfid/link/status/:id', auth('staff'), async (req, res) => {
 });
 
 // Unlink RFID — STAFF ONLY (lost card replacement)
-app.post('/rfid/unlink', auth('staff'), async (req, res) => {
+app.post('/rfid/unlink', auth('staff'), validate(rfidUnlinkSchema), async (req, res) => {
   try {
     const { user_id } = req.body || {};
     if (!user_id) return res.status(400).json({ error: 'user_id required' });
@@ -667,7 +686,7 @@ app.post('/rfid/unlink', auth('staff'), async (req, res) => {
 });
 
 /* ---------- PENDING SALE FLOW (BLOCKED IF CARD LOCKED) ---------- */
-app.post('/pending-sale', auth('vendor'), async (req, res) => {
+app.post('/pending-sale', auth('vendor'), validate(pendingSaleSchema), async (req, res) => {
   try {
     let { item_id, item_name, amount } = req.body;
     if ((!item_id && !item_name) || amount == null) {
@@ -706,7 +725,7 @@ app.get('/pending-sale/latest', async (req, res) => {
 });
 
 // Student taps to confirm sale
-app.post('/pending-sale/confirm', async (req, res) => {
+app.post('/pending-sale/confirm', validate(confirmPendingSchema), async (req, res) => {
   try {
     const { pending_id, uid } = req.body;
     if (!pending_id || !uid) return res.status(400).json({ error: 'pending_id and uid required' });
@@ -758,7 +777,7 @@ app.post('/pending-sale/confirm', async (req, res) => {
   }
 });
 
-app.get('/pending-sale/status/:id', auth('vendor'), async (req, res) => {
+app.get('/pending-sale/status/:id', auth('vendor'), validate(statusParamSchema, 'params'), async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT item_id, item_name, amount, confirmed FROM pending_sales WHERE id = ?`,
@@ -811,7 +830,7 @@ app.get('/pending-reload/latest', async (req, res) => {
 });
 
 // ESP32 confirms reload after card tap
-app.post('/pending-reload/confirm', async (req, res) => {
+app.post('/pending-reload/confirm', validate(confirmPendingSchema), async (req, res) => {
   try {
     const { pending_id, uid, device_id } = req.body;
     if (!pending_id || !uid) return res.status(400).json({ error: 'pending_id and uid required' });
@@ -858,7 +877,7 @@ app.post('/pending-reload/confirm', async (req, res) => {
   }
 });
 
-app.get('/pending-reload/status/:id', auth('staff'), async (req, res) => {
+app.get('/pending-reload/status/:id', auth('staff'), validate(statusParamSchema, 'params'), async (req, res) => {
   try {
     const [rows] = await pool.query(
       'SELECT id, amount, confirmed FROM pending_reloads WHERE id = ?',
