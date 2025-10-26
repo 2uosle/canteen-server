@@ -585,12 +585,8 @@ app.get('/student/reloads', auth('student'), async (req, res) => {
 app.put('/student/password', auth('student'), validate(changePasswordSchema), async (req, res) => {
   try {
     const { current_password, new_password } = req.body || {};
-    if (!current_password || !new_password) {
-      return res.status(400).json({ error: 'current_password and new_password required' });
-    }
-    if (new_password.length < 8) {
-      return res.status(400).json({ error: 'new_password must be at least 8 characters' });
-    }
+    // Validation is handled by changePasswordSchema middleware
+    
     const [[user]] = await pool.query('SELECT user_id, password FROM users WHERE user_id=?', [req.user.user_id]);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
@@ -649,9 +645,8 @@ app.post('/rfid/link/start', auth('staff'), validate(rfidLinkStartSchema), async
       return res.status(400).json({ error: 'User already has an RFID. Pass override=true to replace.' });
     }
 
-    if (target.rfid_uid && override) {
-      await pool.query('UPDATE users SET rfid_uid = NULL WHERE user_id=?', [user_id]);
-    }
+    // Note: We don't remove the old RFID here anymore.
+    // It will be replaced during confirmation if the new RFID is valid.
 
     // Cancel older pending requests for this user
     await pool.query('UPDATE pending_rfid_links SET confirmed=2 WHERE user_id=? AND confirmed=0', [user_id]);
@@ -706,10 +701,33 @@ app.post('/rfid/link/confirm', validate(rfidLinkConfirmSchema), async (req, res)
     }
 
     // RFID must be unique across users
-    const [dupe] = await pool.query('SELECT user_id FROM users WHERE rfid_uid=? LIMIT 1', [uid]);
-    if (dupe.length) {
-      await pool.query('UPDATE pending_rfid_links SET confirmed=2, uid=? WHERE id=?', [uid, pending_id]);
-      return res.status(409).json({ success: false, failed: true, message: 'RFID already in use' });
+    // Check if this RFID is already paired to someone else
+    const [[existingUser]] = await pool.query(
+      'SELECT user_id, name FROM users WHERE rfid_uid=? LIMIT 1', 
+      [uid]
+    );
+    
+    if (existingUser) {
+      // RFID is already in use
+      if (existingUser.user_id !== pending.user_id) {
+        // RFID is paired to a DIFFERENT user - reject
+        await pool.query('UPDATE pending_rfid_links SET confirmed=2, uid=? WHERE id=?', [uid, pending_id]);
+        logger.warn('RFID pairing rejected - already in use', {
+          rfid: uid,
+          existing_user: existingUser.user_id,
+          target_user: pending.user_id
+        });
+        return res.status(409).json({ 
+          success: false, 
+          failed: true, 
+          message: `RFID already paired to ${existingUser.name}. Cannot pair to multiple users.` 
+        });
+      }
+      // If RFID is already paired to the SAME user, we'll just update (re-pair same card)
+      logger.info('Re-pairing same RFID to same user', {
+        rfid: uid,
+        user_id: pending.user_id
+      });
     }
 
     const conn = await pool.getConnection();

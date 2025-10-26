@@ -19,7 +19,7 @@ const char* password = "2uoHome0219!";
 /* =========================
    Backend base URL
    ========================= */
-String baseUrl = "http://192.168.1.3:3000";   // <-- your server
+String baseUrl = "http://192.168.1.10:3000";   // <-- your server
 
 /* =========================
    Poll timers (ms)
