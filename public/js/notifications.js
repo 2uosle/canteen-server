@@ -1,0 +1,362 @@
+// ============================================
+// Real-Time Notifications via WebSocket
+// ============================================
+
+let ws = null;
+let reconnectInterval = null;
+let isConnected = false;
+
+// Notification queue for display
+const notificationQueue = [];
+let isShowingNotification = false;
+
+// Initialize WebSocket connection
+function initWebSocket() {
+  const WS_URL = 'ws://127.0.0.1:3001'; // WebSocket server port
+  
+  try {
+    ws = new WebSocket(WS_URL);
+    
+    ws.onopen = () => {
+      console.log('[WebSocket] Connected to notification server');
+      isConnected = true;
+      
+      // Clear reconnect interval if connected
+      if (reconnectInterval) {
+        clearInterval(reconnectInterval);
+        reconnectInterval = null;
+      }
+      
+      // Authenticate with server if logged in
+      const token = localStorage.getItem('token');
+      const role = localStorage.getItem('role');
+      const username = localStorage.getItem('username');
+      
+      if (token && role) {
+        // Extract user_id from token (simple parsing, in production use proper JWT decode)
+        ws.send(JSON.stringify({
+          type: 'authenticate',
+          data: {
+            token,
+            role,
+            username
+          }
+        }));
+        console.log('[WebSocket] Authenticated as', role);
+      }
+    };
+    
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        handleWebSocketMessage(message);
+      } catch (error) {
+        console.error('[WebSocket] Failed to parse message:', error);
+      }
+    };
+    
+    ws.onerror = (error) => {
+      console.error('[WebSocket] Error:', error);
+    };
+    
+    ws.onclose = () => {
+      console.log('[WebSocket] Disconnected');
+      isConnected = false;
+      
+      // Attempt to reconnect every 5 seconds
+      if (!reconnectInterval) {
+        reconnectInterval = setInterval(() => {
+          console.log('[WebSocket] Attempting to reconnect...');
+          initWebSocket();
+        }, 5000);
+      }
+    };
+    
+  } catch (error) {
+    console.error('[WebSocket] Connection failed:', error);
+  }
+}
+
+// Handle incoming WebSocket messages
+function handleWebSocketMessage(message) {
+  console.log('[WebSocket] Received:', message.type, message.data);
+  
+  switch (message.type) {
+    case 'connected':
+      showNotification('Connected to real-time updates', 'success');
+      break;
+      
+    case 'balance_updated':
+      handleBalanceUpdate(message.data);
+      break;
+      
+    case 'reload_completed':
+      handleReloadNotification(message.data);
+      break;
+      
+    case 'sale_completed':
+      handleSaleNotification(message.data);
+      break;
+      
+    case 'new_user':
+      handleNewUserNotification(message.data);
+      break;
+      
+    case 'card_locked':
+      handleCardLockNotification(message.data);
+      break;
+      
+    case 'low_balance':
+      handleLowBalanceNotification(message.data);
+      break;
+      
+    case 'sale_cancelled':
+      handleSaleCancelledNotification(message.data);
+      break;
+      
+    default:
+      console.log('[WebSocket] Unknown message type:', message.type);
+  }
+}
+
+// Handle balance update notification
+function handleBalanceUpdate(data) {
+  const currentRole = localStorage.getItem('role');
+  
+  // If student, update their balance display
+  if (currentRole === 'student' && typeof loadMyBalance === 'function') {
+    loadMyBalance();
+    
+    if (data.type === 'reload') {
+      showNotification(`₱${parseFloat(data.amount).toFixed(2)} added to your balance!`, 'success', 'bi-cash-coin');
+      playNotificationSound('success');
+    } else if (data.type === 'transaction' || data.type === 'sale') {
+      const amount = Math.abs(data.amount);
+      showNotification(`Purchase of ₱${amount.toFixed(2)} completed`, 'info', 'bi-cart-check');
+      playNotificationSound('info');
+    }
+    
+    // Refresh transaction history
+    if (typeof loadMyTransactions === 'function') {
+      setTimeout(() => loadMyTransactions(), 500);
+    }
+  }
+}
+
+// Handle reload completed notification (for staff)
+function handleReloadNotification(data) {
+  const currentRole = localStorage.getItem('role');
+  
+  if (currentRole === 'staff') {
+    showNotification(
+      `Top-up completed: ₱${parseFloat(data.amount).toFixed(2)}`,
+      'success',
+      'bi-cash-stack'
+    );
+    
+    // Refresh reload list
+    if (typeof loadReloads === 'function') {
+      setTimeout(() => loadReloads(), 500);
+    }
+  }
+}
+
+// Handle sale notification (for vendors)
+function handleSaleNotification(data) {
+  const currentRole = localStorage.getItem('role');
+  
+  if (currentRole === 'vendor') {
+    showNotification(
+      `Sale completed: ₱${parseFloat(data.amount).toFixed(2)}`,
+      'success',
+      'bi-cart-check-fill'
+    );
+    playNotificationSound('success');
+    
+    // Refresh sales list
+    if (typeof loadSales === 'function') {
+      setTimeout(() => loadSales(), 500);
+    }
+  }
+}
+
+// Handle new user registration notification
+function handleNewUserNotification(data) {
+  const currentRole = localStorage.getItem('role');
+  
+  if (currentRole === 'admin') {
+    showNotification(
+      `New ${data.role} registered: ${data.name}`,
+      'info',
+      'bi-person-plus-fill'
+    );
+    
+    // Refresh user list
+    if (typeof adminLoadUsers === 'function') {
+      setTimeout(() => adminLoadUsers(), 500);
+    }
+  }
+}
+
+// Handle card lock notification
+function handleCardLockNotification(data) {
+  showNotification(
+    `Card has been ${data.locked ? 'locked' : 'unlocked'}`,
+    data.locked ? 'warning' : 'success',
+    'bi-shield-lock-fill'
+  );
+}
+
+// Handle low balance warning
+function handleLowBalanceNotification(data) {
+  showNotification(
+    `Low balance warning: ₱${parseFloat(data.balance).toFixed(2)} remaining`,
+    'warning',
+    'bi-exclamation-triangle-fill'
+  );
+  playNotificationSound('warning');
+}
+
+// Handle sale cancellation notification
+function handleSaleCancelledNotification(data) {
+  const currentRole = localStorage.getItem('role');
+  
+  if (currentRole === 'vendor') {
+    showNotification(
+      `Transaction cancelled: ${data.item_name || 'Unknown'} - ${data.reason || 'No reason provided'}`,
+      'warning',
+      'bi-x-circle-fill'
+    );
+    playNotificationSound('warning');
+    
+    // Refresh sales list
+    if (typeof loadSales === 'function') {
+      setTimeout(() => loadSales(), 500);
+    }
+  } else if (currentRole === 'student') {
+    showNotification(
+      `Transaction cancelled: ${data.item_name || 'Item'} - ${data.reason || 'Cancelled by vendor'}`,
+      'warning',
+      'bi-exclamation-triangle-fill'
+    );
+    playNotificationSound('warning');
+  }
+}
+
+// Show notification toast
+function showNotification(message, type = 'info', icon = 'bi-info-circle-fill') {
+  // Add to queue
+  notificationQueue.push({ message, type, icon });
+  
+  // Process queue if not already showing
+  if (!isShowingNotification) {
+    processNotificationQueue();
+  }
+}
+
+// Process notification queue (show one at a time)
+function processNotificationQueue() {
+  if (notificationQueue.length === 0) {
+    isShowingNotification = false;
+    return;
+  }
+  
+  isShowingNotification = true;
+  const notification = notificationQueue.shift();
+  
+  // Create notification element
+  const notifEl = document.createElement('div');
+  notifEl.className = `notification notification-${notification.type}`;
+  notifEl.innerHTML = `
+    <i class="bi ${notification.icon} me-2"></i>
+    <span>${notification.message}</span>
+  `;
+  
+  // Add to container
+  let container = document.getElementById('notificationContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'notificationContainer';
+    container.className = 'notification-container';
+    document.body.appendChild(container);
+  }
+  
+  container.appendChild(notifEl);
+  
+  // Animate in
+  setTimeout(() => notifEl.classList.add('show'), 10);
+  
+  // Auto-dismiss after 4 seconds
+  setTimeout(() => {
+    notifEl.classList.remove('show');
+    setTimeout(() => {
+      if (notifEl.parentNode) {
+        notifEl.remove();
+      }
+      // Process next notification
+      processNotificationQueue();
+    }, 300);
+  }, 4000);
+}
+
+// Play notification sound
+function playNotificationSound(type) {
+  // Create a simple beep using Web Audio API
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    // Different frequencies for different notification types
+    const frequencies = {
+      success: 800,
+      info: 600,
+      warning: 500,
+      danger: 400
+    };
+    
+    oscillator.frequency.value = frequencies[type] || 600;
+    oscillator.type = 'sine';
+    
+    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.2);
+  } catch (error) {
+    // Audio API not supported or user hasn't interacted with page yet
+    console.log('[Audio] Could not play sound:', error.message);
+  }
+}
+
+// Send message to WebSocket server
+function sendWebSocketMessage(type, data) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type, data }));
+  } else {
+    console.warn('[WebSocket] Not connected, cannot send message');
+  }
+}
+
+// Close WebSocket connection (call on logout)
+function closeWebSocket() {
+  if (ws) {
+    ws.close();
+    ws = null;
+  }
+  if (reconnectInterval) {
+    clearInterval(reconnectInterval);
+    reconnectInterval = null;
+  }
+  isConnected = false;
+}
+
+// Export functions for use in other scripts
+window.initWebSocket = initWebSocket;
+window.closeWebSocket = closeWebSocket;
+window.sendWebSocketMessage = sendWebSocketMessage;
+window.showNotification = showNotification;
+

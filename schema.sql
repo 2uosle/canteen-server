@@ -160,6 +160,27 @@ CREATE TABLE `card_hotlist` (
 COMMENT='Blocked RFID cards for security';
 
 -- ============================================
+-- TABLE: cancelled_transactions
+-- Purpose: Log all cancelled/failed transactions by vendors
+-- ============================================
+DROP TABLE IF EXISTS `cancelled_transactions`;
+CREATE TABLE `cancelled_transactions` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `pending_id` int NOT NULL,
+  `item_name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `vendor_id` int NOT NULL,
+  `vendor_name` varchar(150) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reason` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `cancelled_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_ct_pending` (`pending_id`),
+  KEY `idx_ct_vendor` (`vendor_id`),
+  KEY `idx_ct_date` (`cancelled_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+COMMENT='Log of cancelled/failed transactions';
+
+-- ============================================
 -- TABLE: devices
 -- Purpose: Registered ESP32/Arduino devices
 -- ============================================

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -9,562 +9,13 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <style>
-    :root {
-      --radius-lg: 18px;
-      --radius-md: 12px;
-      --radius-sm: 10px;
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/notifications.css">
 
-      --trans-fast: 180ms cubic-bezier(0.4, 0, 0.2, 1);
-      --trans-normal: 240ms cubic-bezier(0.4, 0, 0.2, 1);
-      --trans-spring: 400ms cubic-bezier(0.18, 1.2, 0.18, 1);
+</head>
 
-      --accent: #0A84FF;
-      --accent-2: #34C759;
-      --danger: #FF3B30;
-      --warning: #FF9500;
-
-      --bg: #f5f6f8;
-      --surface: rgba(255,255,255,0.82);
-      --surface-2: rgba(255,255,255,0.92);
-      --text: #0b1220;
-      --text-muted: #5b6472;
-      --border: rgba(0,0,0,0.08);
-      --shadow: 0 10px 30px rgba(16, 24, 40, .08);
-      --shadow-hover: 0 14px 40px rgba(16, 24, 40, .14);
-      --code-bg: #0f1424;
-      --code-fg: #e7e8ea;
-    }
-    .theme-dark {
-      --bg: #0b0f15;
-      --surface: rgba(16, 20, 26, 0.92);
-      --surface-2: rgba(16, 20, 26, 0.98);
-      --text: #e6eef8;
-      --text-muted: #aeb8c4;
-      --border: rgba(255,255,255,0.12);
-      --shadow: 0 14px 40px rgba(2, 6, 23, 0.6);
-      --shadow-hover: 0 18px 56px rgba(2, 6, 23, 0.7);
-      --code-bg: #071021;
-      --code-fg: #e3e7ef;
-    }
-
-/* --- Bridge to Bootstrap variables (LIGHT) --- */
-:root {
-  /* map Apple-like tokens to Bootstrap */
-  --bs-body-bg: var(--bg);
-  --bs-body-color: var(--text);
-  --bs-secondary-color: var(--text-muted);
-  --bs-border-color: var(--border);
-  --bs-card-bg: var(--surface);
-  --bs-card-color: var(--text);
-  --bs-heading-color: var(--text);
-  --bs-link-color: var(--accent);
-  --bs-table-color: var(--text);
-  --bs-table-bg: transparent;
-  --bs-toast-bg: var(--surface-2);
-  --bs-toast-color: var(--text);
-}
-
-/* --- Bridge to Bootstrap variables (DARK) --- */
-.theme-dark {
-  --bs-body-bg: var(--bg);
-  --bs-body-color: var(--text);
-  --bs-secondary-color: var(--text-muted);
-  --bs-border-color: var(--border);
-  --bs-card-bg: var(--surface);
-  --bs-card-color: var(--text);
-  --bs-heading-color: var(--text);
-  --bs-link-color: var(--accent);
-  --bs-table-color: var(--text);
-  --bs-table-bg: transparent;
-  --bs-toast-bg: var(--surface-2);
-  --bs-toast-color: var(--text);
-}
-
-/* Make outline buttons readable in both themes */
-.btn-outline-secondary,
-.btn-outline-primary {
-  --bs-btn-color: var(--text);
-  --bs-btn-border-color: var(--border);
-  --bs-btn-hover-bg: color-mix(in srgb, var(--surface-2) 12%, transparent);
-  --bs-btn-hover-border-color: var(--border);
-}
-
-
-    html, body { height: 100%; }
-    body {
-      background:
-        radial-gradient(1200px 600px at -10% -20%, rgba(10,132,255,.08) 0%, transparent 50%),
-        radial-gradient(800px 500px at 110% -10%, rgba(52,199,89,.08) 0%, transparent 50%),
-        var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-      letter-spacing: .2px;
-    }
-
-    .app-nav {
-      backdrop-filter: saturate(180%) blur(16px);
-      background: color-mix(in srgb, var(--surface) 80%, transparent);
-      border-bottom: 1px solid var(--border);
-    }
-    .brand {
-      display:inline-flex; align-items:center; gap:.5rem;
-      padding:.45rem .8rem; border-radius:999px;
-      background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 85%, #6aa8ff), var(--accent));
-      color:#fff; font-weight:700; box-shadow: 0 10px 24px rgba(10,132,255,.25);
-    }
-
-    .page { padding: 28px 0 56px; }
-    .glass {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow);
-      backdrop-filter: saturate(180%) blur(16px);
-    }
-    .glass .card-header {
-      border-bottom: 1px solid var(--border);
-      background: color-mix(in srgb, var(--surface-2) 60%, transparent);
-      border-top-left-radius: var(--radius-lg);
-      border-top-right-radius: var(--radius-lg);
-      font-weight: 600;
-    }
-    @media (prefers-reduced-motion: no-preference){
-      .card.glass { transition: transform .18s ease, box-shadow .18s ease; animation: fadeUp .45s ease both; }
-      .card.glass:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
-      .btn { transition: opacity .18s ease, filter .18s ease, transform .18s ease, box-shadow .18s ease; }
-      .table tbody tr { transition: background-color .18s ease; }
-    }
-    @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-
-    .btn:hover { opacity:.95; transform: translateY(-1px); filter: saturate(110%); }
-    .btn:active { opacity:.9; transform: translateY(0); }
-    .btn:focus, .btn:active { box-shadow: 0 6px 18px rgba(10,132,255,0.12); }
-
-    .btn-accent { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 10px 24px rgba(10,132,255,.22); }
-    .btn-accent:hover { background:#006fe5; border-color:#006fe5; }
-    .btn-success-apple { background: var(--accent-2); border-color: var(--accent-2); color:#081a0e; }
-    .btn-success-apple:hover { filter: brightness(.97); }
-
-    .form-control, .form-select{ background: var(--surface-2); border:1px solid var(--border); color:var(--text); box-shadow: none; }
-    .form-control::placeholder { color: color-mix(in srgb, var(--text-muted) 80%, transparent); }
-    .form-control:focus, .form-select:focus{
-      box-shadow: 0 0 0 .25rem color-mix(in srgb, var(--accent) 20%, transparent);
-      border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
-    }
-
-    .headline { font-size: clamp(28px, 3vw, 34px); font-weight:800; letter-spacing:.3px; }
-    .eyebrow { text-transform: uppercase; font-size:.82rem; color:var(--text-muted); letter-spacing:.12rem; }
-
-    .segmented {
-      display: inline-flex; gap:0; border:1px solid var(--border); border-radius:999px;
-      background: color-mix(in srgb, var(--surface-2) 70%, transparent);
-      backdrop-filter: blur(10px);
-    }
-    .segmented .seg { padding:.35rem .8rem; border:0; background:transparent; color:var(--text); font-weight:600; border-radius:999px; cursor:pointer; }
-    .segmented .seg.active { background: var(--accent); color:#fff; box-shadow:0 6px 16px rgba(10,132,255,.25); }
-
-    .table thead th { color: var(--text-muted); font-weight:600; border-bottom:1px solid var(--border); background: color-mix(in srgb, var(--surface-2) 88%, transparent); }
-    .table tbody td { border-color: var(--border); color: var(--text); }
-    .table tbody tr:nth-child(odd) td { background: color-mix(in srgb, var(--surface) 94%, transparent); }
-    .table tbody tr:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
-
-    .pill {
-      display:inline-flex; align-items:center; gap:.5rem;
-      padding:.35rem .6rem; border-radius:999px; font-weight:600; font-size:.82rem;
-      background: color-mix(in srgb, var(--surface-2) 85%, transparent);
-      border:1px solid var(--border);
-      color: var(--text-muted);
-    }
-    .pill-amount { background: color-mix(in srgb, var(--accent-2) 12%, transparent); color: var(--accent-2); border:1px solid color-mix(in srgb, var(--accent-2) 35%, var(--border)); }
-    .pill-info   { background: color-mix(in srgb, var(--accent) 12%, transparent);   color: var(--accent);   border:1px solid color-mix(in srgb, var(--accent) 35%, var(--border)); }
-
-    #reloadChart, #salesChart { width: 100% !important; height: 140px !important; display:block; }
-
-    #loginStage { min-height: calc(100vh - 68px); display: grid; place-items: center; padding: 26px 12px; }
-    #loginCard { width: min(840px, 92vw); }
-
-    .alert { border-radius: var(--radius-md); border:1px solid var(--border); background: color-mix(in srgb, var(--surface-2) 80%, transparent); color: var(--text); animation: slideIn var(--trans-normal) forwards; }
-    @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
-
-    /* ==================== POS SYSTEM STYLES ==================== */
-    .pos-step { animation: posSlideIn 0.3s ease-out; }
-    @keyframes posSlideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
-
-    .pos-label {
-      text-align: center;
-      font-size: 0.75rem;
-      font-weight: 700;
-      color: var(--text-muted);
-      letter-spacing: 0.08rem;
-      margin-bottom: 0.75rem;
-      text-transform: uppercase;
-    }
-
-    .pos-amount-display {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.3rem;
-      padding: 0.75rem;
-      background: color-mix(in srgb, var(--surface-2) 95%, transparent);
-      border: 2px solid var(--border);
-      border-radius: var(--radius-md);
-      margin-bottom: 0.75rem;
-    }
-
-    .pos-amount-display .currency {
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: var(--text-muted);
-    }
-
-    .pos-amount-input {
-      background: transparent;
-      border: none;
-      font-size: 1.8rem;
-      font-weight: 800;
-      color: var(--text);
-      text-align: center;
-      width: 100%;
-      outline: none;
-      font-family: 'Courier New', monospace;
-    }
-
-    .pos-amount-input::placeholder {
-      color: color-mix(in srgb, var(--text-muted) 40%, transparent);
-    }
-
-    .pos-keypad {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.4rem;
-      margin-bottom: 0.6rem;
-      max-width: 280px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    .pos-key {
-      aspect-ratio: 1;
-      font-size: 1rem;
-      font-weight: 700;
-      background: var(--surface-2);
-      border: 2px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--text);
-      cursor: pointer;
-      padding: 0.5rem;
-      transition: all 0.15s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 50px;
-    }
-
-    .pos-key:hover {
-      background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
-      border-color: var(--accent);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(10, 132, 255, 0.15);
-    }
-
-    .pos-key:active {
-      transform: scale(0.95);
-    }
-
-    .pos-key-special {
-      background: color-mix(in srgb, var(--accent-2) 8%, var(--surface-2));
-    }
-
-    .pos-key-clear {
-      background: color-mix(in srgb, var(--danger) 8%, var(--surface-2));
-      color: var(--danger);
-    }
-
-    .pos-quick-amounts {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 0.4rem;
-      margin-bottom: 0.6rem;
-      max-width: 280px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    .pos-quick-btn {
-      padding: 0.5rem;
-      font-size: 0.8rem;
-      font-weight: 600;
-      background: color-mix(in srgb, var(--accent-2) 8%, var(--surface-2));
-      border: 1px solid color-mix(in srgb, var(--accent-2) 30%, var(--border));
-      border-radius: var(--radius-sm);
-      color: var(--accent-2);
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-
-    .pos-quick-btn:hover {
-      background: var(--accent-2);
-      color: #fff;
-      transform: translateY(-2px);
-    }
-
-    .pos-btn {
-      width: 100%;
-      padding: 0.7rem;
-      font-size: 0.9rem;
-      font-weight: 700;
-      border-radius: var(--radius-sm);
-      border: none;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      letter-spacing: 0.05rem;
-      text-transform: uppercase;
-    }
-
-    .pos-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-    }
-
-    .pos-btn:active {
-      transform: scale(0.98);
-    }
-
-    .pos-btn-primary {
-      background: var(--accent);
-      color: #fff;
-    }
-
-    .pos-btn-success {
-      background: var(--accent-2);
-      color: #fff;
-    }
-
-    .pos-btn-danger {
-      background: var(--danger);
-      color: #fff;
-    }
-
-    .pos-btn-secondary {
-      background: color-mix(in srgb, var(--surface-2) 80%, transparent);
-      color: var(--text);
-      border: 2px solid var(--border);
-    }
-
-    .pos-btn-group {
-      display: grid;
-      grid-template-columns: 1fr 2fr;
-      gap: 0.5rem;
-    }
-
-    .pos-confirm-header {
-      text-align: center;
-      font-size: 1rem;
-      font-weight: 800;
-      color: var(--text);
-      margin-bottom: 1.25rem;
-      letter-spacing: 0.08rem;
-      text-transform: uppercase;
-    }
-
-    .pos-confirm-amount {
-      background: color-mix(in srgb, var(--accent) 8%, var(--surface-2));
-      border: 2px solid color-mix(in srgb, var(--accent) 30%, var(--border));
-      border-radius: var(--radius-sm);
-      padding: 1.25rem;
-      text-align: center;
-      margin-bottom: 1.25rem;
-    }
-
-    .pos-confirm-label {
-      display: block;
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      margin-bottom: 0.4rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05rem;
-    }
-
-    .pos-confirm-value {
-      display: block;
-      font-size: 2.25rem;
-      font-weight: 800;
-      color: var(--accent);
-      font-family: 'Courier New', monospace;
-    }
-
-    .pos-confirm-details {
-      background: var(--surface-2);
-      border: 2px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 1.5rem;
-      margin-bottom: 2rem;
-    }
-
-    .pos-confirm-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.75rem 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .pos-confirm-row:last-child {
-      border-bottom: none;
-    }
-
-    .pos-confirm-row .pos-confirm-label {
-      font-size: 1rem;
-      margin: 0;
-    }
-
-    .pos-confirm-row .pos-confirm-value {
-      font-size: 1.25rem;
-      font-weight: 700;
-    }
-
-    .pos-tap-screen {
-      background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 80%, #000) 100%);
-      border-radius: var(--radius-md);
-      padding: 1.5rem 1rem;
-      text-align: center;
-      color: #fff;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .pos-tap-icon {
-      font-size: 3rem;
-      margin-bottom: 0.5rem;
-      animation: posPulse 2s ease-in-out infinite;
-    }
-
-    @keyframes posPulse {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.1); opacity: 0.8; }
-    }
-
-    .pos-tap-text {
-      font-size: 1.4rem;
-      font-weight: 900;
-      letter-spacing: 0.08rem;
-      margin-bottom: 0.75rem;
-      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    }
-
-    .pos-tap-item {
-      font-size: 0.9rem;
-      font-weight: 600;
-      margin-bottom: 0.3rem;
-      opacity: 0.9;
-    }
-
-    .pos-tap-amount {
-      font-size: 1.8rem;
-      font-weight: 900;
-      margin-bottom: 0.5rem;
-      font-family: 'Courier New', monospace;
-      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-    }
-
-    .pos-tap-status {
-      font-size: 1rem;
-      opacity: 0.8;
-      margin-bottom: 1.5rem;
-    }
-
-    .pos-loading {
-      width: 100%;
-      height: 6px;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 3px;
-      overflow: hidden;
-    }
-
-    .pos-loading-bar {
-      width: 40%;
-      height: 100%;
-      background: #fff;
-      border-radius: 3px;
-      animation: posLoading 1.5s ease-in-out infinite;
-    }
-
-    @keyframes posLoading {
-      0% { transform: translateX(-100%); }
-      100% { transform: translateX(350%); }
-    }
-
-    .pos-success-screen {
-      text-align: center;
-      padding: 1.5rem 1rem;
-    }
-
-    .pos-success-icon {
-      font-size: 3rem;
-      color: var(--accent-2);
-      margin-bottom: 0.5rem;
-      animation: posCheckmark 0.5s ease-out;
-    }
-
-    @keyframes posCheckmark {
-      0% { transform: scale(0) rotate(-45deg); opacity: 0; }
-      50% { transform: scale(1.2) rotate(10deg); }
-      100% { transform: scale(1) rotate(0); opacity: 1; }
-    }
-
-    .pos-success-text {
-      font-size: 1.3rem;
-      font-weight: 900;
-      color: var(--accent-2);
-      margin-bottom: 0.75rem;
-      letter-spacing: 0.06rem;
-      text-transform: uppercase;
-    }
-
-    .pos-success-amount {
-      font-size: 1.8rem;
-      font-weight: 800;
-      color: var(--text);
-      margin-bottom: 0.5rem;
-      font-family: 'Courier New', monospace;
-    }
-
-    .pos-success-details {
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      margin-bottom: 1.25rem;
-      line-height: 1.5;
-    }
-
-    .pos-select, .pos-input {
-      width: 100%;
-      padding: 1rem;
-      font-size: 1rem;
-      background: var(--surface-2);
-      border: 2px solid var(--border);
-      border-radius: var(--radius-md);
-      color: var(--text);
-      transition: all 0.2s ease;
-    }
-
-    .pos-select:focus, .pos-input:focus {
-      outline: none;
-      border-color: var(--accent);
-      box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 15%, transparent);
-    }
-
-    @media (max-width: 768px) {
-      .pos-amount-input { font-size: 2rem; }
-      .pos-tap-text { font-size: 1.8rem; }
-      .pos-tap-icon { font-size: 4rem; }
-      .pos-confirm-value { font-size: 2rem; }
-    }
-  </style>
 </head>
 <body>
 
@@ -616,7 +67,7 @@
               </div>
               <div class="mb-3">
                 <label class="form-label">Password</label>
-                <input id="loginPass" type="password" class="form-control form-control-lg" placeholder="••••••••" />
+                <input id="loginPass" type="password" class="form-control form-control-lg" placeholder="Enter your password" />
               </div>
               <div class="d-grid">
                 <button class="btn btn-accent btn-lg" onclick="login()"><i class="bi bi-box-arrow-in-right me-1"></i>Login</button>
@@ -765,59 +216,175 @@
 
       <!-- STUDENT -->
       <section id="studentDashboard" class="d-none">
-        <div class="row g-4">
-          <div class="col-lg-4">
-            <div class="card glass h-100">
-              <div class="card-header">My Balance</div>
-              <div class="card-body">
-                <button class="btn btn-outline-primary mb-3" onclick="loadMyBalance()">
-                  <i class="bi bi-wallet2 me-1"></i>Refresh Balance
-                </button>
-                <div id="balanceCard" class="p-4 rounded-3 d-flex align-items-center justify-content-between"
-                     style="background:color-mix(in srgb, var(--accent) 6%, transparent); border:1px solid var(--border);">
+        <!-- Hero Stats Section -->
+        <div class="row g-4 mb-4">
+          <!-- Balance Card (Enhanced) -->
+          <div class="col-12 col-lg-4">
+            <div class="card glass student-balance-card h-100">
+              <div class="card-body p-4">
+                <div class="d-flex align-items-center justify-content-between mb-3">
                   <div>
-                    <div class="text-secondary">Available</div>
-                    <div id="balanceValue" class="fs-2 fw-bold">₱0.00</div>
+                    <div class="text-secondary small mb-1">
+                      <i class="bi bi-wallet2 me-1"></i>Available Balance
+                    </div>
+                    <div id="balanceValue" class="display-4 fw-bold text-accent">₱0.00</div>
                   </div>
-                  <i class="bi bi-piggy-bank fs-1 text-secondary"></i>
+                  <div class="balance-icon">
+                    <i class="bi bi-piggy-bank-fill fs-1"></i>
+                  </div>
+                </div>
+                <div class="d-grid">
+                  <button class="btn btn-sm btn-outline-primary" onclick="loadMyBalance()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh Balance
+                  </button>
                 </div>
               </div>
             </div>
           </div>
-          <div class="col-lg-4">
+
+          <!-- Quick Stats -->
+          <div class="col-12 col-lg-8">
+            <div class="row g-3 h-100">
+              <div class="col-6 col-md-3">
+                <div class="stat-card">
+                  <div class="stat-icon bg-primary">
+                    <i class="bi bi-calendar-day"></i>
+                  </div>
+                  <div class="stat-content">
+                    <div class="stat-value" id="statTodaySpent">₱0.00</div>
+                    <div class="stat-label">Today's Spending</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="stat-card">
+                  <div class="stat-icon bg-success">
+                    <i class="bi bi-arrow-down-circle"></i>
+                  </div>
+                  <div class="stat-content">
+                    <div class="stat-value" id="statLastReload">₱0.00</div>
+                    <div class="stat-label">Last Reload</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="stat-card">
+                  <div class="stat-icon bg-info">
+                    <i class="bi bi-receipt"></i>
+                  </div>
+                  <div class="stat-content">
+                    <div class="stat-value" id="statTotalTx">0</div>
+                    <div class="stat-label">Total Transactions</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="stat-card">
+                  <div class="stat-icon bg-warning">
+                    <i class="bi bi-hourglass-split"></i>
+                  </div>
+                  <div class="stat-content">
+                    <div class="stat-value" id="statAvgSpending">₱0.00</div>
+                    <div class="stat-label">Avg per Transaction</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row g-4 mb-4">
+          <div class="col-12">
+            <div class="card glass">
+              <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-lightning-charge-fill me-2"></i>Quick Actions</h6>
+              </div>
+              <div class="card-body">
+                <div class="row g-3">
+                  <div class="col-6 col-md-4">
+                    <button class="btn btn-outline-info w-100 quick-action-btn" onclick="openHistoryModal()">
+                      <i class="bi bi-clock-history d-block fs-3 mb-2"></i>
+                      <span>View History & Stats</span>
+                    </button>
+                  </div>
+                  <div class="col-6 col-md-4">
+                    <button class="btn btn-outline-success w-100 quick-action-btn" onclick="openReloadsModal()">
+                      <i class="bi bi-cash-stack d-block fs-3 mb-2"></i>
+                      <span>Reloads & Trends</span>
+                    </button>
+                  </div>
+                  <div class="col-6 col-md-4">
+                    <button class="btn btn-outline-warning w-100 quick-action-btn" onclick="bsModal('settingsModal').show()">
+                      <i class="bi bi-gear-fill d-block fs-3 mb-2"></i>
+                      <span>Settings</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data Sections -->
+        <div class="row g-4">
+          <div class="col-12 col-lg-6">
             <div class="card glass h-100">
               <div class="card-header d-flex align-items-center justify-content-between">
-                <span>My Recent Transactions</span>
-                <button class="btn btn-outline-secondary btn-sm" onclick="loadMyTransactions()"><i class="bi bi-arrow-clockwise"></i></button>
+                <span><i class="bi bi-cart-check me-2"></i>Recent Transactions</span>
+                <button class="btn btn-sm btn-outline-secondary" onclick="loadMyTransactions()">
+                  <i class="bi bi-arrow-clockwise"></i>
+                </button>
               </div>
               <div class="card-body">
                 <div class="table-responsive">
-                  <table class="table align-middle mb-0">
-                    <thead>
-                      <tr><th>Time</th><th>Item</th><th class="text-end">Amount</th></tr>
+                  <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th class="small text-secondary">TIME</th>
+                        <th class="small text-secondary">ITEM</th>
+                        <th class="text-end small text-secondary">AMOUNT</th>
+                      </tr>
                     </thead>
                     <tbody id="myTxTbody">
-                      <tr><td colspan="3" class="text-center text-secondary">No data</td></tr>
+                      <tr>
+                        <td colspan="3" class="text-center text-secondary py-4">
+                          <i class="bi bi-inbox fs-4 d-block mb-2"></i>
+                          <div class="small">No transactions yet</div>
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
               </div>
             </div>
           </div>
-          <div class="col-lg-4">
+
+          <div class="col-12 col-lg-6">
             <div class="card glass h-100">
               <div class="card-header d-flex align-items-center justify-content-between">
-                <span>My Reload History</span>
-                <button class="btn btn-outline-secondary btn-sm" onclick="loadMyReloads()"><i class="bi bi-arrow-clockwise"></i></button>
+                <span><i class="bi bi-wallet-fill me-2"></i>Reload History</span>
+                <button class="btn btn-sm btn-outline-secondary" onclick="loadMyReloads()">
+                  <i class="bi bi-arrow-clockwise"></i>
+                </button>
               </div>
               <div class="card-body">
                 <div class="table-responsive">
-                  <table class="table align-middle mb-0">
-                    <thead>
-                      <tr><th>Time</th><th>Cashier</th><th class="text-end">Amount</th></tr>
+                  <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th class="small text-secondary">DATE</th>
+                        <th class="small text-secondary">CASHIER</th>
+                        <th class="text-end small text-secondary">AMOUNT</th>
+                      </tr>
                     </thead>
                     <tbody id="myReloadsTbody">
-                      <tr><td colspan="3" class="text-center text-secondary">No data</td></tr>
+                      <tr>
+                        <td colspan="3" class="text-center text-secondary py-4">
+                          <i class="bi bi-inbox fs-4 d-block mb-2"></i>
+                          <div class="small">No reloads yet</div>
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
@@ -955,6 +522,7 @@
           <div class="row g-4">
             <div class="col-12 col-md-6">
               <div class="fw-semibold mb-2">Account</div>
+              <div class="mb-2"><span class="text-secondary small">User ID</span><div id="settingsUserId" class="fw-semibold">—</div></div>
               <div class="mb-2"><span class="text-secondary small">Role</span><div id="settingsRole" class="fw-semibold">—</div></div>
               <div class="mb-2"><span class="text-secondary small">Username</span><div id="settingsUsername" class="fw-semibold">—</div></div>
               <div id="settingsStudentOnly" class="d-none">
@@ -1022,7 +590,7 @@
             </div>
             <div class="col-12 col-md-6">
               <label class="form-label">Password</label>
-              <input id="regPassword" type="password" class="form-control" placeholder="••••••••" />
+              <input id="regPassword" type="password" class="form-control" placeholder="Enter password (min 8 characters)" />
             </div>
           </div>
 
@@ -1263,6 +831,334 @@
     </div>
   </div>
 
+  <!-- Sale Cancellation Reason Modal -->
+  <div class="modal fade" id="cancelReasonModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title">
+            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+            Cancel Transaction
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-secondary mb-4">Why are you cancelling this transaction?</p>
+          
+          <div class="cancel-reason-options">
+            <button class="cancel-reason-btn" data-reason="insufficient_funds">
+              <i class="bi bi-cash-coin me-2"></i>
+              <div>
+                <div class="fw-semibold">Insufficient Funds</div>
+                <div class="small text-secondary">Student cannot pay</div>
+              </div>
+              <i class="bi bi-chevron-right ms-auto"></i>
+            </button>
+            
+            <button class="cancel-reason-btn" data-reason="item_unavailable">
+              <i class="bi bi-x-circle me-2"></i>
+              <div>
+                <div class="fw-semibold">Item Unavailable</div>
+                <div class="small text-secondary">Out of stock or not available</div>
+              </div>
+              <i class="bi bi-chevron-right ms-auto"></i>
+            </button>
+            
+            <button class="cancel-reason-btn" data-reason="wrong_item">
+              <i class="bi bi-arrow-repeat me-2"></i>
+              <div>
+                <div class="fw-semibold">Wrong Item Selected</div>
+                <div class="small text-secondary">Mistakenly selected wrong product</div>
+              </div>
+              <i class="bi bi-chevron-right ms-auto"></i>
+            </button>
+            
+            <button class="cancel-reason-btn" data-reason="student_cancelled">
+              <i class="bi bi-person-x me-2"></i>
+              <div>
+                <div class="fw-semibold">Student Changed Mind</div>
+                <div class="small text-secondary">Student decided not to buy</div>
+              </div>
+              <i class="bi bi-chevron-right ms-auto"></i>
+            </button>
+            
+            <button class="cancel-reason-btn" data-reason="card_issue">
+              <i class="bi bi-credit-card me-2"></i>
+              <div>
+                <div class="fw-semibold">Card Reading Issue</div>
+                <div class="small text-secondary">RFID card not detected</div>
+              </div>
+              <i class="bi bi-chevron-right ms-auto"></i>
+            </button>
+            
+            <button class="cancel-reason-btn" data-reason="system_error">
+              <i class="bi bi-bug me-2"></i>
+              <div>
+                <div class="fw-semibold">System Error</div>
+                <div class="small text-secondary">Technical issue occurred</div>
+              </div>
+              <i class="bi bi-chevron-right ms-auto"></i>
+            </button>
+            
+            <button class="cancel-reason-btn" data-reason="custom">
+              <i class="bi bi-pencil-square me-2"></i>
+              <div>
+                <div class="fw-semibold">Other Reason</div>
+                <div class="small text-secondary">Enter custom reason</div>
+              </div>
+              <i class="bi bi-chevron-right ms-auto"></i>
+            </button>
+          </div>
+          
+          <!-- Custom reason input (hidden by default) -->
+          <div class="custom-reason-container mt-3 d-none">
+            <label class="form-label small">Please specify the reason:</label>
+            <textarea id="customReasonInput" class="form-control" rows="3" placeholder="Enter cancellation reason..."></textarea>
+            <button type="button" class="btn btn-primary btn-sm mt-2 w-100" onclick="confirmCustomCancellation()">
+              Confirm Cancellation
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transaction History & Stats Modal -->
+  <div class="modal fade" id="historyStatsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+      <div class="modal-content glass">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title">
+            <i class="bi bi-receipt-cutoff me-2 text-info"></i>Transaction History & Spending Pattern
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <ul class="nav nav-tabs mb-4" role="tablist">
+            <li class="nav-item">
+              <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#historyTab">
+                <i class="bi bi-list-ul me-1"></i>All Transactions
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#spendingTab">
+                <i class="bi bi-graph-up me-1"></i>Spending Pattern
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#statsTab">
+                <i class="bi bi-calculator me-1"></i>Statistics
+              </button>
+            </li>
+          </ul>
+          
+          <div class="tab-content">
+            <!-- Transactions List -->
+            <div class="tab-pane fade show active" id="historyTab">
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead class="table-light">
+                    <tr>
+                      <th class="small text-secondary">DATE & TIME</th>
+                      <th class="small text-secondary">ITEM</th>
+                      <th class="text-end small text-secondary">AMOUNT</th>
+                    </tr>
+                  </thead>
+                  <tbody id="historyModalTbody">
+                    <tr>
+                      <td colspan="3" class="text-center text-secondary py-4">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                          <span class="visually-hidden">Loading...</span>
+                        </div>
+                        Loading transactions...
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <!-- Spending Pattern Chart -->
+            <div class="tab-pane fade" id="spendingTab">
+              <div class="mb-3">
+                <h6 class="fw-semibold mb-3">Your Spending Over Time</h6>
+                <div class="chart-wrapper">
+                  <canvas id="spendingPatternChart"></canvas>
+                </div>
+              </div>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <div class="card glass">
+                    <div class="card-body text-center p-3">
+                      <div class="text-secondary small mb-1">Most Bought Item</div>
+                      <div class="h5 mb-0" id="mostBoughtItem">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="card glass">
+                    <div class="card-body text-center p-3">
+                      <div class="text-secondary small mb-1">Favorite Spending Range</div>
+                      <div class="h5 mb-0" id="favSpendingRange">-</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Statistics -->
+            <div class="tab-pane fade" id="statsTab">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <div class="card glass bg-info">
+                    <div class="card-body text-center p-4">
+                      <i class="bi bi-receipt fs-1 text-white mb-2"></i>
+                      <div class="h3 mb-0 text-white" id="totalTransactions">0</div>
+                      <div class="text-white small">Total Transactions</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="card glass bg-danger">
+                    <div class="card-body text-center p-4">
+                      <i class="bi bi-cash-stack fs-1 text-white mb-2"></i>
+                      <div class="h3 mb-0 text-white" id="totalSpent">₱0.00</div>
+                      <div class="text-white small">Total Spent</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="card glass bg-warning">
+                    <div class="card-body text-center p-4">
+                      <i class="bi bi-calendar-day fs-1 text-white mb-2"></i>
+                      <div class="h3 mb-0 text-white" id="todaySpent">₱0.00</div>
+                      <div class="text-white small">Today's Spending</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="card glass bg-success">
+                    <div class="card-body text-center p-4">
+                      <i class="bi bi-calculator fs-1 text-white mb-2"></i>
+                      <div class="h3 mb-0 text-white" id="avgSpending">₱0.00</div>
+                      <div class="text-white small">Average per Transaction</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reloads History & Stats Modal -->
+  <div class="modal fade" id="reloadsStatsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content glass">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title">
+            <i class="bi bi-wallet-fill me-2 text-success"></i>Reload History & Trends
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <ul class="nav nav-tabs mb-4" role="tablist">
+            <li class="nav-item">
+              <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#reloadsListTab">
+                <i class="bi bi-list-ul me-1"></i>All Reloads
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" data-bs-toggle="tab" data-bs-target="#reloadsStatsTab">
+                <i class="bi bi-graph-up me-1"></i>Trends & Stats
+              </button>
+            </li>
+          </ul>
+          
+          <div class="tab-content">
+            <!-- Reloads List -->
+            <div class="tab-pane fade show active" id="reloadsListTab">
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead class="table-light">
+                    <tr>
+                      <th class="small text-secondary">DATE</th>
+                      <th class="small text-secondary">CASHIER</th>
+                      <th class="text-end small text-secondary">AMOUNT</th>
+                    </tr>
+                  </thead>
+                  <tbody id="reloadsModalTbody">
+                    <tr>
+                      <td colspan="3" class="text-center text-secondary py-4">
+                        <div class="spinner-border spinner-border-sm" role="status">
+                          <span class="visually-hidden">Loading...</span>
+                        </div>
+                        Loading reloads...
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <!-- Reloads Statistics -->
+            <div class="tab-pane fade" id="reloadsStatsTab">
+              <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                  <div class="card glass bg-success">
+                    <div class="card-body text-center p-4">
+                      <i class="bi bi-receipt fs-1 text-white mb-2"></i>
+                      <div class="h3 mb-0 text-white" id="totalReloads">0</div>
+                      <div class="text-white small">Total Reloads</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="card glass bg-primary">
+                    <div class="card-body text-center p-4">
+                      <i class="bi bi-cash-stack fs-1 text-white mb-2"></i>
+                      <div class="h3 mb-0 text-white" id="totalReloaded">₱0.00</div>
+                      <div class="text-white small">Total Reloaded</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="card glass bg-info">
+                    <div class="card-body text-center p-4">
+                      <i class="bi bi-calendar-week fs-1 text-white mb-2"></i>
+                      <div class="h3 mb-0 text-white" id="avgReload">₱0.00</div>
+                      <div class="text-white small">Average per Reload</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="card glass bg-warning">
+                    <div class="card-body text-center p-4">
+                      <i class="bi bi-clock-history fs-1 text-white mb-2"></i>
+                      <div class="h3 mb-0 text-white" id="lastReloadDate">-</div>
+                      <div class="text-white small">Last Reload</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="chart-wrapper">
+                <canvas id="reloadsTrendChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Admin User Detail Modal -->
   <div class="modal fade" id="adminUserDetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -1470,1547 +1366,12 @@
   <div id="toastRegion" aria-live="polite" aria-atomic="true"
        style="position:fixed;right:16px;bottom:16px;z-index:1080;display:flex;flex-direction:column;gap:8px;"></div>
 
-  <script>
-    /* Theme */
-    const root = document.documentElement;
-    const themeKey = 'canteen_theme';
-    function applyTheme(mode){
-      root.classList.remove('theme-dark');
-      if (mode === 'dark') root.classList.add('theme-dark');
-      if (mode === 'system'){
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        root.classList.toggle('theme-dark', prefersDark);
-      }
-      localStorage.setItem(themeKey, mode);
-      document.querySelectorAll('.segmented .seg').forEach(btn => btn.classList.remove('active'));
-      document.getElementById(
-        mode === 'dark' ? 'segThemeDark' :
-        mode === 'light' ? 'segThemeLight' : 'segThemeSystem'
-      ).classList.add('active');
-      refreshChartStyles();
-    }
-    function initTheme(){
-      const saved = localStorage.getItem(themeKey) || 'system';
-      applyTheme(saved);
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e=>{
-        if ((localStorage.getItem(themeKey) || 'system') === 'system'){
-          applyTheme('system');
-        }
-      });
-    }
-    document.getElementById('segThemeSystem').onclick = ()=>applyTheme('system');
-    document.getElementById('segThemeLight').onclick = ()=>applyTheme('light');
-    document.getElementById('segThemeDark').onclick = ()=>applyTheme('dark');
-    initTheme();
+  <!-- JavaScript -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/notifications.js"></script>
+<script src="js/app.js"></script>
 
-    /* Helpers */
-    const API_BASE = "http://127.0.0.1:3000";
-    let token = null, userRole = null, pendingCheckInterval = null, pendingSaleId = null;
-    let studentProfile = null; // filled when opening Settings (student)
-
-    const $ = id => document.getElementById(id);
-    const show = el => el.classList.remove("d-none");
-    const hide = el => el.classList.add("d-none");
-
-    function toast(message, type="info"){
-      const id = "t" + Math.random().toString(36).slice(2);
-      const colors = { info:"primary", success:"success", error:"danger", warn:"warning" };
-      const icon   = { info:"info-circle", success:"check-circle", error:"exclamation-octagon", warn:"exclamation-triangle" }[type] || "info-circle";
-      const node = document.createElement("div");
-      node.id = id;
-      node.className = `toast align-items-center text-bg-${colors[type]||"primary"} border-0 show`;
-      node.role = "alert"; node.ariaLive = "assertive"; node.ariaAtomic = "true";
-      node.style.minWidth="280px";
-      node.innerHTML = `
-        <div class="d-flex">
-          <div class="toast-body"><i class="bi bi-${icon} me-2"></i>${message}</div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>`;
-      $("toastRegion").appendChild(node);
-      setTimeout(()=> node.remove(), 3500);
-    }
-    const fmtMoney = n => "₱" + (Number(n||0)).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
-    const fmtTime  = s => new Date(s).toLocaleString();
-    function setAlert(elId, msg, status="info"){
-      const el = $(elId);
-      el.className = `alert alert-${status} mt-3`;
-      el.textContent = msg;
-      show(el);
-      if (status !== 'danger') setTimeout(()=>hide(el), 3500);
-    }
-
-    /* Auth */
-    async function login(){
-      const username = $("loginName").value.trim();
-      const password = $("loginPass").value;
-      $("loginAlert").classList.add('d-none');
-
-      try {
-        const res = await fetch(API_BASE + "/login", {
-          method:"POST", headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify({ username, password })
-        });
-        const data = await res.json();
-
-        if (data.token){
-          token = data.token; userRole = data.role;
-          localStorage.setItem("token", token);
-          localStorage.setItem("role", userRole);
-          localStorage.setItem("username", data.username || username);
-
-          hide($("loginStage"));
-          show($("dashboard"));
-          document.querySelectorAll('.auth-only').forEach(show);
-          $("welcomeMsg").textContent = "Welcome, " + (data.username || username) + " (" + userRole + ")";
-          $("navUserLabel").textContent = (data.username || username);
-
-          if (userRole === "staff") { show($("staffDashboard")); loadReloads(); }
-          else if (userRole === "vendor") { show($("vendorDashboard")); loadMenuItems(); loadSales(); }
-          else if (userRole === "student") { show($("studentDashboard")); loadMyBalance(); loadMyTransactions(); loadMyReloads(); }
-          else if (userRole === "admin") { 
-            show($("adminDashboard")); 
-            setTimeout(() => { adminLoadStats(); adminLoadUsers(); }, 100);
-          }
-
-          toast("Login successful", "success");
-        } else {
-          setAlert("loginAlert", data.error || "Login failed", "danger");
-        }
-      } catch(e){
-        setAlert("loginAlert", "Network error during login", "danger");
-      }
-    }
-    function logout(){
-      token = null; userRole = null;
-      localStorage.removeItem("token"); localStorage.removeItem("role"); localStorage.removeItem("username");
-      hide($("dashboard"));
-      hide($("staffDashboard")); hide($("vendorDashboard")); hide($("studentDashboard")); hide($("adminDashboard"));
-      document.querySelectorAll('.auth-only').forEach(hide);
-      show($("loginStage"));
-      $("loginAlert").classList.add('d-none');
-      $("loginName").value = ""; $("loginPass").value = "";
-      toast("Logged out", "info");
-    }
-    (function restoreSession(){
-      const savedToken = localStorage.getItem("token");
-      const savedRole  = localStorage.getItem("role");
-      const savedUser  = localStorage.getItem("username");
-      if (savedToken && savedRole){
-        token = savedToken; userRole = savedRole;
-        hide($("loginStage")); show($("dashboard")); document.querySelectorAll('.auth-only').forEach(show);
-        $("welcomeMsg").textContent = "Welcome, " + (savedUser || "(user)") + " (" + userRole + ")";
-        $("navUserLabel").textContent = (savedUser || "User");
-        if (userRole === "staff") { show($("staffDashboard")); loadReloads(); }
-        else if (userRole === "vendor") { show($("vendorDashboard")); loadMenuItems(); loadSales(); }
-        else if (userRole === "student") { show($("studentDashboard")); loadMyBalance(); loadMyTransactions(); loadMyReloads(); }
-        else if (userRole === "admin") { 
-          show($("adminDashboard")); 
-          setTimeout(() => { adminLoadStats(); adminLoadUsers(); }, 100);
-        }
-      }
-    })();
-
-    /* ==================== POS SYSTEM FUNCTIONS ==================== */
-    let posState = {
-      topup: { amount: '', pendingId: null, interval: null, pollCount: 0 },
-      sale: { amount: '', itemId: '', itemName: '', pendingId: null, interval: null, pollCount: 0 }
-    };
-
-    // Format amount as currency
-    function posFormatAmount(value) {
-      // Remove non-numeric characters except decimal point
-      let cleaned = value.replace(/[^0-9.]/g, '');
-      
-      // Only allow one decimal point
-      const parts = cleaned.split('.');
-      if (parts.length > 2) {
-        cleaned = parts[0] + '.' + parts.slice(1).join('');
-      }
-      
-      // Limit to 2 decimal places
-      if (parts.length === 2 && parts[1].length > 2) {
-        cleaned = parts[0] + '.' + parts[1].substring(0, 2);
-      }
-      
-      return cleaned;
-    }
-
-    // Keypad functions
-    function posAddDigit(mode, digit) {
-      const input = $(mode === 'topup' ? 'posTopupAmount' : 'posSaleAmount');
-      let current = input.value;
-      
-      // If empty or just starting, allow digit
-      if (!current || current === '0' || current === '0.00') {
-        input.value = digit;
-      } else {
-        // Check if we already have a decimal point
-        const hasDot = current.includes('.');
-        
-        if (hasDot) {
-          // Check decimal places
-          const parts = current.split('.');
-          if (parts[1] && parts[1].length >= 2) {
-            // Already have 2 decimal places, don't add more
-            return;
-          }
-        }
-        
-        // Add the digit
-        input.value = current + digit;
-      }
-      
-      input.value = posFormatAmount(input.value);
-      posState[mode].amount = input.value;
-    }
-
-    function posClearAmount(mode) {
-      const input = $(mode === 'topup' ? 'posTopupAmount' : 'posSaleAmount');
-      const current = input.value;
-      
-      if (current.length > 0) {
-        // Remove last character
-        input.value = current.slice(0, -1);
-        posState[mode].amount = input.value;
-      }
-    }
-
-    function posSetAmount(mode, amount) {
-      const input = $(mode === 'topup' ? 'posTopupAmount' : 'posSaleAmount');
-      input.value = amount + '.00';
-      posState[mode].amount = amount + '.00';
-    }
-
-    // Setup keyboard input for POS amount fields
-    function setupPosKeyboardInput() {
-      const topupInput = $('posTopupAmount');
-      const saleInput = $('posSaleAmount');
-      
-      [topupInput, saleInput].forEach((input, idx) => {
-        const mode = idx === 0 ? 'topup' : 'sale';
-        
-        input.addEventListener('input', function(e) {
-          let value = e.target.value;
-          
-          // Format the input
-          value = posFormatAmount(value);
-          e.target.value = value;
-          posState[mode].amount = value;
-        });
-        
-        input.addEventListener('keypress', function(e) {
-          // Allow: numbers, decimal point, backspace, delete, arrow keys
-          const char = String.fromCharCode(e.which);
-          
-          // Allow decimal point only once
-          if (char === '.') {
-            if (e.target.value.includes('.')) {
-              e.preventDefault();
-              return;
-            }
-          }
-          // Only allow numbers and decimal point
-          else if (!/[0-9]/.test(char)) {
-            e.preventDefault();
-            return;
-          }
-        });
-        
-        input.addEventListener('blur', function(e) {
-          let value = e.target.value;
-          if (value && !value.includes('.')) {
-            // Add .00 if no decimal
-            e.target.value = value + '.00';
-            posState[mode].amount = e.target.value;
-          } else if (value && value.includes('.')) {
-            // Ensure 2 decimal places
-            const parts = value.split('.');
-            if (parts[1].length === 0) {
-              e.target.value = parts[0] + '.00';
-            } else if (parts[1].length === 1) {
-              e.target.value = parts[0] + '.' + parts[1] + '0';
-            }
-            posState[mode].amount = e.target.value;
-          }
-        });
-      });
-    }
-
-    // Call this when page loads
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', setupPosKeyboardInput);
-    } else {
-      setupPosKeyboardInput();
-    }
-
-    function posShowStep(mode, step) {
-      // Hide all steps
-      for (let i = 1; i <= 4; i++) {
-        hide($(`${mode}Step${i}`));
-      }
-      // Show target step
-      show($(`${mode}Step${step}`));
-    }
-
-    function posBackToStep(mode, step) {
-      posShowStep(mode, step);
-    }
-
-    // ========== TOP-UP FLOW ==========
-    function posConfirmTopup() {
-      const amount = $('posTopupAmount').value.trim();
-      if (!amount || parseFloat(amount) <= 0) {
-        toast('Please enter a valid amount', 'warn');
-        return;
-      }
-      
-      $('topupConfirmAmount').textContent = fmtMoney(amount);
-      posShowStep('topup', 2);
-    }
-
-    async function posStartTopupTap() {
-      const amount = $('posTopupAmount').value.trim();
-      if (!amount || parseFloat(amount) <= 0) {
-        toast('Invalid amount', 'error');
-        return;
-      }
-
-      try {
-        const res = await fetch(API_BASE + "/pending-reload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-          body: JSON.stringify({ amount: parseFloat(amount) })
-        });
-        const data = await res.json();
-
-        if (data.success && data.pending_id) {
-          posState.topup.pendingId = data.pending_id;
-          posState.topup.pollCount = 0; // Reset counter
-          $('topupTapAmount').textContent = fmtMoney(amount);
-          $('topupTapStatus').textContent = 'Waiting for card...';
-          posShowStep('topup', 3);
-
-          // Poll immediately, then start fast polling (every 500ms)
-          posCheckTopupStatus();
-          posState.topup.interval = setInterval(posCheckTopupStatus, 500);
-        } else {
-          toast(data.error || 'Failed to start top-up', 'error');
-        }
-      } catch (e) {
-        toast('Network error', 'error');
-      }
-    }
-
-    async function posCheckTopupStatus() {
-      if (!posState.topup.pendingId) return;
-
-      // Increment counter and check timeout (300 polls * 500ms = 150 seconds = 2.5 minutes)
-      posState.topup.pollCount++;
-      if (posState.topup.pollCount > 300) {
-        clearInterval(posState.topup.interval);
-        posState.topup.interval = null;
-        $('topupTapStatus').textContent = 'Transaction timeout - please try again';
-        toast('Top-up timed out', 'error');
-        setTimeout(() => posResetTopup(), 3000);
-        return;
-      }
-
-      try {
-        const res = await fetch(API_BASE + "/pending-reload/status/" + posState.topup.pendingId, {
-          headers: { "Authorization": "Bearer " + token }
-        });
-        const data = await res.json();
-
-        if (data.confirmed) {
-          clearInterval(posState.topup.interval);
-          posState.topup.interval = null;
-          
-          $('topupSuccessAmount').textContent = fmtMoney(data.amount);
-          $('topupSuccessDetails').innerHTML = `
-            <strong>Student:</strong> ${data.student_name || 'N/A'}
-          `;
-          posShowStep('topup', 4);
-          loadReloads(); // Refresh the table
-          toast('Top-up completed!', 'success');
-        } else if (data.failed || data.expired) {
-          clearInterval(posState.topup.interval);
-          posState.topup.interval = null;
-          $('topupTapStatus').textContent = 'Transaction failed!';
-          toast('Top-up failed', 'error');
-          setTimeout(() => posResetTopup(), 3000);
-        }
-      } catch (e) {
-        console.error('Status check error:', e);
-      }
-    }
-
-    function posCancelTopup() {
-      if (posState.topup.interval) {
-        clearInterval(posState.topup.interval);
-        posState.topup.interval = null;
-      }
-      posResetTopup();
-      toast('Top-up cancelled', 'info');
-    }
-
-    function posResetTopup() {
-      if (posState.topup.interval) {
-        clearInterval(posState.topup.interval);
-      }
-      posState.topup = { amount: '', pendingId: null, interval: null, pollCount: 0 };
-      $('posTopupAmount').value = '';
-      posShowStep('topup', 1);
-      // Close modal
-      bootstrap.Modal.getInstance(document.getElementById('topupModal'))?.hide();
-    }
-
-    // ========== SALE FLOW ==========
-    function posConfirmSale() {
-      const itemSelect = $('posSaleItemSelect');
-      const itemManual = $('posSaleItemManual').value.trim();
-      const amount = $('posSaleAmount').value.trim();
-
-      if ((!itemSelect.value && !itemManual) || !amount || parseFloat(amount) <= 0) {
-        toast('Please select/enter an item and valid amount', 'warn');
-        return;
-      }
-
-      let itemName = itemManual;
-      if (itemSelect.value) {
-        posState.sale.itemId = itemSelect.value;
-        itemName = itemSelect.options[itemSelect.selectedIndex].text.split(' — ')[0];
-      } else {
-        posState.sale.itemId = '';
-      }
-      
-      posState.sale.itemName = itemName;
-      posState.sale.amount = amount;
-
-      $('saleConfirmItem').textContent = itemName;
-      $('saleConfirmAmount').textContent = fmtMoney(amount);
-      posShowStep('sale', 2);
-    }
-
-    async function posStartSaleTap() {
-      const amount = posState.sale.amount;
-      const itemId = posState.sale.itemId;
-      const itemName = posState.sale.itemName;
-
-      if (!amount || parseFloat(amount) <= 0) {
-        toast('Invalid amount', 'error');
-        return;
-      }
-
-      try {
-        const body = itemId 
-          ? { item_id: itemId, amount: parseFloat(amount) }
-          : { item_name: itemName, amount: parseFloat(amount) };
-
-        const res = await fetch(API_BASE + "/pending-sale", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-          body: JSON.stringify(body)
-        });
-        const data = await res.json();
-
-        if (data.success && data.pending_id) {
-          posState.sale.pendingId = data.pending_id;
-          posState.sale.pollCount = 0; // Reset counter
-          $('saleTapItem').textContent = itemName;
-          $('saleTapAmount').textContent = fmtMoney(amount);
-          $('saleTapStatus').textContent = 'Waiting for card...';
-          posShowStep('sale', 3);
-
-          // Poll immediately, then start fast polling (every 500ms)
-          posCheckSaleStatus();
-          posState.sale.interval = setInterval(posCheckSaleStatus, 500);
-        } else {
-          toast(data.error || 'Failed to start sale', 'error');
-        }
-      } catch (e) {
-        toast('Network error', 'error');
-      }
-    }
-
-    async function posCheckSaleStatus() {
-      if (!posState.sale.pendingId) return;
-
-      // Increment counter and check timeout (300 polls * 500ms = 150 seconds = 2.5 minutes)
-      posState.sale.pollCount++;
-      if (posState.sale.pollCount > 300) {
-        clearInterval(posState.sale.interval);
-        posState.sale.interval = null;
-        $('saleTapStatus').textContent = 'Transaction timeout - please try again';
-        toast('Sale timed out', 'error');
-        setTimeout(() => posResetSale(), 3000);
-        return;
-      }
-
-      try {
-        const res = await fetch(API_BASE + "/pending-sale/status/" + posState.sale.pendingId, {
-          headers: { "Authorization": "Bearer " + token }
-        });
-        const data = await res.json();
-
-        if (data.confirmed) {
-          clearInterval(posState.sale.interval);
-          posState.sale.interval = null;
-          
-          $('saleSuccessAmount').textContent = fmtMoney(data.amount);
-          $('saleSuccessDetails').innerHTML = `
-            <strong>Item:</strong> ${data.item_name || posState.sale.itemName}<br>
-            <strong>Student:</strong> ${data.student_name || 'N/A'}
-          `;
-          posShowStep('sale', 4);
-          loadSales(); // Refresh the table
-          toast('Sale completed!', 'success');
-        } else if (data.failed) {
-          clearInterval(posState.sale.interval);
-          posState.sale.interval = null;
-          $('saleTapStatus').textContent = 'Transaction failed!';
-          toast('Sale failed (insufficient balance or locked card)', 'error');
-          setTimeout(() => posResetSale(), 3000);
-        }
-      } catch (e) {
-        console.error('Status check error:', e);
-      }
-    }
-
-    function posCancelSale() {
-      if (posState.sale.interval) {
-        clearInterval(posState.sale.interval);
-        posState.sale.interval = null;
-      }
-      posResetSale();
-      toast('Sale cancelled', 'info');
-    }
-
-    function posResetSale() {
-      if (posState.sale.interval) {
-        clearInterval(posState.sale.interval);
-      }
-      posState.sale = { amount: '', itemId: '', itemName: '', pendingId: null, interval: null, pollCount: 0 };
-      $('posSaleAmount').value = '';
-      $('posSaleItemManual').value = '';
-      $('posSaleItemSelect').selectedIndex = 0;
-      posShowStep('sale', 1);
-      // Close modal
-      bootstrap.Modal.getInstance(document.getElementById('saleModal'))?.hide();
-    }
-
-    function posUpdateSalePrice() {
-      const sel = $('posSaleItemSelect');
-      const price = sel.options[sel.selectedIndex]?.getAttribute('data-price');
-      if (price) {
-        $('posSaleAmount').value = parseFloat(price).toFixed(2);
-        posState.sale.amount = parseFloat(price).toFixed(2);
-        $('posSaleItemManual').value = ''; // Clear manual input
-      }
-    }
-
-    /* Vendor: menu & sales */
-    async function loadMenuItems(){
-      const res = await fetch(API_BASE + "/menu", { headers:{ "Authorization":"Bearer " + token }});
-      const data = await res.json();
-      const sel = $("posSaleItemSelect");
-      sel.innerHTML = '<option value="">-- Choose from menu --</option>';
-      if (Array.isArray(data) && data.length){
-        data.forEach(item=>{
-          const opt = document.createElement("option");
-          opt.value = item.item_id;
-          opt.setAttribute("data-price", item.price);
-          opt.textContent = `${item.item_name} — ${fmtMoney(item.price)}`;
-          sel.appendChild(opt);
-        });
-      } else {
-        toast("No menu items found", "warn");
-      }
-    }
-    async function loadSales(){
-      const res = await fetch(API_BASE + "/report", { headers:{ "Authorization":"Bearer " + token }});
-      const rows = await res.json();
-      const tbody = $("salesTbody");
-      tbody.innerHTML = "";
-      const list = rows.slice(0,10);
-      if (!list.length){
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center text-secondary">No data</td></tr>`;
-      } else {
-        let todayTotal = 0;
-        const todayStr = new Date().toDateString();
-
-        const now = new Date();
-        const start7d = new Date(now.getFullYear(), now.getMonth(), now.getDate()-6);
-        let sevenDayTotal = 0;
-
-        list.forEach(r=>{
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td class="text-secondary">${fmtTime(r.timestamp)}</td>
-            <td>${r.user_name || ""}</td>
-            <td>${r.item_name || ""}</td>
-            <td class="text-end fw-semibold">${fmtMoney(r.amount)}</td>`;
-          tbody.appendChild(tr);
-        });
-
-        rows.forEach(r=>{
-          const t = new Date(r.timestamp);
-          if (t.toDateString() === todayStr) todayTotal += Number(r.amount||0);
-          if (t >= start7d) sevenDayTotal += Number(r.amount||0);
-        });
-
-        const kpiToday = $("salesKpiToday");
-        const kpi7d = $("salesKpi7d");
-        kpiToday.textContent = `Today: ${fmtMoney(todayTotal)}`;
-        kpi7d.textContent = `7-day: ${fmtMoney(sevenDayTotal)}`;
-        show(kpiToday); show(kpi7d);
-
-        try {
-          const daysBack = 7;
-          const totals = {};
-          for (let i=0;i<daysBack;i++){
-            const d = new Date(); d.setDate(d.getDate()-i);
-            totals[new Date(d.getFullYear(), d.getMonth(), d.getDate()).toDateString()] = 0;
-          }
-          rows.forEach(r=>{
-            const d = new Date(new Date(r.timestamp).getFullYear(), new Date(r.timestamp).getMonth(), new Date(r.timestamp).getDate()).toDateString();
-            if (Object.prototype.hasOwnProperty.call(totals, d)) totals[d] += Number(r.amount||0);
-          });
-
-          const labels = Object.keys(totals).reverse();
-          const dataPoints = labels.map(l=>totals[l]);
-
-          const theme = getThemeColors();
-          const canvas = document.getElementById('salesChart');
-          if (!canvas) return;
-
-          const ctx = canvas.getContext('2d');
-          const gradient = ctx.createLinearGradient(0,0,0,canvas.height);
-          gradient.addColorStop(0, hexToRgba(theme.danger, 0.25));
-          gradient.addColorStop(1, hexToRgba(theme.danger, 0.05));
-
-          if (window._salesChartInstance) {
-            const ch = window._salesChartInstance;
-            ch.data.labels = labels;
-            ch.data.datasets[0].data = dataPoints;
-            ch.data.datasets[0].borderColor = theme.danger;
-            ch.data.datasets[0].backgroundColor = gradient;
-            ch.update();
-          } else {
-            window._salesChartInstance = new Chart(ctx, {
-              type: 'line',
-              data: {
-                labels: labels,
-                datasets: [{
-                  label: 'Sales (₱)',
-                  data: dataPoints,
-                  borderColor: theme.danger,
-                  backgroundColor: gradient,
-                  borderWidth: 3,
-                  pointRadius: 4,
-                  pointBackgroundColor: theme.danger,
-                  pointBorderColor: '#fff',
-                  pointBorderWidth: 2,
-                  pointHoverRadius: 6,
-                  fill: true,
-                  tension: 0.4
-                }]
-              },
-              options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { intersect: false, mode: 'index' },
-                plugins: {
-                  legend: { display: false },
-                  tooltip: {
-                    backgroundColor: theme.surface2,
-                    titleColor: theme.text,
-                    bodyColor: theme.text,
-                    borderColor: theme.border,
-                    borderWidth: 1,
-                    padding: 12,
-                    displayColors: false,
-                    callbacks: {
-                      label: c=> 'Sales: ' + fmtMoney(c.parsed.y)
-                    }
-                  }
-                },
-                scales: {
-                  x: {
-                    ticks: { color: theme.text, font:{ size:10 }, callback:(v,i,ticks)=>{
-                      const l = labels[i];
-                      const d = new Date(l);
-                      return (d.getMonth()+1) + '/' + d.getDate();
-                    }},
-                    grid: { color: theme.border, drawBorder: false }
-                  },
-                  y: {
-                    beginAtZero: true,
-                    ticks: { color: theme.text, font:{size:10}, callback: v=>'₱'+v },
-                    grid: { color: theme.border, drawBorder: false }
-                  }
-                }
-              }
-            });
-          }
-        } catch(e){
-          console.error('Sales chart error:', e);
-        }
-      }
-    }
-
-    /* Staff: reloads + tap-to-top-up */
-    function hexToRgba(hex, alpha=1){
-      const m = hex.replace('#','');
-      const bigint = parseInt(m.length===3 ? m.split('').map(c=>c+c).join('') : m, 16);
-      const r = (bigint>>16)&255, g=(bigint>>8)&255, b=bigint&255;
-      return `rgba(${r},${g},${b},${alpha})`;
-    }
-    function getThemeColors(){
-      const cs = getComputedStyle(document.documentElement);
-      return {
-        text: (cs.getPropertyValue('--text').trim() || '#0b1220'),
-        muted: (cs.getPropertyValue('--text-muted').trim() || '#5b6472'),
-        border: (cs.getPropertyValue('--border').trim() || 'rgba(0,0,0,0.08)'),
-        surface2: (cs.getPropertyValue('--surface-2').trim() || 'rgba(255,255,255,0.92)'),
-        accent: (cs.getPropertyValue('--accent').trim() || '#0A84FF'),
-        accent2: (cs.getPropertyValue('--accent-2').trim() || '#34C759'),
-        danger: (cs.getPropertyValue('--danger').trim() || '#FF3B30')
-      };
-    }
-    async function doReload(){
-      const uid = $("studentUid").value.trim();
-      const amount = $("reloadAmount").value;
-      const res = await fetch(API_BASE + "/reload", {
-        method: "POST",
-        headers: { "Content-Type":"application/json", "Authorization":"Bearer " + token },
-        body: JSON.stringify({ rfid_uid: uid, amount })
-      });
-      const data = await res.json();
-      if (data?.success){
-        setAlert("reloadAlert", `Reload successful · New balance: ${fmtMoney(data.new_balance)}`, "success");
-        loadReloads();
-      } else {
-        setAlert("reloadAlert", data?.error || "Reload failed", "danger");
-      }
-    }
-    async function loadReloads(){
-      const res = await fetch(API_BASE + "/reloads", { headers:{ "Authorization":"Bearer " + token }});
-      const rows = await res.json();
-      const tbody = $("reloadsTbody");
-      tbody.innerHTML = "";
-      const list = rows.slice(0,10);
-      if (!list.length){
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center text-secondary">No data</td></tr>`;
-      } else {
-        let todayTotal = 0;
-        const todayStr = new Date().toDateString();
-
-        const now = new Date();
-        const start7d = new Date(now.getFullYear(), now.getMonth(), now.getDate()-6);
-        let sevenDayTotal = 0;
-
-        list.forEach(r=>{
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td class="text-secondary">${fmtTime(r.timestamp)}</td>
-            <td>${r.student}</td>
-            <td>${r.cashier || "-"}</td>
-            <td class="text-end fw-semibold">${fmtMoney(r.amount)}</td>`;
-          tbody.appendChild(tr);
-        });
-
-        rows.forEach(r=>{
-          const t = new Date(r.timestamp);
-          if (t.toDateString() === todayStr) todayTotal += Number(r.amount||0);
-          if (t >= start7d) sevenDayTotal += Number(r.amount||0);
-        });
-
-        const kpiToday = $("reloadKpiToday");
-        const kpi7d = $("reloadKpi7d");
-        kpiToday.textContent = `Today: ${fmtMoney(todayTotal)}`;
-        kpi7d.textContent = `7-day: ${fmtMoney(sevenDayTotal)}`;
-        show(kpiToday); show(kpi7d);
-
-        try {
-          const daysBack = 7;
-          const totals = {};
-          for (let i=0;i<daysBack;i++){
-            const d = new Date(); d.setDate(d.getDate()-i);
-            totals[new Date(d.getFullYear(), d.getMonth(), d.getDate()).toDateString()] = 0;
-          }
-          rows.forEach(r=>{
-            const d = new Date(new Date(r.timestamp).getFullYear(), new Date(r.timestamp).getMonth(), new Date(r.timestamp).getDate()).toDateString();
-            if (Object.prototype.hasOwnProperty.call(totals, d)) totals[d] += Number(r.amount||0);
-          });
-
-          const labels = Object.keys(totals).reverse();
-          const dataPoints = labels.map(l=>totals[l]);
-
-          const theme = getThemeColors();
-          const canvas = document.getElementById('reloadChart');
-          if (!canvas) return;
-
-          const ctx = canvas.getContext('2d');
-          const gradient = ctx.createLinearGradient(0,0,0,canvas.height);
-          gradient.addColorStop(0, hexToRgba(theme.accent2, 0.25));
-          gradient.addColorStop(1, hexToRgba(theme.accent2, 0.05));
-
-          if (window._reloadChartInstance) {
-            const ch = window._reloadChartInstance;
-            ch.data.labels = labels;
-            ch.data.datasets[0].data = dataPoints;
-            ch.data.datasets[0].borderColor = theme.accent2;
-            ch.data.datasets[0].backgroundColor = gradient;
-            ch.update();
-          } else {
-            window._reloadChartInstance = new Chart(ctx, {
-              type: 'line',
-              data: {
-                labels: labels,
-                datasets: [{
-                  label: 'Reloads (₱)',
-                  data: dataPoints,
-                  backgroundColor: gradient,
-                  borderColor: theme.accent2,
-                  fill: true,
-                  tension: 0.35,
-                  pointRadius: 3,
-                  pointHoverRadius: 5,
-                  pointBackgroundColor: theme.accent2,
-                  pointHoverBackgroundColor: theme.accent2,
-                  pointBorderColor: 'rgba(0,0,0,0)',
-                  pointHoverBorderColor: 'rgba(0,0,0,0)'
-                }]
-              },
-              options: {
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                animation: { duration: 600, easing: 'easeOutCubic' },
-                plugins: {
-                  legend: { display: false },
-                  tooltip: {
-                    enabled: true,
-                    backgroundColor: theme.surface2,
-                    borderColor: theme.border,
-                    borderWidth: 1,
-                    titleColor: theme.text,
-                    bodyColor: theme.text,
-                    padding: 10,
-                    callbacks: { label: (ctx) => ` ${fmtMoney(ctx.parsed.y)}` }
-                  }
-                },
-                scales: {
-                  x: { ticks: { color: theme.text }, grid: { color: theme.border } },
-                  y: {
-                    ticks: { color: theme.text, callback: (v) => '₱' + Number(v).toLocaleString() },
-                    grid: { color: theme.border }
-                  }
-                }
-              }
-            });
-          }
-        } catch(e){ console.error('Chart build failed', e); }
-      }
-    }
-    function refreshChartStyles(){
-      const ch = window._reloadChartInstance;
-      if (ch) {
-        const theme = getThemeColors();
-        ch.options.scales.x.ticks.color = theme.text;
-        ch.options.scales.y.ticks.color = theme.text;
-        ch.options.scales.x.grid.color = theme.border;
-        ch.options.scales.y.grid.color = theme.border;
-        ch.options.plugins.tooltip.backgroundColor = theme.surface2;
-        ch.options.plugins.tooltip.titleColor = theme.text;
-        ch.options.plugins.tooltip.bodyColor = theme.text;
-        ch.options.plugins.tooltip.borderColor = theme.border;
-        ch.data.datasets[0].borderColor = theme.accent2;
-
-        const canvas = ch.canvas;
-        const ctx = canvas.getContext('2d');
-        const gradient = ctx.createLinearGradient(0,0,0,canvas.height);
-        gradient.addColorStop(0, hexToRgba(theme.accent2, 0.25));
-        gradient.addColorStop(1, hexToRgba(theme.accent2, 0.05));
-        ch.data.datasets[0].backgroundColor = gradient;
-        ch.update();
-      }
-
-      // Update sales chart
-      const ch2 = window._salesChartInstance;
-      if (ch2) {
-        const theme = getThemeColors();
-        ch2.options.scales.x.ticks.color = theme.text;
-        ch2.options.scales.y.ticks.color = theme.text;
-        ch2.options.scales.x.grid.color = theme.border;
-        ch2.options.scales.y.grid.color = theme.border;
-        ch2.options.plugins.tooltip.backgroundColor = theme.surface2;
-        ch2.options.plugins.tooltip.titleColor = theme.text;
-        ch2.options.plugins.tooltip.bodyColor = theme.text;
-        ch2.options.plugins.tooltip.borderColor = theme.border;
-        ch2.data.datasets[0].borderColor = theme.danger;
-
-        const canvas2 = ch2.canvas;
-        const ctx2 = canvas2.getContext('2d');
-        const gradient2 = ctx2.createLinearGradient(0,0,0,canvas2.height);
-        gradient2.addColorStop(0, hexToRgba(theme.danger, 0.25));
-        gradient2.addColorStop(1, hexToRgba(theme.danger, 0.05));
-        ch2.data.datasets[0].backgroundColor = gradient2;
-        ch2.update();
-      }
-    }
-
-    async function downloadReport(){
-      const res = await fetch(API_BASE + "/report/csv", { headers:{ "Authorization":"Bearer " + token }});
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = Object.assign(document.createElement("a"), { href:url, download:"transactions.csv" });
-      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-      toast("Transactions CSV downloaded", "info");
-    }
-    async function downloadReloads(){
-      const res = await fetch(API_BASE + "/reloads/csv", { headers:{ "Authorization":"Bearer " + token }});
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = Object.assign(document.createElement("a"), { href:url, download:"reloads.csv" });
-      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-      toast("Reloads CSV downloaded", "info");
-    }
-
-    /* Settings (top-right) */
-    function bsModal(id){ return new bootstrap.Modal(document.getElementById(id)); }
-    function openRegisterModal(){
-      bsModal('registerModal').show();
-    }
-    function openTopupModal(){
-      bsModal('topupModal').show();
-    }
-    function openSaleModal(){
-      bsModal('saleModal').show();
-    }
-    async function openSettings(){
-      // Fill common info
-      $("settingsRole").textContent = (userRole || "—");
-      $("settingsUsername").textContent = (localStorage.getItem("username") || "—");
-
-      if (userRole === 'student'){
-        // Fetch profile for student
-        try{
-          const res = await fetch(API_BASE + "/student/me", { headers:{ "Authorization":"Bearer " + token }});
-          const data = await res.json();
-          studentProfile = data;
-
-          $("settingsName").textContent = data.name || "—";
-          $("settingsRfid").textContent = data.rfid_uid || "Not linked";
-
-          const locked = !!data.card_locked;
-          const pill = $("settingsLockState");
-          pill.innerHTML = locked
-            ? `<i class="bi bi-shield-lock"></i><span>Locked</span>`
-            : `<i class="bi bi-shield-check"></i><span>Unlocked</span>`;
-          pill.className = `pill ${locked ? 'pill-info' : ''}`;
-
-          const lockBtn = $("settingsLockBtn");
-          lockBtn.innerHTML = locked
-            ? `<i class="bi bi-unlock me-1"></i> Unlock Card`
-            : `<i class="bi bi-lock me-1"></i> Lock Card`;
-
-          hide($("settingsPwdDisabled"));
-          show($("settingsPwdArea"));
-          show($("settingsStudentOnly"));
-        }catch(e){
-          toast("Failed to load profile", "error");
-        }
-      } else {
-        // Non-students: no password/lock controls
-        show($("settingsPwdDisabled"));
-        hide($("settingsPwdArea"));
-        hide($("settingsStudentOnly"));
-      }
-
-      bsModal('settingsModal').show();
-    }
-
-    async function toggleCardLock(){
-      if (userRole !== 'student') return;
-      try{
-        const locked = !!(studentProfile?.card_locked);
-        const url = locked ? "/student/card/unlock" : "/student/card/lock";
-        const res = await fetch(API_BASE + url, { method:"POST", headers:{ "Authorization":"Bearer "+token }});
-        const data = await res.json();
-        if (data?.ok){
-          toast(locked ? "Card unlocked" : "Card locked", "success");
-          // refresh settings view
-          openSettings();
-        } else {
-          setAlert("settingsPwdAlert", data.error || "Failed to toggle card lock", "danger");
-        }
-      }catch(e){
-        setAlert("settingsPwdAlert", "Network error", "danger");
-      }
-    }
-
-    async function changeMyPassword(){
-      if (userRole !== 'student'){ setAlert("settingsPwdAlert", "Only students can change password here.", "warning"); return; }
-      const cur = $("settingsPwdCurrent").value;
-      const n1  = $("settingsPwdNew").value;
-      const n2  = $("settingsPwdNew2").value;
-      if (!cur || !n1 || !n2){ setAlert("settingsPwdAlert", "Please fill all fields", "warning"); return; }
-      if (n1 !== n2){ setAlert("settingsPwdAlert", "New passwords do not match", "danger"); return; }
-      if (n1.length < 8){ setAlert("settingsPwdAlert", "New password must be at least 8 characters", "warning"); return; }
-
-      try{
-        const res = await fetch(API_BASE + "/student/password", {
-          method:"PUT",
-          headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+token },
-          body: JSON.stringify({ current_password: cur, new_password: n1 })
-        });
-        const data = await res.json();
-        if (data?.success){
-          setAlert("settingsPwdAlert", "Password updated", "success");
-          $("settingsPwdCurrent").value = $("settingsPwdNew").value = $("settingsPwdNew2").value = "";
-        } else {
-          setAlert("settingsPwdAlert", data.error || "Password update failed", "danger");
-        }
-      }catch(e){
-        setAlert("settingsPwdAlert", "Network error", "danger");
-      }
-    }
-
-    /* Staff — Register & Pair */
-    let staffPairInterval = null;
-    let staffPairDeadline = null;
-
-    async function registerUser(){
-      const name = $("regName").value.trim();
-      const username = $("regUsername").value.trim();
-      const role = $("regRole").value;
-      const password = $("regPassword").value;
-      if (!name || !username || !password){ setAlert("regAlert", "Name, username and password are required", "warning"); return; }
-
-      try{
-        const res = await fetch(API_BASE + "/register", {
-          method:"POST",
-          headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify({ name, username, role, password })
-        });
-        const data = await res.json();
-        if (data?.user_id){
-          setAlert("regAlert", `User created (ID: ${data.user_id}).`, "success");
-          if ($("regAutoPair").checked){
-            staffStartPairingForUser(data.user_id, "staffPairStatus");
-          }
-          $("regPassword").value = "";
-        } else {
-          setAlert("regAlert", data.error || "Registration failed", "danger");
-        }
-      }catch(e){
-        setAlert("regAlert", "Network error during registration", "danger");
-      }
-    }
-    async function staffStartPairingExisting(){
-      const uid = $("pairUserId").value.trim();
-      if (!uid){ setAlert("pairExistingAlert", "Enter a User ID", "warning"); return; }
-      staffStartPairingForUser(uid, "pairExistingAlert");
-    }
-    async function staffStartPairingForUser(userId, statusElId){
-      try{
-        const res = await fetch(API_BASE + "/rfid/link/start", {
-          method:"POST",
-          headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+token },
-          body: JSON.stringify({ user_id: Number(userId) })
-        });
-        const data = await res.json();
-        if (!(data?.success && data?.pending_id)){
-          setAlert(statusElId, data.error || "Could not start pairing", "danger"); return;
-        }
-        const ttl = Number(data.ttl_seconds || 120);
-        staffPairDeadline = Date.now() + ttl*1000;
-        setAlert(statusElId, `Pairing started (User ${userId}). Ask user to tap card. Expires in ${ttl}s…`, "info");
-
-        if (staffPairInterval) clearInterval(staffPairInterval);
-        staffPairInterval = setInterval(async ()=>{
-          const res2 = await fetch(API_BASE + "/rfid/link/status/" + data.pending_id, {
-            headers:{ "Authorization":"Bearer "+token }
-          });
-          const s = await res2.json();
-          const remaining = Math.max(0, Math.ceil((staffPairDeadline - Date.now())/1000));
-          if (s.confirmed){
-            clearInterval(staffPairInterval);
-            setAlert(statusElId, `RFID linked to user ${userId} ✅`, "success");
-          } else if (s.failed || s.expired || remaining<=0){
-            clearInterval(staffPairInterval);
-            setAlert(statusElId, `Pairing failed/expired for user ${userId}`, "danger");
-          } else {
-            setAlert(statusElId, `Waiting for tap… ${remaining}s (user ${userId})`, "info");
-          }
-        }, 1500);
-      }catch(e){
-        setAlert(statusElId, "Network error while starting pairing", "danger");
-      }
-    }
-
-    /* Student: balance/tx/reloads */
-    async function loadMyBalance(){
-      const res = await fetch(API_BASE + "/student/me", { headers:{ "Authorization":"Bearer " + token }});
-      const data = await res.json();
-      $("balanceValue").textContent = fmtMoney(data.balance || 0);
-    }
-    async function loadMyTransactions(){
-      const res = await fetch(API_BASE + "/student/transactions", { headers:{ "Authorization":"Bearer " + token }});
-      const rows = await res.json();
-      const tbody = $("myTxTbody");
-      tbody.innerHTML = "";
-      if (!rows.length){ tbody.innerHTML = `<tr><td colspan="3" class="text-center text-secondary">No data</td></tr>`; return; }
-      rows.forEach(r=>{
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td class="text-secondary">${fmtTime(r.timestamp)}</td>
-                        <td>${r.item_name || "-"}</td>
-                        <td class="text-end fw-semibold">${fmtMoney(r.amount)}</td>`;
-        tbody.appendChild(tr);
-        const name = (r.item_name ?? r.custom_item ?? "-");
-        tr.innerHTML = `<td class="text-secondary">${fmtTime(r.timestamp)}</td>
-                <td>${name}</td>
-                <td class="text-end fw-semibold">${fmtMoney(r.amount)}</td>`;
-
-      });
-    }
-    async function loadMyReloads(){
-      const res = await fetch(API_BASE + "/student/reloads", { headers:{ "Authorization":"Bearer " + token }});
-      const rows = await res.json();
-      const tbody = $("myReloadsTbody");
-      tbody.innerHTML = "";
-      if (!rows.length){ tbody.innerHTML = `<tr><td colspan="3" class="text-center text-secondary">No data</td></tr>`; return; }
-rows.forEach(r => {
-  const cashier = r.cashier || r.cashier_name || "-";
-  const tr = document.createElement("tr");
-  tr.innerHTML = `<td class="text-secondary">${fmtTime(r.timestamp)}</td>
-                  <td>${cashier}</td>
-                  <td class="text-end fw-semibold">${fmtMoney(r.amount)}</td>`;
-  tbody.appendChild(tr);
-});
-
-
-    }
-
-    /* ==================== ADMIN FUNCTIONS ==================== */
-    let adminCurrentUser = null; // Currently selected user for detail/edit/delete
-    let adminCurrentPage = 1;
-
-    // Load admin statistics
-    async function adminLoadStats() {
-      try {
-        const res = await fetch(API_BASE + "/admin/stats", {
-          headers: { "Authorization": "Bearer " + token }
-        });
-        const stats = await res.json();
-        
-        $("adminTotalUsers").textContent = stats.total_users || 0;
-        $("adminTotalStudents").textContent = stats.total_students || 0;
-        $("adminTotalStaff").textContent = stats.total_staff || 0;
-        $("adminTotalVendors").textContent = stats.total_vendors || 0;
-      } catch(e) {
-        console.error("Admin stats error:", e);
-      }
-    }
-
-    // Load users list
-    async function adminLoadUsers(page = 1) {
-      try {
-        adminCurrentPage = page;
-        const search = $("adminSearchInput")?.value || '';
-        const role = $("adminFilterRole")?.value || '';
-        const cardStatus = $("adminFilterCardStatus")?.value || '';
-        const rfidStatus = $("adminFilterRFID")?.value || '';
-
-        const params = new URLSearchParams({
-          page,
-          limit: 5,
-          search,
-          role,
-          card_status: cardStatus,
-          rfid_status: rfidStatus
-        });
-
-        const res = await fetch(API_BASE + "/admin/users?" + params, {
-          headers: { "Authorization": "Bearer " + token }
-        });
-        
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        }
-        
-        const data = await res.json();
-
-        const tbody = $("adminUsersTbody");
-        tbody.innerHTML = "";
-
-        if (!data.users || data.users.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary">No users found</td></tr>';
-        } else {
-          data.users.forEach(u => {
-            const rfidBadge = u.rfid_uid ? '<span class="badge bg-success"><i class="bi bi-check-circle"></i></span>' : '<span class="badge bg-secondary"><i class="bi bi-x-circle"></i></span>';
-            const cardBadge = u.is_card_locked ? '<span class="badge bg-danger">Locked</span>' : '<span class="badge bg-success">Active</span>';
-            const roleBadge = 
-              u.role === 'student' ? '<span class="badge bg-info">🎓 Student</span>' :
-              u.role === 'staff' ? '<span class="badge bg-success">👔 Staff</span>' :
-              u.role === 'vendor' ? '<span class="badge bg-warning">🍽️ Vendor</span>' :
-              '<span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">👑 Admin</span>';
-
-            const tr = document.createElement("tr");
-            tr.innerHTML = `
-              <td>${u.name}</td>
-              <td class="text-secondary">${u.username}</td>
-              <td>${roleBadge}</td>
-              <td class="text-center">${rfidBadge}</td>
-              <td>${cardBadge}</td>
-              <td class="text-end">
-                <button class="btn btn-sm btn-outline-primary" onclick="adminViewUser(${u.user_id})">
-                  <i class="bi bi-eye"></i>
-                </button>
-              </td>
-            `;
-            tbody.appendChild(tr);
-          });
-        }
-
-        // Update pagination
-        $("adminPaginationInfo").textContent = `Showing ${data.users.length} of ${data.pagination.total} users`;
-        adminRenderPagination(data.pagination);
-      } catch(e) {
-        console.error("Admin load users error:", e);
-        toast("Failed to load users", "error");
-      }
-    }
-
-    // Render pagination buttons
-    function adminRenderPagination(pagination) {
-      const container = $("adminPaginationButtons");
-      container.innerHTML = "";
-
-      if (pagination.pages <= 1) return;
-
-      const btnGroup = document.createElement("div");
-      btnGroup.className = "btn-group btn-group-sm";
-
-      // Previous button
-      const prevBtn = document.createElement("button");
-      prevBtn.className = "btn btn-outline-secondary";
-      prevBtn.innerHTML = '<i class="bi bi-chevron-left"></i>';
-      prevBtn.disabled = pagination.page === 1;
-      prevBtn.onclick = () => adminLoadUsers(pagination.page - 1);
-      btnGroup.appendChild(prevBtn);
-
-      // Page numbers (show max 5 pages)
-      let startPage = Math.max(1, pagination.page - 2);
-      let endPage = Math.min(pagination.pages, startPage + 4);
-      startPage = Math.max(1, endPage - 4);
-
-      for (let i = startPage; i <= endPage; i++) {
-        const pageBtn = document.createElement("button");
-        pageBtn.className = "btn " + (i === pagination.page ? "btn-primary" : "btn-outline-secondary");
-        pageBtn.textContent = i;
-        pageBtn.onclick = () => adminLoadUsers(i);
-        btnGroup.appendChild(pageBtn);
-      }
-
-      // Next button
-      const nextBtn = document.createElement("button");
-      nextBtn.className = "btn btn-outline-secondary";
-      nextBtn.innerHTML = '<i class="bi bi-chevron-right"></i>';
-      nextBtn.disabled = pagination.page === pagination.pages;
-      nextBtn.onclick = () => adminLoadUsers(pagination.page + 1);
-      btnGroup.appendChild(nextBtn);
-
-      container.appendChild(btnGroup);
-    }
-
-    // View user details
-    async function adminViewUser(userId) {
-      try {
-        const res = await fetch(API_BASE + "/admin/users/" + userId, {
-          headers: { "Authorization": "Bearer " + token }
-        });
-        const user = await res.json();
-        adminCurrentUser = user;
-
-        // Fill modal
-        $("adminUserDetailName").textContent = user.name;
-        $("adminUserDetailUsername").textContent = user.username;
-        $("adminUserDetailRole").textContent = user.role;
-        $("adminUserDetailCreated").textContent = fmtTime(user.created_at);
-        $("adminUserDetailRFID").textContent = user.rfid_uid || "Not paired";
-        $("adminUserDetailCardStatus").innerHTML = user.is_card_locked ? 
-          '<span class="badge bg-danger">🔒 Locked</span>' : 
-          '<span class="badge bg-success">🔓 Unlocked</span>';
-
-        // Activity stats (counts only, no amounts!)
-        $("adminUserDetailTxCount").textContent = user.stats.transaction_count || 0;
-        $("adminUserDetailReloadCount").textContent = user.stats.reload_count || 0;
-        $("adminUserDetailLastTx").textContent = user.stats.last_transaction ? fmtTime(user.stats.last_transaction) : "Never";
-        $("adminUserDetailLastReload").textContent = user.stats.last_reload ? fmtTime(user.stats.last_reload) : "Never";
-
-        // Show/hide buttons based on state
-        $("adminUserLockBtn").style.display = user.is_card_locked ? "none" : "inline-block";
-        $("adminUserUnlockBtn").style.display = user.is_card_locked ? "inline-block" : "none";
-        $("adminUserUnpairBtn").style.display = user.rfid_uid ? "inline-block" : "none";
-
-        bsModal("adminUserDetailModal").show();
-      } catch(e) {
-        console.error("Admin view user error:", e);
-        toast("Failed to load user details", "error");
-      }
-    }
-
-    // Open create user modal
-    function openAdminCreateUserModal() {
-      // Clear form
-      $("adminCreateUsername").value = "";
-      $("adminCreatePassword").value = "";
-      $("adminCreateName").value = "";
-      $("adminCreateRole").value = "student";
-      
-      bsModal("adminCreateUserModal").show();
-    }
-
-    // Create new user
-    async function adminCreateUser() {
-      try {
-        const username = $("adminCreateUsername").value.trim();
-        const password = $("adminCreatePassword").value;
-        const name = $("adminCreateName").value.trim();
-        const role = $("adminCreateRole").value;
-
-        if (!username || !password || !name) {
-          toast("Username, password, and name are required", "error");
-          return;
-        }
-
-        const res = await fetch(API_BASE + "/admin/users", {
-          method: "POST",
-          headers: {
-            "Authorization": "Bearer " + token,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ username, password, name, role })
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-          toast("User created successfully!", "success");
-          bootstrap.Modal.getInstance($("adminCreateUserModal")).hide();
-          adminLoadUsers(adminCurrentPage);
-          adminLoadStats();
-        } else {
-          toast(data.error || "Failed to create user", "error");
-        }
-      } catch(e) {
-        console.error("Admin create user error:", e);
-        toast("Failed to create user", "error");
-      }
-    }
-
-    // Open edit user modal
-    function adminOpenEditUserModal() {
-      if (!adminCurrentUser) return;
-
-      // Fill form with current data
-      $("adminEditName").value = adminCurrentUser.name;
-      $("adminEditRole").value = adminCurrentUser.role;
-
-      // Hide detail modal, show edit modal
-      bootstrap.Modal.getInstance($("adminUserDetailModal")).hide();
-      bsModal("adminEditUserModal").show();
-    }
-
-    // Update user
-    async function adminUpdateUser() {
-      if (!adminCurrentUser) return;
-
-      try {
-        const name = $("adminEditName").value.trim();
-        const role = $("adminEditRole").value;
-
-        const res = await fetch(API_BASE + "/admin/users/" + adminCurrentUser.user_id, {
-          method: "PUT",
-          headers: {
-            "Authorization": "Bearer " + token,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ name, role })
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-          toast("User updated successfully!", "success");
-          bootstrap.Modal.getInstance($("adminEditUserModal")).hide();
-          adminLoadUsers(adminCurrentPage);
-          adminCurrentUser = null;
-        } else {
-          toast(data.error || "Failed to update user", "error");
-        }
-      } catch(e) {
-        console.error("Admin update user error:", e);
-        toast("Failed to update user", "error");
-      }
-    }
-
-    // Reset password
-    async function adminResetPassword() {
-      if (!adminCurrentUser) return;
-
-      if (!confirm(`Reset password for ${adminCurrentUser.name}?`)) return;
-
-      try {
-        const res = await fetch(API_BASE + "/admin/users/" + adminCurrentUser.user_id + "/reset-password", {
-          method: "POST",
-          headers: { "Authorization": "Bearer " + token }
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-          $("adminTempPassword").value = data.temporary_password;
-          bootstrap.Modal.getInstance($("adminUserDetailModal")).hide();
-          bsModal("adminResetPasswordModal").show();
-        } else {
-          toast(data.error || "Failed to reset password", "error");
-        }
-      } catch(e) {
-        console.error("Admin reset password error:", e);
-        toast("Failed to reset password", "error");
-      }
-    }
-
-    // Copy temp password
-    function adminCopyTempPassword() {
-      const input = $("adminTempPassword");
-      input.select();
-      document.execCommand("copy");
-      toast("Password copied to clipboard!", "success");
-    }
-
-    // Lock card
-    async function adminLockCard() {
-      if (!adminCurrentUser) return;
-
-      const reason = prompt("Enter reason for locking card (optional):");
-
-      try {
-        const res = await fetch(API_BASE + "/admin/users/" + adminCurrentUser.user_id + "/lock", {
-          method: "POST",
-          headers: {
-            "Authorization": "Bearer " + token,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ reason })
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-          toast("Card locked successfully!", "success");
-          bootstrap.Modal.getInstance($("adminUserDetailModal")).hide();
-          adminLoadUsers(adminCurrentPage);
-          adminCurrentUser = null;
-        } else {
-          toast(data.error || "Failed to lock card", "error");
-        }
-      } catch(e) {
-        console.error("Admin lock card error:", e);
-        toast("Failed to lock card", "error");
-      }
-    }
-
-    // Unlock card
-    async function adminUnlockCard() {
-      if (!adminCurrentUser) return;
-
-      if (!confirm(`Unlock card for ${adminCurrentUser.name}?`)) return;
-
-      try {
-        const res = await fetch(API_BASE + "/admin/users/" + adminCurrentUser.user_id + "/unlock", {
-          method: "POST",
-          headers: { "Authorization": "Bearer " + token }
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-          toast("Card unlocked successfully!", "success");
-          bootstrap.Modal.getInstance($("adminUserDetailModal")).hide();
-          adminLoadUsers(adminCurrentPage);
-          adminCurrentUser = null;
-        } else {
-          toast(data.error || "Failed to unlock card", "error");
-        }
-      } catch(e) {
-        console.error("Admin unlock card error:", e);
-        toast("Failed to unlock card", "error");
-      }
-    }
-
-    // Unpair RFID
-    async function adminUnpairRFID() {
-      if (!adminCurrentUser) return;
-
-      if (!confirm(`Unpair RFID card for ${adminCurrentUser.name}? This is used for lost/stolen cards.`)) return;
-
-      try {
-        const res = await fetch(API_BASE + "/admin/users/" + adminCurrentUser.user_id + "/unpair-rfid", {
-          method: "POST",
-          headers: { "Authorization": "Bearer " + token }
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-          toast("RFID unpaired successfully!", "success");
-          bootstrap.Modal.getInstance($("adminUserDetailModal")).hide();
-          adminLoadUsers(adminCurrentPage);
-          adminCurrentUser = null;
-        } else {
-          toast(data.error || "Failed to unpair RFID", "error");
-        }
-      } catch(e) {
-        console.error("Admin unpair RFID error:", e);
-        toast("Failed to unpair RFID", "error");
-      }
-    }
-
-    // Delete user
-    async function adminDeleteUser() {
-      if (!adminCurrentUser) return;
-
-      if (!confirm(`⚠️ DELETE user "${adminCurrentUser.name}"? This action cannot be undone!`)) return;
-      if (!confirm("Are you ABSOLUTELY SURE? This will permanently delete the user and all related data.")) return;
-
-      try {
-        const res = await fetch(API_BASE + "/admin/users/" + adminCurrentUser.user_id, {
-          method: "DELETE",
-          headers: { "Authorization": "Bearer " + token }
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-          toast("User deleted successfully!", "success");
-          bootstrap.Modal.getInstance($("adminUserDetailModal")).hide();
-          adminLoadUsers(adminCurrentPage);
-          adminLoadStats();
-          adminCurrentUser = null;
-        } else {
-          toast(data.error || "Failed to delete user", "error");
-        }
-      } catch(e) {
-        console.error("Admin delete user error:", e);
-        toast("Failed to delete user", "error");
-      }
-    }
-
-  </script>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+

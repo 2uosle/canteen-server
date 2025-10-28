@@ -6,17 +6,37 @@
   "scripts": {
     "test": "jest --coverage --verbose",
     "test:watch": "jest --watch",
-    "test:quick": "jest --bail"
+    "test:quick": "jest --bail",
+    "prisma:studio": "prisma studio",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:pull": "prisma db pull",
+    "db:studio": "prisma studio"
   },
   "jest": {
     "testEnvironment": "node",
-    "setupFilesAfterEnv": ["<rootDir>/tests/setup.js"],
-    "coveragePathIgnorePatterns": ["/node_modules/"],
-    "testMatch": ["**/tests/**/*.test.js"],
-    "collectCoverageFrom": ["server.js", "middleware/**/*.js", "logger.js"],
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/setup.js"
+    ],
+    "coveragePathIgnorePatterns": [
+      "/node_modules/"
+    ],
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "server.js",
+      "middleware/**/*.js",
+      "logger.js"
+    ],
     "testTimeout": 10000
   },
-  "keywords": ["canteen", "rfid", "cashless", "payment"],
+  "keywords": [
+    "canteen",
+    "rfid",
+    "cashless",
+    "payment"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -38,8 +58,10 @@
     "ws": "^8.18.3"
   },
   "devDependencies": {
+    "@prisma/client": "^6.18.0",
     "@types/jest": "^30.0.0",
     "jest": "^30.2.0",
+    "prisma": "^6.18.0",
     "supertest": "^7.1.4"
   }
 }

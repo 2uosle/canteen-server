@@ -953,6 +953,123 @@ app.get('/pending-sale/status/:id', auth('vendor'), validate(statusParamSchema, 
   }
 });
 
+/* ---------- VENDOR CANCEL TRANSACTION ---------- */
+// POST /pending-sale/cancel - Cancel a pending sale transaction
+app.post('/pending-sale/cancel', auth('vendor'), async (req, res) => {
+  try {
+    const { pending_id, reason } = req.body;
+    
+    if (!pending_id) {
+      return res.status(400).json({ error: 'pending_id required' });
+    }
+    
+    // Get pending sale details
+    const [[pending]] = await pool.query(
+      'SELECT * FROM pending_sales WHERE id = ?',
+      [pending_id]
+    );
+    
+    if (!pending) {
+      return res.status(404).json({ error: 'Pending sale not found' });
+    }
+    
+    // Check if already confirmed
+    if (pending.confirmed === 1) {
+      return res.status(400).json({ error: 'Sale already confirmed, cannot cancel' });
+    }
+    
+    // Check if already cancelled
+    if (pending.confirmed === 2) {
+      return res.status(400).json({ error: 'Sale already cancelled' });
+    }
+    
+    // Get vendor info
+    const [[vendor]] = await pool.query(
+      'SELECT name, username FROM users WHERE user_id = ?',
+      [req.user.user_id]
+    );
+    
+    // Normalize reason for consistency (store full human-readable text)
+    const normalizedReason = reason || 'Cancelled by vendor';
+    
+    // Log cancellation to cancelled_transactions table (if it exists)
+    try {
+      await pool.query(
+        `INSERT INTO cancelled_transactions (pending_id, item_name, amount, vendor_id, vendor_name, reason, cancelled_at) 
+         VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+        [
+          pending_id,
+          pending.item_name,
+          pending.amount,
+          req.user.user_id,
+          vendor?.name || vendor?.username || 'Unknown',
+          normalizedReason
+        ]
+      );
+      console.log(`[Vendor] Cancellation logged for sale #${pending_id}: ${normalizedReason}`);
+    } catch (logError) {
+      // Table might not exist yet - log to console instead
+      console.error('[Vendor] Could not log cancellation to database:', logError.message);
+      console.log(`[Vendor] Cancellation details - pending_id: ${pending_id}, item: ${pending.item_name}, reason: ${normalizedReason}`);
+    }
+    
+    // Mark as cancelled (confirmed = 2 means cancelled/failed)
+    await pool.query(
+      'UPDATE pending_sales SET confirmed = 2 WHERE id = ?',
+      [pending_id]
+    );
+    
+    // Broadcast cancellation notification to students (if they tap after cancellation)
+    broadcast('sale_cancelled', {
+      pending_id,
+      item_name: pending.item_name,
+      amount: pending.amount,
+      reason: reason || 'Cancelled by vendor',
+      cancelled_by: vendor?.name || 'Vendor'
+    });
+    
+    // Notify vendor
+    sendToRole('vendor', 'sale_cancelled', {
+      pending_id,
+      item_name: pending.item_name,
+      amount: pending.amount,
+      reason: reason || 'No reason provided'
+    });
+    
+    console.log(`[Vendor] Sale #${pending_id} cancelled by ${vendor?.name || 'vendor'}`);
+    
+    res.json({
+      success: true,
+      pending_id,
+      message: 'Sale cancelled successfully',
+      logged: true
+    });
+    
+  } catch (err) {
+    console.error('[Vendor] Cancel sale error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /cancelled-transactions - Get all cancelled transactions (vendor only)
+app.get('/cancelled-transactions', auth('vendor'), async (req, res) => {
+  try {
+    const [transactions] = await pool.query(
+      `SELECT ct.*, ps.vendor_id 
+       FROM cancelled_transactions ct
+       JOIN pending_sales ps ON ct.pending_id = ps.id
+       WHERE ps.vendor_id = ?
+       ORDER BY ct.cancelled_at DESC
+       LIMIT 100`,
+      [req.user.user_id]
+    );
+    res.json(transactions);
+  } catch (err) {
+    console.error('[Vendor] Get cancelled transactions error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /* ---------- VENDOR SALES ENDPOINTS ---------- */
 // GET /sales - Get all sales transactions (vendor only)
 app.get('/sales', auth('vendor'), async (req, res) => {

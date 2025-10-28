@@ -1,0 +1,174 @@
+// This is your Prisma schema file for the Smart Canteen System
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Users Table - All system users (students, staff, vendors, admins)
+// ============================================
+model User {
+  userId        Int      @id @default(autoincrement()) @map("user_id")
+  name          String   @db.VarChar(150)
+  username      String?  @unique @db.VarChar(100)
+  password      String?  @db.VarChar(255)
+  role          Role     @default(student)
+  rfidUid       String?  @unique @map("rfid_uid") @db.VarChar(32)
+  balance       Decimal  @default(0.00) @db.Decimal(10, 2)
+  isCardLocked  Boolean  @default(false) @map("is_card_locked") @db.TinyInt
+  cardLocked    Boolean  @default(false) @map("card_locked") @db.TinyInt
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Relations
+  transactions      Transaction[]
+  reloads           Reload[]           @relation("UserReloads")
+  cashierReloads    Reload[]           @relation("CashierReloads")
+  pendingRfidLinks  PendingRfidLink[]
+
+  @@index([rfidUid, isCardLocked], map: "idx_rfid_lock")
+  @@index([rfidUid], map: "idx_users_rfid")
+  @@map("users")
+}
+
+enum Role {
+  student
+  staff
+  vendor
+  admin
+}
+
+// ============================================
+// Menu Table - Food menu items and prices
+// ============================================
+model Menu {
+  itemId      Int           @id @default(autoincrement()) @map("item_id")
+  itemName    String        @map("item_name") @db.VarChar(150)
+  price       Decimal       @db.Decimal(10, 2)
+  active      Boolean       @default(true) @db.TinyInt
+
+  // Relations
+  transactions Transaction[]
+
+  @@map("menu")
+}
+
+// ============================================
+// Transactions Table - All student purchases/sales
+// ============================================
+model Transaction {
+  txId       Int       @id @default(autoincrement()) @map("tx_id")
+  userId     Int       @map("user_id")
+  itemId     Int?      @map("item_id")
+  customItem String?   @map("custom_item") @db.VarChar(150)
+  amount     Decimal   @db.Decimal(10, 2)
+  deviceId   String?   @map("device_id") @db.VarChar(100)
+  timestamp  DateTime  @default(now())
+
+  // Relations
+  user User  @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  item Menu? @relation(fields: [itemId], references: [itemId], onDelete: SetNull)
+
+  @@index([userId], map: "user_id")
+  @@index([itemId], map: "item_id")
+  @@map("transactions")
+}
+
+// ============================================
+// Reloads Table - Balance reload history
+// ============================================
+model Reload {
+  reloadId   Int       @id @default(autoincrement()) @map("reload_id")
+  userId     Int       @map("user_id")
+  amount     Decimal   @db.Decimal(10, 2)
+  cashierId  Int?      @map("cashier_id")
+  timestamp  DateTime  @default(now())
+
+  // Relations
+  user     User  @relation("UserReloads", fields: [userId], references: [userId], onDelete: Cascade)
+  cashier  User? @relation("CashierReloads", fields: [cashierId], references: [userId], onDelete: SetNull)
+
+  @@index([userId], map: "user_id")
+  @@index([cashierId], map: "cashier_id")
+  @@map("reloads")
+}
+
+// ============================================
+// Pending Reloads Table - RFID-based reload workflow
+// ============================================
+model PendingReload {
+  id         Int       @id @default(autoincrement())
+  amount     Decimal   @db.Decimal(10, 2)
+  cashierId  Int       @map("cashier_id")
+  confirmed  Boolean   @default(false) @db.TinyInt
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamp(0)
+
+  @@index([confirmed], map: "confirmed")
+  @@index([createdAt], map: "created_at")
+  @@index([confirmed, createdAt], map: "idx_pr_state_time")
+  @@map("pending_reloads")
+}
+
+// ============================================
+// Pending Sales Table - RFID-based sale workflow
+// ============================================
+model PendingSale {
+  id         Int       @id @default(autoincrement())
+  itemId     Int?      @map("item_id")
+  itemName   String    @map("item_name") @db.VarChar(150)
+  amount     Decimal   @db.Decimal(10, 2)
+  vendorId   Int       @map("vendor_id")
+  confirmed  Boolean   @default(false) @db.TinyInt
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([confirmed, createdAt], map: "idx_ps_state_time")
+  @@map("pending_sales")
+}
+
+// ============================================
+// Pending RFID Links Table - RFID card linking workflow
+// ============================================
+model PendingRfidLink {
+  id         Int       @id @default(autoincrement())
+  userId     Int       @map("user_id")
+  uid        String?   @db.VarChar(32)
+  confirmed  Boolean   @default(false) @db.TinyInt
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamp(0)
+
+  // Relations
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId], map: "user_id")
+  @@index([confirmed, createdAt], map: "confirmed")
+  @@map("pending_rfid_links")
+}
+
+// ============================================
+// Card Hotlist Table - Blocked/blacklisted RFID cards
+// ============================================
+model CardHotlist {
+  rfidUid   String   @id @map("rfid_uid") @db.VarChar(32)
+  reason    String?  @db.VarChar(200)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("card_hotlist")
+}
+
+// ============================================
+// Devices Table - Registered ESP32/Arduino devices
+// ============================================
+model Device {
+  deviceId String    @id @map("device_id") @db.VarChar(64)
+  secret   Bytes     @db.VarBinary(32)
+  name     String?   @db.VarChar(100)
+  location String?   @db.VarChar(100)
+  lastSeen DateTime? @map("last_seen")
+  enabled  Boolean   @default(true) @db.TinyInt
+
+  @@map("devices")
+}
