@@ -24,7 +24,7 @@ CREATE TABLE `users` (
   `name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `username` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `role` enum('student','staff','vendor','admin') COLLATE utf8mb4_unicode_ci DEFAULT 'student',
+  `role` enum('student','staff','vendor','admin','canteen_manager') COLLATE utf8mb4_unicode_ci DEFAULT 'student',
   `rfid_uid` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `balance` decimal(10,2) DEFAULT '0.00',
   `is_card_locked` tinyint(1) NOT NULL DEFAULT '0',
@@ -102,6 +102,8 @@ CREATE TABLE `pending_reloads` (
   `amount` decimal(10,2) NOT NULL,
   `cashier_id` int NOT NULL,
   `confirmed` tinyint(1) NOT NULL DEFAULT '0',
+  `cancellation_reason` varchar(255) DEFAULT NULL,
+  `cancelled_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `confirmed` (`confirmed`),
@@ -195,6 +197,13 @@ CREATE TABLE `devices` (
   PRIMARY KEY (`device_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 COMMENT='Registered hardware devices (ESP32/Arduino)';
+
+-- ============================================
+-- MIGRATION: Add canteen_manager role
+-- Date: 2025-10-28
+-- ============================================
+-- Run this if upgrading existing database:
+-- ALTER TABLE `users` MODIFY `role` enum('student','staff','vendor','admin','canteen_manager') COLLATE utf8mb4_unicode_ci DEFAULT 'student';
 
 -- ============================================
 -- END OF SCHEMA

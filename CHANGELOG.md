@@ -4,6 +4,20 @@ All notable changes to the Canteen Server project.
 
 ---
 
+## [Unreleased] - 2025
+
+### 🔐 Security & Audit Features (October 28, 2025)
+- **Top-Up Cancellation with Mandatory Reason Tracking**
+  - Added cancellation reason modal when staff cancels top-up transactions
+  - 7 predefined reasons + custom reason option (max 200 chars)
+  - Mandatory reason selection - cannot cancel without providing reason
+  - Full audit logging using Winston logger with transaction context
+  - Database tracking: `cancellation_reason` and `cancelled_at` columns
+  - New API endpoint: `POST /pending-reload/cancel`
+  - Location: `public/index.html` (modal), `public/js/app.js` (logic), `server.js` (endpoint)
+  - Files: `TOPUP-CANCELLATION-GUIDE.md`, `migrations/add-cancellation-reason.sql`
+  - Benefits: Accountability, audit compliance, analytics, issue identification
+
 ## [Unreleased] - 2024
 
 ### 🎨 User Interface Enhancements

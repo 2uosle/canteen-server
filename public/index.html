@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Smart Canteen System</title>
+  <title>NEUTap System</title>
 
   <!-- Bootstrap + Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
@@ -23,7 +23,7 @@
   <nav class="navbar app-nav">
     <div class="container py-2 d-flex align-items-center justify-content-between">
       <div class="d-flex align-items-center gap-3">
-        <span class="brand"><i class="bi bi-egg-fried"></i> Smart Canteen</span>
+        <span class="brand"><i class="bi bi-egg-fried"></i> NEUTap</span>
         <span class="d-none d-md-inline text-secondary">RFID Payments &amp; Reports</span>
       </div>
 
@@ -105,53 +105,227 @@
             <i class="bi bi-person-plus me-1"></i> Register New User
           </button>
         </div>
+
+        <!-- Reload Performance Dashboard - Always Visible -->
         <div class="row g-4">
           <div class="col-12">
             <div class="card glass mb-4">
-              <div class="card-header d-flex align-items-center justify-content-between">
-                <span>Recent Reloads</span>
-                <div class="d-flex align-items-center gap-2">
-                  <span id="reloadKpiToday" class="pill pill-amount d-none"></span>
-                  <span id="reloadKpi7d" class="pill pill-info d-none"></span>
+              <div class="card-header">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
+                  <span><i class="bi bi-wallet-fill me-2"></i>Reload Performance Dashboard</span>
                   <button class="btn btn-outline-secondary btn-sm" onclick="loadReloads()">
                     <i class="bi bi-arrow-clockwise me-1"></i>Refresh
                   </button>
                 </div>
+                
+                <!-- Tab Navigation -->
+                <ul class="nav nav-pills" id="reloadDashboardTabs" role="tablist">
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="recent-tab" data-bs-toggle="pill" data-bs-target="#recent-panel" 
+                            type="button" role="tab" aria-controls="recent-panel" aria-selected="true">
+                      <i class="bi bi-clock-history me-1"></i>Recent Transactions
+                    </button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="daterange-tab" data-bs-toggle="pill" data-bs-target="#daterange-panel" 
+                            type="button" role="tab" aria-controls="daterange-panel" aria-selected="false">
+                      <i class="bi bi-calendar-range me-1"></i>Date Range
+                    </button>
+                  </li>
+                </ul>
               </div>
+              
               <div class="card-body">
-                <div class="row g-3">
-                  <div class="col-12">
-                    <canvas id="reloadChart" height="140"></canvas>
-                  </div>
-                  <div class="col-12">
-                    <div class="table-responsive">
-                      <table class="table align-middle mb-0">
-                        <thead>
-                          <tr>
-                            <th>Time</th>
-                            <th>Student</th>
-                            <th>Cashier</th>
-                            <th class="text-end">Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody id="reloadsTbody">
-                          <tr><td colspan="4" class="text-center text-secondary">No data</td></tr>
-                        </tbody>
-                      </table>
+                <div class="tab-content" id="reloadDashboardTabContent">
+                  
+                  <!-- Recent Transactions Tab -->
+                  <div class="tab-pane fade show active" id="recent-panel" role="tabpanel" aria-labelledby="recent-tab">
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <!-- Chart Type Toggle -->
+                        <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+                          <div class="btn-group" role="group" aria-label="Chart type toggle">
+                            <button type="button" class="btn btn-outline-success" id="reloadChart24HBtn" onclick="switchReloadChartView('24h')">
+                              <i class="bi bi-clock me-1"></i>24 Hours
+                            </button>
+                            <button type="button" class="btn btn-outline-success active" id="reloadChart7DBtn" onclick="switchReloadChartView('7d')">
+                              <i class="bi bi-calendar-week me-1"></i>7 Days
+                            </button>
+                          </div>
+                          <span id="reloadKpiToday" class="pill pill-amount d-none"></span>
+                          <span id="reloadKpi7d" class="pill pill-info d-none"></span>
+                        </div>
+                        
+                        <div class="chart-container p-4 rounded mb-3">
+                          <h6 class="mb-3 text-secondary">
+                            <i class="bi bi-graph-up me-2"></i><span id="reloadChartTitle">Reload Trends - Last 7 Days</span>
+                          </h6>
+                          <canvas id="reloadChart" height="140"></canvas>
+                        </div>
+                      </div>
+                      
+                      <div class="col-12">
+                        <h6 class="text-secondary mb-3">
+                          <i class="bi bi-list-ul me-2"></i>Last 10 Transactions
+                        </h6>
+                        <div class="table-responsive">
+                          <table class="table align-middle mb-0">
+                            <thead>
+                              <tr>
+                                <th>Time</th>
+                                <th>Student</th>
+                                <th>Cashier</th>
+                                <th class="text-end">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody id="reloadsTbody">
+                              <tr><td colspan="4" class="text-center text-secondary">No data</td></tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     </div>
                   </div>
+                  
+                  <!-- Date Range Tab -->
+                  <div class="tab-pane fade" id="daterange-panel" role="tabpanel" aria-labelledby="daterange-tab">
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <!-- Date Range Picker -->
+                        <div class="card glass mb-3">
+                          <div class="card-body">
+                            <h6 class="mb-3"><i class="bi bi-calendar-range me-2"></i>Select Date Range</h6>
+                            <div class="row g-3">
+                              <div class="col-md-8">
+                                <div class="date-range-picker-wrapper">
+                                  <div class="date-range-display" onclick="toggleStaffReloadDatePicker(event)">
+                                    <i class="bi bi-calendar-range text-success me-2"></i>
+                                    <span id="staffReloadDateRangeText">Select date range</span>
+                                    <i class="bi bi-chevron-down ms-auto"></i>
+                                  </div>
+                                  <div class="date-range-picker" id="staffReloadDateRangePicker" style="display: none;" onclick="event.stopPropagation()">
+                                    <div class="date-picker-header">
+                                      <button type="button" class="btn-nav" onclick="changeStaffReloadMonth(-1); event.stopPropagation();">
+                                        <i class="bi bi-chevron-left"></i>
+                                      </button>
+                                      <span id="staffReloadCurrentMonthYear">October 2025</span>
+                                      <button type="button" class="btn-nav" onclick="changeStaffReloadMonth(1); event.stopPropagation();">
+                                        <i class="bi bi-chevron-right"></i>
+                                      </button>
+                                    </div>
+                                    <div class="date-picker-calendar">
+                                      <div class="weekdays">
+                                        <div>Su</div><div>Mo</div><div>Tu</div><div>We</div>
+                                        <div>Th</div><div>Fr</div><div>Sa</div>
+                                      </div>
+                                      <div class="days" id="staffReloadCalendarDays"></div>
+                                    </div>
+                                    <div class="date-picker-actions">
+                                      <button type="button" class="btn btn-sm btn-secondary" onclick="cancelStaffReloadDateRange(); event.stopPropagation();">Cancel</button>
+                                      <button type="button" class="btn btn-sm btn-success" onclick="applyStaffReloadDateRange(); event.stopPropagation();">Apply</button>
+                                    </div>
+                                  </div>
+                                </div>
+                                <input type="hidden" id="staffReloadStartDate">
+                                <input type="hidden" id="staffReloadEndDate">
+                              </div>
+                              <div class="col-md-4 d-flex align-items-end">
+                                <button class="btn btn-success w-100" onclick="loadReloadsByDateRange()">
+                                  <i class="bi bi-search me-1"></i>Search
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <!-- Date Range Results -->
+                        <div id="dateRangeResults" class="d-none">
+                          <div class="row g-3 mb-3">
+                            <div class="col-md-3">
+                              <div class="card glass">
+                                <div class="card-body text-center">
+                                  <div class="text-muted small">Total Transactions</div>
+                                  <div class="h4 mb-0" id="drTotalCount">0</div>
+                                </div>
+                              </div>
+                            </div>
+                            <div class="col-md-3">
+                              <div class="card glass">
+                                <div class="card-body text-center">
+                                  <div class="text-muted small">Total Amount</div>
+                                  <div class="h4 mb-0 text-success" id="drTotalAmount">₱0.00</div>
+                                </div>
+                              </div>
+                            </div>
+                            <div class="col-md-3">
+                              <div class="card glass">
+                                <div class="card-body text-center">
+                                  <div class="text-muted small">Average</div>
+                                  <div class="h4 mb-0 text-info" id="drAvgAmount">₱0.00</div>
+                                </div>
+                              </div>
+                            </div>
+                            <div class="col-md-3">
+                              <div class="card glass">
+                                <div class="card-body text-center">
+                                  <div class="text-muted small">Highest</div>
+                                  <div class="h4 mb-0 text-warning" id="drHighestAmount">₱0.00</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div class="chart-container p-4 rounded mb-3">
+                            <h6 class="mb-3 text-secondary">
+                              <i class="bi bi-graph-up me-2"></i><span id="drChartTitle">Date Range Trends</span>
+                            </h6>
+                            <canvas id="dateRangeChart" height="140"></canvas>
+                          </div>
+                          
+                          <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                            <h6 class="text-secondary mb-0">
+                              <i class="bi bi-list-ul me-2"></i>Transactions in Range
+                            </h6>
+                            <div class="d-flex align-items-center gap-2">
+                              <div id="drPageInfo" class="text-secondary small">Showing 0–0 of 0</div>
+                              <div class="btn-group btn-group-sm" role="group" aria-label="Pagination">
+                                <button type="button" class="btn btn-outline-secondary" id="drPrevBtn" onclick="prevDateRangePage()" disabled>
+                                  <i class="bi bi-chevron-left"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="drNextBtn" onclick="nextDateRangePage()" disabled>
+                                  <i class="bi bi-chevron-right"></i>
+                                </button>
+                              </div>
+                              <button class="btn btn-success btn-sm" id="drExportBtn" onclick="exportDateRangeCSV()">
+                                <i class="bi bi-filetype-csv me-1"></i>Export CSV
+                              </button>
+                            </div>
+                          </div>
+                          <div class="table-responsive">
+                            <table class="table align-middle mb-0">
+                              <thead>
+                                <tr>
+                                  <th>Date & Time</th>
+                                  <th>Student</th>
+                                  <th>Cashier</th>
+                                  <th class="text-end">Amount</th>
+                                </tr>
+                              </thead>
+                              <tbody id="dateRangeTbody">
+                                <tr><td colspan="4" class="text-center text-secondary">Select a date range to view transactions</td></tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
                 </div>
               </div>
             </div>
 
-            <div class="card glass">
-              <div class="card-header">Reports</div>
-              <div class="card-body">
-                <button class="btn btn-success-apple" onclick="downloadReloads()">
-                  <i class="bi bi-filetype-csv me-1"></i> Download Reloads CSV
-                </button>
-              </div>
-            </div>
+            
           </div>
         </div>
       </section><!-- /#staffDashboard -->
@@ -163,56 +337,346 @@
             <i class="bi bi-cart-plus me-2"></i>Record Sale
           </button>
         </div>
+        
+        <!-- Sales Performance Dashboard -->
         <div class="row g-4">
           <div class="col-12">
-            <div class="card glass">
-              <div class="card-header d-flex align-items-center justify-content-between">
-                <span>Recent Sales</span>
-                <div class="d-flex align-items-center gap-2">
-                  <span id="salesKpiToday" class="pill pill-amount d-none"></span>
-                  <span id="salesKpi7d" class="pill pill-info d-none"></span>
+            <div class="card glass mb-4">
+              <div class="card-header">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
+                  <span><i class="bi bi-cart-fill me-2"></i>Sales Performance Dashboard</span>
                   <button class="btn btn-outline-secondary btn-sm" onclick="loadSales()">
                     <i class="bi bi-arrow-clockwise me-1"></i>Refresh
                   </button>
                 </div>
+                
+                <!-- Tab Navigation -->
+                <ul class="nav nav-pills" id="salesDashboardTabs" role="tablist">
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="recent-sales-tab" data-bs-toggle="pill" data-bs-target="#recent-sales-panel" 
+                            type="button" role="tab" aria-controls="recent-sales-panel" aria-selected="true">
+                      <i class="bi bi-clock-history me-1"></i>Recent Transactions
+                    </button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="daterange-sales-tab" data-bs-toggle="pill" data-bs-target="#daterange-sales-panel" 
+                            type="button" role="tab" aria-controls="daterange-sales-panel" aria-selected="false">
+                      <i class="bi bi-calendar-range me-1"></i>Date Range
+                    </button>
+                  </li>
+                </ul>
               </div>
+              
               <div class="card-body">
-                <div class="row g-3">
-                  <div class="col-12">
-                    <canvas id="salesChart" height="140"></canvas>
+                <div class="tab-content" id="salesDashboardTabContent">
+                  
+                  <!-- Recent Transactions Tab -->
+                  <div class="tab-pane fade show active" id="recent-sales-panel" role="tabpanel" aria-labelledby="recent-sales-tab">
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+                          <span id="salesKpiToday" class="pill pill-amount d-none"></span>
+                          <span id="salesKpi7d" class="pill pill-info d-none"></span>
+                        </div>
+                        
+                        <div class="chart-container p-4 rounded mb-3">
+                          <h6 class="mb-3 text-secondary">
+                            <i class="bi bi-graph-up me-2"></i>Sales Trends - Last 7 Days
+                          </h6>
+                          <canvas id="salesChart" height="140"></canvas>
+                        </div>
+                      </div>
+                      
+                      <div class="col-12">
+                        <h6 class="text-secondary mb-3">
+                          <i class="bi bi-list-ul me-2"></i>Last 10 Transactions
+                        </h6>
+                        <div class="table-responsive">
+                          <table class="table align-middle mb-0">
+                            <thead>
+                              <tr>
+                                <th>Time</th>
+                                <th>Student</th>
+                                <th>Item</th>
+                                <th class="text-end">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody id="salesTbody">
+                              <tr><td colspan="4" class="text-center text-secondary">No data</td></tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div class="col-12">
-                    <div class="table-responsive">
-                  <table class="table align-middle mb-0">
-                    <thead>
-                      <tr>
-                        <th>Time</th>
-                        <th>Student</th>
-                        <th>Item</th>
-                        <th class="text-end">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody id="salesTbody">
-                      <tr><td colspan="4" class="text-center text-secondary">No data</td></tr>
-                    </tbody>
-                  </table>
+                  
+                  <!-- Date Range Tab -->
+                  <div class="tab-pane fade" id="daterange-sales-panel" role="tabpanel" aria-labelledby="daterange-sales-tab">
+                    <div class="row g-3">
+                      <div class="col-12">
+                        <!-- Date Range Picker -->
+                        <div class="card glass mb-3">
+                          <div class="card-body">
+                            <h6 class="mb-3"><i class="bi bi-calendar-range me-2"></i>Select Date Range</h6>
+                            <div class="row g-3">
+                              <div class="col-md-8">
+                                <div class="date-range-picker-wrapper">
+                                  <div class="date-range-display" onclick="toggleVendorSalesDatePicker(event)">
+                                    <i class="bi bi-calendar-range text-danger me-2"></i>
+                                    <span id="vendorSalesDateRangeText">Select date range</span>
+                                    <i class="bi bi-chevron-down ms-auto"></i>
+                                  </div>
+                                  <div class="date-range-picker" id="vendorSalesDateRangePicker" style="display: none;" onclick="event.stopPropagation()">
+                                    <div class="date-picker-header">
+                                      <button type="button" class="btn-nav" onclick="changeVendorSalesMonth(-1); event.stopPropagation();">
+                                        <i class="bi bi-chevron-left"></i>
+                                      </button>
+                                      <span id="vendorSalesCurrentMonthYear">October 2025</span>
+                                      <button type="button" class="btn-nav" onclick="changeVendorSalesMonth(1); event.stopPropagation();">
+                                        <i class="bi bi-chevron-right"></i>
+                                      </button>
+                                    </div>
+                                    <div class="date-picker-calendar">
+                                      <div class="weekdays">
+                                        <div>Su</div><div>Mo</div><div>Tu</div><div>We</div>
+                                        <div>Th</div><div>Fr</div><div>Sa</div>
+                                      </div>
+                                      <div class="days" id="vendorSalesCalendarDays"></div>
+                                    </div>
+                                    <div class="date-picker-actions">
+                                      <button type="button" class="btn btn-sm btn-secondary" onclick="cancelVendorSalesDateRange(); event.stopPropagation();">Cancel</button>
+                                      <button type="button" class="btn btn-sm btn-danger" onclick="applyVendorSalesDateRange(); event.stopPropagation();">Apply</button>
+                                    </div>
+                                  </div>
+                                </div>
+                                <input type="hidden" id="vendorSalesStartDate">
+                                <input type="hidden" id="vendorSalesEndDate">
+                              </div>
+                              <div class="col-md-4 d-flex align-items-end">
+                                <button class="btn btn-danger w-100" onclick="loadSalesByDateRange()">
+                                  <i class="bi bi-search me-1"></i>Search
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <!-- Date Range Results -->
+                        <div id="salesDateRangeResults" class="d-none">
+                          <div class="row g-3 mb-3">
+                            <div class="col-md-3">
+                              <div class="card glass">
+                                <div class="card-body text-center">
+                                  <div class="text-muted small">Total Transactions</div>
+                                  <div class="h4 mb-0" id="drSalesTotalCount">0</div>
+                                </div>
+                              </div>
+                            </div>
+                            <div class="col-md-3">
+                              <div class="card glass">
+                                <div class="card-body text-center">
+                                  <div class="text-muted small">Total Amount</div>
+                                  <div class="h4 mb-0 text-danger" id="drSalesTotalAmount">₱0.00</div>
+                                </div>
+                              </div>
+                            </div>
+                            <div class="col-md-3">
+                              <div class="card glass">
+                                <div class="card-body text-center">
+                                  <div class="text-muted small">Average</div>
+                                  <div class="h4 mb-0 text-info" id="drSalesAvgAmount">₱0.00</div>
+                                </div>
+                              </div>
+                            </div>
+                            <div class="col-md-3">
+                              <div class="card glass">
+                                <div class="card-body text-center">
+                                  <div class="text-muted small">Highest</div>
+                                  <div class="h4 mb-0 text-warning" id="drSalesHighestAmount">₱0.00</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div class="chart-container p-4 rounded mb-3">
+                            <h6 class="mb-3 text-secondary">
+                              <i class="bi bi-graph-up me-2"></i><span id="drSalesChartTitle">Sales Trends</span>
+                            </h6>
+                            <canvas id="salesDateRangeChart" height="140"></canvas>
+                          </div>
+                          
+                          <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                            <h6 class="text-secondary mb-0">
+                              <i class="bi bi-list-ul me-2"></i>Transactions in Range
+                            </h6>
+                            <div class="d-flex align-items-center gap-2">
+                              <div id="drSalesPageInfo" class="text-secondary small">Showing 0–0 of 0</div>
+                              <div class="btn-group btn-group-sm" role="group" aria-label="Pagination">
+                                <button type="button" class="btn btn-outline-secondary" id="drSalesPrevBtn" onclick="prevSalesDateRangePage()" disabled>
+                                  <i class="bi bi-chevron-left"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="drSalesNextBtn" onclick="nextSalesDateRangePage()" disabled>
+                                  <i class="bi bi-chevron-right"></i>
+                                </button>
+                              </div>
+                              <button class="btn btn-danger btn-sm" id="drSalesExportBtn" onclick="exportSalesDateRangeCSV()">
+                                <i class="bi bi-filetype-csv me-1"></i>Export CSV
+                              </button>
+                            </div>
+                          </div>
+                          <div class="table-responsive">
+                            <table class="table align-middle mb-0">
+                              <thead>
+                                <tr>
+                                  <th>Date & Time</th>
+                                  <th>Student</th>
+                                  <th>Item</th>
+                                  <th class="text-end">Amount</th>
+                                </tr>
+                              </thead>
+                              <tbody id="salesDateRangeTbody">
+                                <tr><td colspan="4" class="text-center text-secondary">Select a date range to view transactions</td></tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section><!-- /#vendorDashboard -->
+
+      <!-- CANTEEN MANAGER -->
+      <section id="canteenManagerDashboard" class="d-none">
+        <div class="row g-4">
+          <div class="col-12">
+            <div class="card glass">
+              <div class="card-header">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                  <span><i class="bi bi-shop me-2"></i>Canteen Management</span>
+                  <button class="btn btn-success" onclick="openAddMenuItemModal()">
+                    <i class="bi bi-plus-circle me-2"></i>Add Menu Item
+                  </button>
+                </div>
+              </div>
+              <div class="card-body p-0">
+                <!-- Navigation Tabs -->
+                <ul class="nav nav-pills mb-3 p-3" id="canteenManagerTabs" role="tablist">
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="menu-tab" data-bs-toggle="pill" data-bs-target="#menuTab" type="button" role="tab">
+                      <i class="bi bi-list-ul me-1"></i>Menu Items
+                    </button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="analytics-tab" data-bs-toggle="pill" data-bs-target="#analyticsTab" type="button" role="tab">
+                      <i class="bi bi-bar-chart me-1"></i>Analytics
+                    </button>
+                  </li>
+                </ul>
+
+                <div class="tab-content p-3" id="canteenManagerTabContent">
+                  <!-- Menu Items Tab -->
+                  <div class="tab-pane fade show active" id="menuTab" role="tabpanel">
+                    <div class="table-responsive">
+                      <table class="table align-middle mb-0">
+                        <thead>
+                          <tr>
+                            <th class="sortable" onclick="sortMenuItems('id')" style="cursor: pointer;">
+                              ID <i class="bi bi-arrow-down-up ms-1"></i>
+                            </th>
+                            <th class="sortable" onclick="sortMenuItems('name')" style="cursor: pointer;">
+                              Item Name <i class="bi bi-arrow-down-up ms-1"></i>
+                            </th>
+                            <th class="sortable text-end" onclick="sortMenuItems('price')" style="cursor: pointer;">
+                              Price <i class="bi bi-arrow-down-up ms-1"></i>
+                            </th>
+                            <th class="sortable" onclick="sortMenuItems('status')" style="cursor: pointer;">
+                              Status <i class="bi bi-arrow-down-up ms-1"></i>
+                            </th>
+                            <th class="text-end">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody id="menuItemsTbody">
+                          <tr><td colspan="5" class="text-center text-secondary">Loading...</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                      <div class="text-secondary small" id="menuItemsInfo">
+                        Showing 0 - 0 of 0 items
+                      </div>
+                      <nav>
+                        <ul class="pagination pagination-sm mb-0" id="menuItemsPagination">
+                          <!-- Pagination buttons will be inserted here -->
+                        </ul>
+                      </nav>
+                    </div>
+                  </div>
+
+                  <!-- Analytics Tab -->
+                  <div class="tab-pane fade" id="analyticsTab" role="tabpanel">
+                    <div class="row g-4 mb-4">
+                      <!-- Total Items -->
+                      <div class="col-md-3">
+                        <div class="card glass-light">
+                          <div class="card-body">
+                            <div class="stat-label">Total Items</div>
+                            <div class="stat-value" id="totalMenuItems">0</div>
+                          </div>
+                        </div>
+                      </div>
+                      <!-- Active Items -->
+                      <div class="col-md-3">
+                        <div class="card glass-light">
+                          <div class="card-body">
+                            <div class="stat-label">Active Items</div>
+                            <div class="stat-value text-success" id="activeMenuItems">0</div>
+                          </div>
+                        </div>
+                      </div>
+                      <!-- Avg Price -->
+                      <div class="col-md-3">
+                        <div class="card glass-light">
+                          <div class="card-body">
+                            <div class="stat-label">Avg Price</div>
+                            <div class="stat-value" id="avgMenuPrice">₱0.00</div>
+                          </div>
+                        </div>
+                      </div>
+                      <!-- Price Range -->
+                      <div class="col-md-3">
+                        <div class="card glass-light">
+                          <div class="card-body">
+                            <div class="stat-label">Price Range</div>
+                            <div class="stat-value small" id="priceRange">₱0 - ₱0</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Popular Items Chart -->
+                    <div class="card glass-light">
+                      <div class="card-header">
+                        <i class="bi bi-trophy me-2"></i>Top Selling Items (Last 30 Days)
+                      </div>
+                      <div class="card-body">
+                        <canvas id="topItemsChart"></canvas>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-
-        <div class="card glass mt-4">
-          <div class="card-header">Reports</div>
-          <div class="card-body">
-            <button class="btn btn-accent" onclick="downloadReport()">
-              <i class="bi bi-filetype-csv me-1"></i> Download Transactions CSV
-            </button>
-          </div>
-        </div>
-      </section><!-- /#vendorDashboard -->
+      </section><!-- /#canteenManagerDashboard -->
 
       <!-- STUDENT -->
       <section id="studentDashboard" class="d-none">
@@ -397,6 +861,30 @@
 
       <!-- ADMIN -->
       <section id="adminDashboard" class="d-none">
+        
+        <!-- Admin Navigation Tabs -->
+        <div class="card glass mb-4">
+          <div class="card-body p-2">
+            <ul class="nav nav-pills nav-fill" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="adminManagementTab" data-bs-toggle="pill" data-bs-target="#adminManagement" type="button" role="tab">
+                  <i class="bi bi-people me-2"></i>User Management
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="adminStatisticsTab" data-bs-toggle="pill" data-bs-target="#adminStatistics" type="button" role="tab">
+                  <i class="bi bi-graph-up-arrow me-2"></i>Analytics & Reports
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+          
+          <!-- User Management Tab (Overview + Management) -->
+          <div class="tab-pane fade show active" id="adminManagement" role="tabpanel">
         <!-- Stats Cards -->
         <div class="row g-3 mb-4">
           <div class="col-6 col-md-3">
@@ -506,9 +994,415 @@
             </div>
           </div>
         </div>
+          </div><!-- End User Management Tab -->
+
+          <!-- Analytics & Reports Tab -->
+          <div class="tab-pane fade" id="adminStatistics" role="tabpanel">
+            
+            <div class="alert alert-primary mb-4">
+              <i class="bi bi-graph-up-arrow me-2"></i>
+              <strong>Performance Analytics:</strong> Track vendor sales and reload trends with detailed insights and exportable reports.
+            </div>
+
+            <!-- Vendor Operations Section -->
+            <div class="row g-3 mb-4" id="adminVendorCounters">
+              <!-- Vendor cards will be dynamically loaded -->
+            </div>
+
+            <!-- Vendor Transactions -->
+            <div class="card glass mb-4" id="adminVendorTxCard" style="display:none;">
+              <div class="card-header d-flex align-items-center justify-content-between">
+                <span id="adminVendorTxTitle"><i class="bi bi-shop me-2"></i>Vendor Transactions</span>
+                <button class="btn btn-success btn-sm" onclick="adminExportVendorTx()">
+                  <i class="bi bi-download me-1"></i>Export CSV
+                </button>
+              </div>
+              <div class="card-body">
+                <div class="row mb-3">
+                  <div class="col-md-6">
+                    <label for="adminVendorTxDateStart" class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="adminVendorTxDateStart">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="adminVendorTxDateEnd" class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="adminVendorTxDateEnd">
+                  </div>
+                </div>
+                <div class="table-responsive mb-2">
+                  <table class="table align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Item</th>
+                        <th>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody id="adminVendorTxTbody">
+                      <tr><td colspan="3" class="text-center text-secondary">No transactions</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+        <!-- Vendor Performance Section -->
+        <div class="row mb-4">
+          <div class="col-12">
+            <div class="card glass performance-dashboard-trigger" onclick="togglePerformanceDashboard()">
+              <div class="card-body text-center py-4">
+                <div class="mb-2">
+                  <i class="bi bi-bar-chart-line fs-1 text-primary opacity-75"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Vendor Performance Dashboard</h5>
+                <p class="text-muted small mb-3">
+                  View detailed analytics, sales metrics, and performance reports for all vendors
+                </p>
+                <button class="btn btn-primary px-4">
+                  <i class="bi bi-graph-up-arrow me-2"></i>View Vendor Performance
+                  <i class="bi bi-chevron-down ms-2" id="dashboardChevron"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Vendor Statistics Section (Polished UI) - Hidden by default -->
+        <div id="vendorPerformanceDashboard" style="display: none;">
+        <div class="row g-4 mb-4">
+          <div class="col-12">
+            <div class="card glass">
+              <div class="card-header d-flex align-items-center justify-content-between">
+                <div>
+                  <i class="bi bi-shop me-2"></i>Vendor Performance Dashboard
+                </div>
+                <button class="btn btn-success btn-sm" onclick="adminExportVendorStats()">
+                  <i class="bi bi-download me-1"></i>Export Report
+                </button>
+              </div>
+              <div class="card-body">
+                <!-- Date Range Selector -->
+                <div class="row mb-4">
+                  <div class="col-md-8">
+                    <label class="form-label fw-semibold">
+                      <i class="bi bi-calendar-range me-1 text-primary"></i>Select Date Range
+                    </label>
+                    <div class="date-range-picker-wrapper">
+                      <div class="date-range-display" onclick="toggleDateRangePicker(event)">
+                        <i class="bi bi-calendar-range text-danger me-2"></i>
+                        <span id="dateRangeText">Select date range</span>
+                        <i class="bi bi-chevron-down ms-auto"></i>
+                      </div>
+                      <div class="date-range-picker" id="dateRangePicker" style="display: none;" onclick="event.stopPropagation()">
+                        <div class="date-picker-header">
+                          <button type="button" class="btn-nav" onclick="changeMonth(-1); event.stopPropagation();">
+                            <i class="bi bi-chevron-left"></i>
+                          </button>
+                          <span id="currentMonthYear">October 2025</span>
+                          <button type="button" class="btn-nav" onclick="changeMonth(1); event.stopPropagation();">
+                            <i class="bi bi-chevron-right"></i>
+                          </button>
+                        </div>
+                        <div class="date-picker-calendar">
+                          <div class="weekdays">
+                            <div>Su</div><div>Mo</div><div>Tu</div><div>We</div>
+                            <div>Th</div><div>Fr</div><div>Sa</div>
+                          </div>
+                          <div class="days" id="calendarDays"></div>
+                        </div>
+                        <div class="date-picker-actions">
+                          <button type="button" class="btn btn-sm btn-secondary" onclick="cancelDateRange(); event.stopPropagation();">Cancel</button>
+                          <button type="button" class="btn btn-sm btn-primary" onclick="applyDateRange(); event.stopPropagation();">Apply</button>
+                        </div>
+                      </div>
+                    </div>
+                    <input type="hidden" id="adminVendorDateStart">
+                    <input type="hidden" id="adminVendorDateEnd">
+                  </div>
+                  <div class="col-md-4 d-flex align-items-end">
+                    <button class="btn btn-primary w-100" onclick="adminLoadVendorStats()">
+                      <i class="bi bi-arrow-clockwise me-1"></i>Refresh Data
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Vendor Summary Cards -->
+                <div class="row g-3 mb-4" id="adminVendorSummaryCards">
+                  <!-- Will be populated by JS -->
+                </div>
+
+                <!-- Sales Chart -->
+                <div class="row mb-4">
+                  <div class="col-12">
+                    <div class="chart-container p-4 rounded">
+                      <h6 class="mb-3 text-secondary">
+                        <i class="bi bi-bar-chart-fill me-2"></i>Sales Performance
+                      </h6>
+                      <canvas id="adminVendorSalesChart" height="100"></canvas>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Detailed Table -->
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th><i class="bi bi-shop me-1"></i>Vendor</th>
+                        <th><i class="bi bi-cash-stack me-1"></i>Total Sales</th>
+                        <th><i class="bi bi-box-seam me-1"></i>Items Sold</th>
+                        <th class="text-end"><i class="bi bi-graph-up me-1"></i>Performance</th>
+                      </tr>
+                    </thead>
+                    <tbody id="adminVendorStatsTbody">
+                      <tr>
+                        <td colspan="4" class="text-center text-secondary py-4">
+                          <i class="bi bi-inbox fs-4 d-block mb-2 opacity-50"></i>
+                          <div class="small">No data available for selected period</div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div><!-- End #vendorPerformanceDashboard -->
+
+        <!-- Reload Performance Section -->
+        <div class="row mb-4">
+          <div class="col-12">
+            <div class="card glass performance-dashboard-trigger" onclick="toggleAdminReloadPerformanceDashboard()">
+              <div class="card-body text-center py-4">
+                <div class="mb-2">
+                  <i class="bi bi-wallet-fill fs-1 text-success opacity-75"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Reload Performance Dashboard</h5>
+                <p class="text-muted small mb-3">
+                  View detailed reload analytics, trends, and performance reports for all staff operations
+                </p>
+                <button class="btn btn-success px-4">
+                  <i class="bi bi-graph-up-arrow me-2"></i>View Reload Performance
+                  <i class="bi bi-chevron-down ms-2" id="adminReloadDashboardChevron"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Reload Statistics Section - Hidden by default -->
+        <div id="adminReloadPerformanceDashboard" style="display: none;">
+        <div class="row g-4 mb-4">
+          <div class="col-12">
+            <div class="card glass">
+              <div class="card-header d-flex align-items-center justify-content-between">
+                <div>
+                  <i class="bi bi-wallet-fill me-2"></i>Reload Performance Dashboard
+                </div>
+                <button class="btn btn-success btn-sm" onclick="adminExportReloadStats()">
+                  <i class="bi bi-download me-1"></i>Export Report
+                </button>
+              </div>
+              <div class="card-body">
+                <!-- Date Range Selector -->
+                <div class="row mb-4">
+                  <div class="col-md-8">
+                    <label class="form-label fw-semibold">
+                      <i class="bi bi-calendar-range me-1 text-success"></i>Select Date Range
+                    </label>
+                    <div class="date-range-picker-wrapper">
+                      <div class="date-range-display" onclick="toggleAdminReloadDatePicker(event)">
+                        <i class="bi bi-calendar-range text-danger me-2"></i>
+                        <span id="adminReloadDateRangeText">Select date range</span>
+                        <i class="bi bi-chevron-down ms-auto"></i>
+                      </div>
+                      <div class="date-range-picker" id="adminReloadDateRangePicker" style="display: none;" onclick="event.stopPropagation()">
+                        <div class="date-picker-header">
+                          <button type="button" class="btn-nav" onclick="changeAdminReloadMonth(-1); event.stopPropagation();">
+                            <i class="bi bi-chevron-left"></i>
+                          </button>
+                          <span id="adminReloadCurrentMonthYear">October 2025</span>
+                          <button type="button" class="btn-nav" onclick="changeAdminReloadMonth(1); event.stopPropagation();">
+                            <i class="bi bi-chevron-right"></i>
+                          </button>
+                        </div>
+                        <div class="date-picker-calendar">
+                          <div class="weekdays">
+                            <div>Su</div><div>Mo</div><div>Tu</div><div>We</div>
+                            <div>Th</div><div>Fr</div><div>Sa</div>
+                          </div>
+                          <div class="days" id="adminReloadCalendarDays"></div>
+                        </div>
+                        <div class="date-picker-actions">
+                          <button type="button" class="btn btn-sm btn-secondary" onclick="cancelAdminReloadDateRange(); event.stopPropagation();">Cancel</button>
+                          <button type="button" class="btn btn-sm btn-primary" onclick="applyAdminReloadDateRange(); event.stopPropagation();">Apply</button>
+                        </div>
+                      </div>
+                    </div>
+                    <input type="hidden" id="adminReloadDateStart">
+                    <input type="hidden" id="adminReloadDateEnd">
+                  </div>
+                  <div class="col-md-4 d-flex align-items-end">
+                    <button class="btn btn-success w-100" onclick="adminLoadReloadStats()">
+                      <i class="bi bi-arrow-clockwise me-1"></i>Refresh Data
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Reload Summary Cards -->
+                <div class="row g-3 mb-4">
+                  <div class="col-md-3">
+                    <div class="card glass text-center">
+                      <div class="card-body p-3">
+                        <i class="bi bi-wallet2 fs-3 text-success mb-2"></i>
+                        <div class="fs-5 fw-bold" id="adminTotalReloadAmount">₱0.00</div>
+                        <div class="text-secondary small">Total Reloads</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="card glass text-center">
+                      <div class="card-body p-3">
+                        <i class="bi bi-hash fs-3 text-info mb-2"></i>
+                        <div class="fs-5 fw-bold" id="adminTotalReloadCount">0</div>
+                        <div class="text-secondary small">Transactions</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="card glass text-center">
+                      <div class="card-body p-3">
+                        <i class="bi bi-calculator fs-3 text-warning mb-2"></i>
+                        <div class="fs-5 fw-bold" id="adminAvgReloadAmount">₱0.00</div>
+                        <div class="text-secondary small">Avg. Reload</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="card glass text-center">
+                      <div class="card-body p-3">
+                        <i class="bi bi-star fs-3 text-danger mb-2"></i>
+                        <div class="fs-5 fw-bold" id="adminTopReloadAmount">₱0.00</div>
+                        <div class="text-secondary small">Highest Reload</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Reload Trends Chart -->
+                <div class="row mb-4">
+                  <div class="col-12">
+                    <div class="chart-container p-4 rounded">
+                      <h6 class="mb-3 text-secondary">
+                        <i class="bi bi-graph-up me-2"></i>Reload Trends
+                      </h6>
+                      <canvas id="adminReloadTrendsChart" height="100"></canvas>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Detailed Table -->
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th><i class="bi bi-clock me-1"></i>Time/Date</th>
+                        <th><i class="bi bi-wallet2 me-1"></i>Total Amount</th>
+                        <th><i class="bi bi-hash me-1"></i>Count</th>
+                        <th class="text-end"><i class="bi bi-graph-up me-1"></i>Trend</th>
+                      </tr>
+                    </thead>
+                    <tbody id="adminReloadStatsTbody">
+                      <tr>
+                        <td colspan="4" class="text-center text-secondary py-4">
+                          <i class="bi bi-inbox fs-4 d-block mb-2 opacity-50"></i>
+                          <div class="small">No data available for selected period</div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div><!-- End #adminReloadPerformanceDashboard -->
+
+          </div><!-- End Analytics & Reports Tab -->
+
+        </div><!-- End Tab Content -->
+
       </section><!-- /#adminDashboard -->
     </section><!-- /#dashboard -->
   </main>
+
+  <!-- Add/Edit Menu Item Modal -->
+  <div class="modal fade" id="menuItemModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass">
+        <div class="modal-header">
+          <h5 class="modal-title" id="menuItemModalTitle">
+            <i class="bi bi-plus-circle me-2"></i>Add Menu Item
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="menuItemId" value="">
+          
+          <div class="mb-3">
+            <label for="menuItemName" class="form-label">Item Name</label>
+            <input type="text" class="form-control" id="menuItemName" placeholder="e.g., Chicken Adobo" required>
+          </div>
+          
+          <div class="mb-3">
+            <label for="menuItemPrice" class="form-label">Price</label>
+            <div class="input-group">
+              <span class="input-group-text">₱</span>
+              <input type="number" class="form-control" id="menuItemPrice" placeholder="0.00" step="0.01" min="0" required>
+            </div>
+          </div>
+          
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="menuItemActive" checked>
+            <label class="form-check-label" for="menuItemActive">
+              Active (available for purchase)
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-success" onclick="saveMenuItem()">
+            <i class="bi bi-check-circle me-1"></i>Save Item
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div class="modal fade" id="deleteMenuItemModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass">
+        <div class="modal-header border-0">
+          <h5 class="modal-title text-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i>Delete Menu Item
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="deleteMenuItemId" value="">
+          <p>Are you sure you want to delete <strong id="deleteMenuItemName"></strong>?</p>
+          <p class="text-muted small">This action cannot be undone. The item will be removed from the menu.</p>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-danger" onclick="confirmDeleteMenuItem()">
+            <i class="bi bi-trash me-1"></i>Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Settings Modal -->
   <div class="modal fade" id="settingsModal" tabindex="-1" aria-hidden="true">
@@ -728,6 +1622,60 @@
     </div>
   </div>
 
+  <!-- Topup Cancellation Reason Modal -->
+  <div class="modal fade" id="topupCancelModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass">
+        <div class="modal-header border-0">
+          <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2 text-warning"></i>Cancel Top-Up</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted mb-3">Please select or enter a reason for cancelling this top-up transaction:</p>
+          
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Cancellation Reason</label>
+            <select class="form-select mb-2" id="cancelReasonSelect" onchange="toggleCustomCancelReason()">
+              <option value="">-- Select a reason --</option>
+              <option value="Customer changed mind">Customer changed mind</option>
+              <option value="Wrong amount entered">Wrong amount entered</option>
+              <option value="Card not working">Card not working</option>
+              <option value="Customer left">Customer left</option>
+              <option value="System error">System error</option>
+              <option value="Timeout">Timeout - Customer took too long</option>
+              <option value="custom">Other (specify below)</option>
+            </select>
+            
+            <div id="customCancelReasonDiv" class="d-none">
+              <textarea 
+                class="form-control" 
+                id="customCancelReason" 
+                rows="2" 
+                placeholder="Please specify the reason..."
+                maxlength="200"></textarea>
+              <small class="text-muted">Max 200 characters</small>
+            </div>
+          </div>
+
+          <div class="alert alert-warning d-flex align-items-start">
+            <i class="bi bi-info-circle me-2 mt-1"></i>
+            <div>
+              <strong>Note:</strong> This cancellation will be logged for audit purposes.
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <i class="bi bi-arrow-left me-1"></i>Go Back
+          </button>
+          <button type="button" class="btn btn-danger" onclick="confirmTopupCancellation()">
+            <i class="bi bi-x-circle me-1"></i>Confirm Cancellation
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Sale Modal (Vendor) -->
   <div class="modal fade" id="saleModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -740,14 +1688,26 @@
           <!-- Step 1: Select Item & Amount -->
           <div id="saleStep1" class="pos-step">
             <div class="pos-label">SELECT ITEM</div>
-            <select id="posSaleItemSelect" class="pos-select mb-3" onchange="posUpdateSalePrice()">
-              <option value="">-- Choose from menu --</option>
-            </select>
-            <div class="text-center small text-secondary mb-2">OR</div>
-            <input id="posSaleItemManual" type="text" class="pos-input mb-3" placeholder="Enter custom item name" />
             
-            <div class="pos-label mt-3">ENTER AMOUNT</div>
-            <div class="pos-amount-display">
+            <!-- Search/Custom Item Input -->
+            <div class="pos-item-search-wrapper mb-3">
+              <input 
+                id="posSaleItemSearch" 
+                type="text" 
+                class="pos-input" 
+                placeholder="Type custom item or select from menu below..."
+                oninput="posSaleSearchItems()"
+                onfocus="posShowSaleDropdown()"
+              />
+              
+              <!-- Dropdown List -->
+              <div id="posSaleDropdown" class="pos-dropdown" style="display: none;">
+                <div id="posSaleDropdownItems"></div>
+              </div>
+            </div>
+            
+            <div class="pos-label">PRICE</div>
+            <div class="pos-amount-display mb-3">
               <span class="currency">₱</span>
               <input id="posSaleAmount" type="text" class="pos-amount-input" placeholder="0.00" inputmode="decimal" />
             </div>
@@ -765,7 +1725,8 @@
               <button class="pos-key" onclick="posAddDigit('sale', '0')">0</button>
               <button class="pos-key pos-key-clear" onclick="posClearAmount('sale')"><i class="bi bi-backspace"></i></button>
             </div>
-            <button class="pos-btn pos-btn-primary" onclick="posConfirmSale()">
+            
+            <button class="pos-btn pos-btn-primary mt-3" onclick="posConfirmSale()">
               <i class="bi bi-check-circle me-2"></i>CONTINUE
             </button>
           </div>

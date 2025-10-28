@@ -401,13 +401,29 @@ app.get('/staff', async (req, res) => {
 
 app.get('/reloads', auth('staff'), async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      `SELECT r.reload_id, u.name AS student, s.name AS cashier, r.amount, r.timestamp
+    const { start_date, end_date } = req.query;
+    
+    let query = `SELECT r.reload_id, u.name AS student, s.name AS cashier, r.amount, r.timestamp
        FROM reloads r
        JOIN users u ON r.user_id = u.user_id
-       LEFT JOIN users s ON r.cashier_id = s.user_id
-       ORDER BY r.timestamp DESC LIMIT 100`
-    );
+       LEFT JOIN users s ON r.cashier_id = s.user_id`;
+    
+    const params = [];
+    
+    // Add date range filtering if provided
+    if (start_date && end_date) {
+      query += ` WHERE DATE(r.timestamp) BETWEEN ? AND ?`;
+      params.push(start_date, end_date);
+    }
+    
+    query += ` ORDER BY r.timestamp DESC`;
+    
+    // Only limit results if no date range is specified
+    if (!start_date && !end_date) {
+      query += ` LIMIT 100`;
+    }
+    
+    const [rows] = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
     console.error(err);
@@ -860,8 +876,8 @@ app.post('/pending-sale/confirm', validate(confirmPendingSchema), async (req, re
       await conn.beginTransaction();
       await conn.query('UPDATE users SET balance = balance - ? WHERE user_id = ?', [price, student.user_id]);
       await conn.query(
-        'INSERT INTO transactions (user_id, item_id, custom_item, amount, device_id) VALUES (?, ?, ?, ?, ?)',
-        [student.user_id, sale.item_id || null, sale.item_name, price, 'esp32-counter1']
+        'INSERT INTO transactions (user_id, item_id, custom_item, amount, vendor_id, device_id) VALUES (?, ?, ?, ?, ?, ?)',
+        [student.user_id, sale.item_id || null, sale.item_name, price, sale.vendor_id, 'esp32-counter1']
       );
       await conn.query('UPDATE pending_sales SET confirmed = 1 WHERE id = ?', [pending_id]);
       await conn.commit();
@@ -1272,6 +1288,72 @@ app.get('/pending-reload/status/:id', auth('staff'), validate(statusParamSchema,
   }
 });
 
+// Cancel pending reload with reason
+app.post('/pending-reload/cancel', auth('staff'), async (req, res) => {
+  try {
+    const { pending_id, reason } = req.body;
+
+    if (!pending_id) {
+      return res.status(400).json({ error: 'Pending ID is required' });
+    }
+
+    if (!reason || reason.trim().length === 0) {
+      return res.status(400).json({ error: 'Cancellation reason is required' });
+    }
+
+    // Get pending reload details before cancellation
+    const [[pendingReload]] = await pool.query(
+      `SELECT pr.*, u.name as cashier_name
+       FROM pending_reloads pr
+       LEFT JOIN users u ON pr.cashier_id = u.user_id
+       WHERE pr.id = ?`,
+      [pending_id]
+    );
+
+    if (!pendingReload) {
+      return res.status(404).json({ error: 'Pending reload not found' });
+    }
+
+    if (pendingReload.confirmed !== 0) {
+      return res.status(400).json({ error: 'Cannot cancel - transaction already processed' });
+    }
+
+    // Update the pending reload with cancellation info
+    await pool.query(
+      `UPDATE pending_reloads 
+       SET confirmed = 2, 
+           cancellation_reason = ?,
+           cancelled_at = NOW()
+       WHERE id = ?`,
+      [reason.trim(), pending_id]
+    );
+
+    // Log the cancellation
+    logger.warn('Top-up transaction cancelled', {
+      action: 'TOPUP_CANCELLED',
+      pending_id: pending_id,
+      amount: pendingReload.amount,
+      cashier_id: pendingReload.cashier_id,
+      cashier_name: pendingReload.cashier_name || 'Unknown',
+      reason: reason.trim(),
+      timestamp: new Date().toISOString()
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Top-up cancelled successfully',
+      reason: reason.trim()
+    });
+  } catch (err) {
+    logger.error('Error cancelling pending reload', {
+      error: err.message,
+      stack: err.stack,
+      pending_id: req.body.pending_id
+    });
+    res.status(500).json({ error: 'Failed to cancel top-up' });
+  }
+});
+
 /* ---------- MENU ---------- */
 app.get('/menu', auth(), async (req, res) => {
   try {
@@ -1280,6 +1362,180 @@ app.get('/menu', auth(), async (req, res) => {
     );
     res.json(rows);
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ---------- CANTEEN MANAGER MENU CRUD ---------- */
+// Get all menu items (including inactive) - canteen_manager only
+app.get('/menu-items', auth(), async (req, res) => {
+  try {
+    if (req.user.role !== 'canteen_manager' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Canteen manager role required.' });
+    }
+    
+    const [rows] = await pool.query(
+      'SELECT item_id, item_name, price, active FROM menu ORDER BY item_name'
+    );
+    res.json(rows);
+  } catch (err) {
+    logger.error('Error fetching menu items:', { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add new menu item - canteen_manager only
+app.post('/menu-items', auth(), async (req, res) => {
+  try {
+    if (req.user.role !== 'canteen_manager' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Canteen manager role required.' });
+    }
+    
+    const { item_name, price, active } = req.body;
+    
+    if (!item_name || !price) {
+      return res.status(400).json({ error: 'Item name and price are required' });
+    }
+    
+    const activeValue = active === undefined ? 1 : (active ? 1 : 0);
+    
+    const [result] = await pool.query(
+      'INSERT INTO menu (item_name, price, active) VALUES (?, ?, ?)',
+      [item_name, parseFloat(price), activeValue]
+    );
+    
+    logger.info('Menu item added', { 
+      item_id: result.insertId, 
+      item_name, 
+      price,
+      user_id: req.user.user_id 
+    });
+    
+    res.json({ 
+      success: true, 
+      item_id: result.insertId,
+      message: 'Menu item added successfully'
+    });
+  } catch (err) {
+    logger.error('Error adding menu item:', { error: err.message, user_id: req.user.user_id });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update menu item - canteen_manager only
+app.put('/menu-items/:id', auth(), async (req, res) => {
+  try {
+    if (req.user.role !== 'canteen_manager' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Canteen manager role required.' });
+    }
+    
+    const { id } = req.params;
+    const { item_name, price, active } = req.body;
+    
+    if (!item_name || !price) {
+      return res.status(400).json({ error: 'Item name and price are required' });
+    }
+    
+    const activeValue = active === undefined ? 1 : (active ? 1 : 0);
+    
+    const [result] = await pool.query(
+      'UPDATE menu SET item_name = ?, price = ?, active = ? WHERE item_id = ?',
+      [item_name, parseFloat(price), activeValue, id]
+    );
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Menu item not found' });
+    }
+    
+    logger.info('Menu item updated', { 
+      item_id: id, 
+      item_name, 
+      price, 
+      active: activeValue,
+      user_id: req.user.user_id 
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'Menu item updated successfully'
+    });
+  } catch (err) {
+    logger.error('Error updating menu item:', { error: err.message, user_id: req.user.user_id });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete menu item - canteen_manager only
+app.delete('/menu-items/:id', auth(), async (req, res) => {
+  try {
+    if (req.user.role !== 'canteen_manager' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Canteen manager role required.' });
+    }
+    
+    const { id } = req.params;
+    
+    const [result] = await pool.query(
+      'DELETE FROM menu WHERE item_id = ?',
+      [id]
+    );
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Menu item not found' });
+    }
+    
+    logger.info('Menu item deleted', { 
+      item_id: id,
+      user_id: req.user.user_id 
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'Menu item deleted successfully'
+    });
+  } catch (err) {
+    logger.error('Error deleting menu item:', { error: err.message, user_id: req.user.user_id });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get menu analytics - canteen_manager only
+app.get('/menu-analytics', auth(), async (req, res) => {
+  try {
+    if (req.user.role !== 'canteen_manager' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Canteen manager role required.' });
+    }
+    
+    // Get top selling items (last 30 days)
+    const [topItems] = await pool.query(
+      `SELECT 
+        m.item_name,
+        COUNT(*) as sales_count,
+        SUM(t.amount) as total_revenue
+      FROM transactions t
+      JOIN menu m ON t.item_id = m.item_id
+      WHERE t.timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      GROUP BY m.item_id, m.item_name
+      ORDER BY sales_count DESC
+      LIMIT 10`
+    );
+    
+    // Get menu statistics
+    const [stats] = await pool.query(
+      `SELECT 
+        COUNT(*) as total_items,
+        SUM(CASE WHEN active = 1 THEN 1 ELSE 0 END) as active_items,
+        AVG(price) as avg_price,
+        MIN(price) as min_price,
+        MAX(price) as max_price
+      FROM menu`
+    );
+    
+    res.json({
+      topItems,
+      stats: stats[0]
+    });
+  } catch (err) {
+    logger.error('Error fetching menu analytics:', { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -1661,6 +1917,201 @@ app.get('/admin/stats', adminAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('Admin stats error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /admin/vendors - Get list of all vendors
+app.get('/admin/vendors', adminAuth, async (req, res) => {
+  try {
+    const [vendors] = await pool.query(`
+      SELECT user_id, name, username, rfid_uid
+      FROM users
+      WHERE role = 'vendor'
+      ORDER BY user_id ASC
+    `);
+    res.json(vendors);
+  } catch (err) {
+    console.error('Admin vendors error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /admin/vendor/:vendorId/transactions - Get transactions for a specific vendor
+app.get('/admin/vendor/:vendorId/transactions', adminAuth, async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { start, end } = req.query;
+
+    let query = `
+      SELECT 
+        t.tx_id as transaction_id,
+        t.timestamp,
+        t.amount,
+        m.item_name,
+        t.custom_item,
+        u.name as student_name
+      FROM transactions t
+      LEFT JOIN menu m ON t.item_id = m.item_id
+      LEFT JOIN users u ON t.user_id = u.user_id
+      WHERE t.vendor_id = ?
+    `;
+    
+    const params = [vendorId];
+
+    if (start && end) {
+      query += ` AND DATE(t.timestamp) BETWEEN ? AND ?`;
+      params.push(start, end);
+    }
+
+    query += ` ORDER BY t.timestamp DESC LIMIT 100`;
+
+    const [transactions] = await pool.query(query, params);
+    res.json(transactions);
+  } catch (err) {
+    console.error('Admin vendor transactions error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /admin/vendor-stats - Get vendor sales statistics
+app.get('/admin/vendor-stats', adminAuth, async (req, res) => {
+  try {
+    const { start, end } = req.query;
+
+    let query = `
+      SELECT 
+        v.user_id,
+        v.name,
+        COALESCE(SUM(t.amount), 0) as totalSales,
+        COUNT(DISTINCT t.tx_id) as totalTransactions
+      FROM users v
+      LEFT JOIN transactions t ON v.user_id = t.vendor_id
+      WHERE v.role = 'vendor'
+    `;
+    
+    const params = [];
+
+    if (start && end) {
+      query += ` AND DATE(t.timestamp) BETWEEN ? AND ?`;
+      params.push(start, end);
+    }
+
+    query += `
+      GROUP BY v.user_id, v.name
+      ORDER BY totalSales DESC
+    `;
+
+    const [vendors] = await pool.query(query, params);
+
+    // For each vendor, get their items sold
+    const vendorStats = await Promise.all(vendors.map(async (vendor) => {
+      let itemQuery = `
+        SELECT 
+          COALESCE(m.item_name, t.custom_item, 'Unknown') as name,
+          COUNT(*) as qty
+        FROM transactions t
+        LEFT JOIN menu m ON t.item_id = m.item_id
+        WHERE t.vendor_id = ?
+      `;
+      
+      const itemParams = [vendor.user_id];
+      
+      if (start && end) {
+        itemQuery += ` AND DATE(t.timestamp) BETWEEN ? AND ?`;
+        itemParams.push(start, end);
+      }
+      
+      itemQuery += ` GROUP BY name ORDER BY qty DESC LIMIT 10`;
+      
+      const [items] = await pool.query(itemQuery, itemParams);
+      
+      return {
+        name: vendor.name,
+        totalSales: parseFloat(vendor.totalSales || 0),
+        items: items
+      };
+    }));
+
+    res.json(vendorStats);
+  } catch (err) {
+    console.error('Admin vendor stats error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /admin/reload-stats - Get reload statistics
+app.get('/admin/reload-stats', adminAuth, async (req, res) => {
+  try {
+    const { start, end } = req.query;
+
+    if (!start || !end) {
+      return res.status(400).json({ error: 'start and end dates are required' });
+    }
+
+    // Check if it's a single day (hourly data) or multiple days (daily data)
+    const isSingleDay = start === end;
+
+    let chartData;
+    if (isSingleDay) {
+      // Get hourly reload data for single day
+      const [hourlyData] = await pool.query(`
+        SELECT 
+          HOUR(timestamp) as hour,
+          COUNT(*) as count,
+          COALESCE(SUM(amount), 0) as amount
+        FROM reloads
+        WHERE DATE(timestamp) = ?
+        GROUP BY HOUR(timestamp)
+        ORDER BY hour ASC
+      `, [start]);
+
+      chartData = hourlyData.map(d => ({
+        hour: parseInt(d.hour),
+        count: parseInt(d.count),
+        amount: parseFloat(d.amount)
+      }));
+    } else {
+      // Get daily reload data for multiple days
+      const [dailyData] = await pool.query(`
+        SELECT 
+          DATE(timestamp) as date,
+          COUNT(*) as count,
+          COALESCE(SUM(amount), 0) as amount
+        FROM reloads
+        WHERE DATE(timestamp) BETWEEN ? AND ?
+        GROUP BY DATE(timestamp)
+        ORDER BY date ASC
+      `, [start, end]);
+
+      chartData = dailyData.map(d => ({
+        date: d.date,
+        count: parseInt(d.count),
+        amount: parseFloat(d.amount)
+      }));
+    }
+
+    // Get total statistics
+    const [totals] = await pool.query(`
+      SELECT 
+        COUNT(*) as totalCount,
+        COALESCE(SUM(amount), 0) as totalAmount,
+        COALESCE(AVG(amount), 0) as avgAmount,
+        COALESCE(MAX(amount), 0) as topAmount
+      FROM reloads
+      WHERE DATE(timestamp) BETWEEN ? AND ?
+    `, [start, end]);
+
+    res.json({
+      isSingleDay,
+      chartData,
+      totalCount: parseInt(totals[0].totalCount),
+      totalAmount: parseFloat(totals[0].totalAmount),
+      avgAmount: parseFloat(totals[0].avgAmount),
+      topAmount: parseFloat(totals[0].topAmount)
+    });
+  } catch (err) {
+    console.error('Admin reload stats error:', err);
     res.status(500).json({ error: err.message });
   }
 });
