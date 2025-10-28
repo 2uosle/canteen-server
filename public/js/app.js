@@ -1,4 +1,5 @@
 ﻿/* Theme */
+let spendingChartInstance = null;
     const root = document.documentElement;
     const themeKey = 'canteen_theme';
     function applyTheme(mode){
@@ -846,11 +847,19 @@
     }
     function getThemeColors(){
       const cs = getComputedStyle(document.documentElement);
+      const isDark = document.documentElement.classList.contains('theme-dark');
+      
+      // Ensure we get proper contrast for text in both themes
+      const textColor = cs.getPropertyValue('--text').trim() || (isDark ? '#e6eef8' : '#0b1220');
+      const mutedColor = cs.getPropertyValue('--text-muted').trim() || (isDark ? '#aeb8c4' : '#5b6472');
+      const borderColor = cs.getPropertyValue('--border').trim() || (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)');
+      const surface2Color = cs.getPropertyValue('--surface-2').trim() || (isDark ? 'rgba(16, 20, 26, 0.98)' : 'rgba(255,255,255,0.92)');
+      
       return {
-        text: (cs.getPropertyValue('--text').trim() || '#0b1220'),
-        muted: (cs.getPropertyValue('--text-muted').trim() || '#5b6472'),
-        border: (cs.getPropertyValue('--border').trim() || 'rgba(0,0,0,0.08)'),
-        surface2: (cs.getPropertyValue('--surface-2').trim() || 'rgba(255,255,255,0.92)'),
+        text: textColor,
+        muted: mutedColor,
+        border: borderColor,
+        surface2: surface2Color,
         accent: (cs.getPropertyValue('--accent').trim() || '#0A84FF'),
         accent2: (cs.getPropertyValue('--accent-2').trim() || '#34C759'),
         danger: (cs.getPropertyValue('--danger').trim() || '#FF3B30')
@@ -1042,6 +1051,38 @@
         gradient2.addColorStop(1, hexToRgba(theme.danger, 0.05));
         ch2.data.datasets[0].backgroundColor = gradient2;
         ch2.update();
+      }
+
+      // Update spending pattern chart
+      if (typeof spendingChartInstance !== 'undefined' && spendingChartInstance) {
+        const theme = getThemeColors();
+        spendingChartInstance.options.scales.x.ticks.color = theme.text;
+        spendingChartInstance.options.scales.y.ticks.color = theme.text;
+        spendingChartInstance.options.scales.x.grid.color = theme.border;
+        spendingChartInstance.options.scales.y.grid.color = theme.border;
+        spendingChartInstance.options.plugins.tooltip.backgroundColor = theme.surface2;
+        spendingChartInstance.options.plugins.tooltip.titleColor = theme.text;
+        spendingChartInstance.options.plugins.tooltip.bodyColor = theme.text;
+        spendingChartInstance.options.plugins.tooltip.borderColor = theme.border;
+        spendingChartInstance.data.datasets[0].borderColor = theme.accent;
+        spendingChartInstance.data.datasets[0].backgroundColor = hexToRgba(theme.accent, 0.2);
+        spendingChartInstance.update();
+      }
+
+      // Update reloads trend chart
+      if (typeof reloadsChartInstance !== 'undefined' && reloadsChartInstance) {
+        const theme = getThemeColors();
+        reloadsChartInstance.options.scales.x.ticks.color = theme.text;
+        reloadsChartInstance.options.scales.y.ticks.color = theme.text;
+        reloadsChartInstance.options.scales.x.grid.color = theme.border;
+        reloadsChartInstance.options.scales.y.grid.color = theme.border;
+        reloadsChartInstance.options.plugins.tooltip.backgroundColor = theme.surface2;
+        reloadsChartInstance.options.plugins.tooltip.titleColor = theme.text;
+        reloadsChartInstance.options.plugins.tooltip.bodyColor = theme.text;
+        reloadsChartInstance.options.plugins.tooltip.borderColor = theme.border;
+        reloadsChartInstance.data.datasets[0].borderColor = theme.accent2;
+        reloadsChartInstance.data.datasets[0].backgroundColor = hexToRgba(theme.accent2, 0.2);
+        reloadsChartInstance.update();
       }
     }
 
@@ -1414,7 +1455,6 @@
       if ($('favSpendingRange')) $('favSpendingRange').textContent = favRange ? favRange[0] : '-';
     }
     
-    let spendingChartInstance = null;
     function createSpendingPatternChart(transactions) {
       const ctx = document.getElementById('spendingPatternChart');
       if (!ctx) return;
@@ -1445,14 +1485,8 @@
       const labels = sortedDates;
       const data = labels.map(date => dailySpending[date]);
       
-      // Get current theme
-      const isDark = document.documentElement.classList.contains('theme-dark') || 
-                    (!document.documentElement.classList.contains('theme-dark') && 
-                     !document.documentElement.classList.contains('theme-light') && 
-                     window.matchMedia('(prefers-color-scheme: dark)').matches);
-      
-      const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-      const textColor = isDark ? '#ffffff' : '#000000';
+      // Get current theme colors
+      const theme = getThemeColors();
       
       spendingChartInstance = new Chart(ctx, {
         type: 'line',
@@ -1461,13 +1495,13 @@
           datasets: [{
             label: 'Daily Spending (₱)',
             data,
-            borderColor: '#0d6efd',
-            backgroundColor: 'rgba(13, 110, 253, 0.2)',
+            borderColor: theme.accent,
+            backgroundColor: hexToRgba(theme.accent, 0.2),
             tension: 0.4,
             fill: true,
             pointRadius: 5,
             pointHoverRadius: 7,
-            pointBackgroundColor: '#0d6efd',
+            pointBackgroundColor: theme.accent,
             pointBorderColor: '#ffffff',
             pointBorderWidth: 2
           }]
@@ -1478,7 +1512,11 @@
           plugins: {
             legend: { display: false },
             tooltip: {
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              backgroundColor: theme.surface2,
+              titleColor: theme.text,
+              bodyColor: theme.text,
+              borderColor: theme.border,
+              borderWidth: 1,
               padding: 12,
               displayColors: false,
               callbacks: {
@@ -1491,24 +1529,26 @@
           scales: {
             x: {
               ticks: {
-                color: textColor,
+                color: theme.text,
                 maxRotation: 45,
                 minRotation: 45
               },
               grid: {
-                color: gridColor
+                color: theme.border,
+                drawBorder: false
               }
             },
             y: {
               beginAtZero: true,
               ticks: {
-                color: textColor,
+                color: theme.text,
                 callback: function(value) {
                   return '₱' + value.toFixed(0);
                 }
               },
               grid: {
-                color: gridColor
+                color: theme.border,
+                drawBorder: false
               }
             }
           }
@@ -1590,14 +1630,8 @@
       });
       const data = sortedReloads.map(r => parseFloat(r.amount || 0));
       
-      // Get current theme
-      const isDark = document.documentElement.classList.contains('theme-dark') || 
-                    (!document.documentElement.classList.contains('theme-dark') && 
-                     !document.documentElement.classList.contains('theme-light') && 
-                     window.matchMedia('(prefers-color-scheme: dark)').matches);
-      
-      const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-      const textColor = isDark ? '#ffffff' : '#000000';
+      // Get current theme colors
+      const theme = getThemeColors();
       
       reloadsChartInstance = new Chart(ctx, {
         type: 'line',
@@ -1606,13 +1640,13 @@
           datasets: [{
             label: 'Reload Amount (₱)',
             data,
-            borderColor: '#198754',
-            backgroundColor: 'rgba(25, 135, 84, 0.2)',
+            borderColor: theme.accent2,
+            backgroundColor: hexToRgba(theme.accent2, 0.2),
             tension: 0.4,
             fill: true,
             pointRadius: 5,
             pointHoverRadius: 7,
-            pointBackgroundColor: '#198754',
+            pointBackgroundColor: theme.accent2,
             pointBorderColor: '#ffffff',
             pointBorderWidth: 2
           }]
@@ -1623,7 +1657,11 @@
           plugins: {
             legend: { display: false },
             tooltip: {
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              backgroundColor: theme.surface2,
+              titleColor: theme.text,
+              bodyColor: theme.text,
+              borderColor: theme.border,
+              borderWidth: 1,
               padding: 12,
               displayColors: false,
               callbacks: {
@@ -1636,22 +1674,24 @@
           scales: {
             x: {
               ticks: {
-                color: textColor
+                color: theme.text
               },
               grid: {
-                color: gridColor
+                color: theme.border,
+                drawBorder: false
               }
             },
             y: {
               beginAtZero: true,
               ticks: {
-                color: textColor,
+                color: theme.text,
                 callback: function(value) {
                   return '₱' + value.toFixed(0);
                 }
               },
               grid: {
-                color: gridColor
+                color: theme.border,
+                drawBorder: false
               }
             }
           }
