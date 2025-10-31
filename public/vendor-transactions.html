@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Vendor Transactions</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <!-- Bootstrap + Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/notifications.css">
+</head>
+<body>
+  <!-- Topbar (kept minimal but includes theme segmented controls to satisfy app.js bindings) -->
+  <nav class="navbar app-nav">
+    <div class="container py-2 d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-3">
+        <a href="index.html" class="brand text-decoration-none"><i class="bi bi-egg-fried"></i> NEUTap</a>
+        <span class="d-none d-md-inline text-secondary">RFID Payments &amp; Reports</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <div class="segmented me-2">
+          <button id="segThemeSystem" class="seg active"><i class="bi bi-circle-half me-1"></i>System</button>
+          <button id="segThemeLight" class="seg"><i class="bi bi-sun me-1"></i>Light</button>
+          <button id="segThemeDark" class="seg"><i class="bi bi-moon me-1"></i>Dark</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container page">
+    <div class="card glass mb-4">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-outline-secondary btn-sm" onclick="history.back()">
+            <i class="bi bi-arrow-left"></i>
+          </button>
+          <h5 class="mb-0"><i class="bi bi-receipt me-2"></i>Transactions — <span id="vendorPageTitleName">Vendor</span></h5>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-success btn-sm" onclick="adminExportVendorTx()">
+            <i class="bi bi-download me-1"></i>Export CSV
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="row g-4">
+          <div class="col-lg-8">
+            <label class="form-label fw-semibold">
+              <i class="bi bi-calendar-range me-1 text-primary"></i>Select Date Range
+            </label>
+            <div class="date-range-picker-wrapper">
+              <div class="date-range-display" onclick="toggleDateRangePicker(event)" id="vendorPageDateRangeDisplay">
+                <i class="bi bi-calendar-range text-danger me-2"></i>
+                <span id="dateRangeText">Select date range</span>
+                <i class="bi bi-chevron-down ms-auto"></i>
+              </div>
+              <div class="date-range-picker" id="dateRangePicker" style="display:none;" onclick="event.stopPropagation()">
+                <div class="date-picker-header">
+                  <button type="button" class="btn-nav" onclick="changeMonth(-1); event.stopPropagation();">
+                    <i class="bi bi-chevron-left"></i>
+                  </button>
+                  <span id="currentMonthYear">November 2025</span>
+                  <button type="button" class="btn-nav" onclick="changeMonth(1); event.stopPropagation();">
+                    <i class="bi bi-chevron-right"></i>
+                  </button>
+                </div>
+                <div class="date-picker-calendar">
+                  <div class="weekdays">
+                    <div>Su</div><div>Mo</div><div>Tu</div><div>We</div>
+                    <div>Th</div><div>Fr</div><div>Sa</div>
+                  </div>
+                  <div class="days" id="calendarDays"></div>
+                </div>
+                <div class="date-picker-actions">
+                  <button type="button" class="btn btn-sm btn-secondary" onclick="cancelDateRange(); event.stopPropagation();">Cancel</button>
+                  <button type="button" class="btn btn-sm btn-primary" onclick="applyDateRange(); event.stopPropagation();">Apply</button>
+                </div>
+              </div>
+            </div>
+            <input type="hidden" id="adminVendorDateStart">
+            <input type="hidden" id="adminVendorDateEnd">
+          </div>
+          <div class="col-lg-4 d-flex align-items-end">
+            <button class="btn btn-primary w-100" onclick="adminLoadVendorTransactions()">
+              <i class="bi bi-arrow-clockwise me-1"></i>Load Transactions
+            </button>
+          </div>
+        </div>
+
+        <div class="row g-3 mt-1 mb-3">
+          <div class="col-sm-4">
+            <div class="p-3 rounded border border-1 border-opacity-25">
+              <div class="small text-muted">Sales (range)</div>
+              <div class="fw-bold" id="vendorPageSales">₱0</div>
+            </div>
+          </div>
+          <div class="col-sm-4">
+            <div class="p-3 rounded border border-1 border-opacity-25">
+              <div class="small text-muted">Transactions</div>
+              <div class="fw-bold" id="vendorPageTxCount">0</div>
+            </div>
+          </div>
+          <div class="col-sm-4">
+            <div class="p-3 rounded border border-1 border-opacity-25">
+              <div class="small text-muted">Top Items</div>
+              <div class="small" id="vendorPageTopItems">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Item</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody id="vendorPageTxTbody">
+              <tr><td colspan="3" class="text-center text-secondary">No transactions</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <nav aria-label="Transaction pagination" id="vendorTxPagination" style="display:none;">
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="text-muted small" id="vendorTxPageInfo">
+              Showing 1-10 of 100
+            </div>
+            <ul class="pagination pagination-sm mb-0" id="vendorTxPageNumbers">
+              <!-- Pagination buttons will be inserted here -->
+            </ul>
+          </div>
+        </nav>
+      </div>
+    </div>
+  </main>
+
+  <div id="toastRegion" aria-live="polite" aria-atomic="true"
+       style="position:fixed;right:16px;bottom:16px;z-index:1080;display:flex;flex-direction:column;gap:8px;"></div>
+
+  <!-- JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/notifications.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    // Bootstrap the standalone page using query params
+    (function initVendorTransactionsPage(){
+      // Auth check: if no token, bounce to main page
+      try {
+        var t = localStorage.getItem('token');
+        if (!t) {
+          window.location.href = 'index.html';
+          return;
+        }
+      } catch(e) {}
+
+      var params = new URLSearchParams(window.location.search);
+      var id = parseInt(params.get('vendor'), 10);
+      var name = params.get('name') || 'Vendor';
+
+      console.log('Initializing vendor transactions page:', { id, name });
+
+      // Set global variables used by app.js
+      // Note: adminSelectedVendorId is a let variable in app.js, so we need to set it through a setter or directly
+      // Since we can't reassign a let from outside its scope, we use window.adminSelectedVendorId 
+      // and update app.js to check window.adminSelectedVendorId as fallback
+      window.adminSelectedVendorId = id;
+      window._adminSelectedVendorObj = { user_id: id, name: name, totalSales: 0, totalTransactions: 0, items: [] };
+
+      // Title and summary placeholders
+      var titleName = document.getElementById('vendorPageTitleName');
+      if (titleName) titleName.textContent = name;
+
+      // If we have stats in memory (came from dashboard), reflect them
+      if (window._adminVendorStatsMap && window._adminVendorStatsMap.has(id)) {
+        var v = window._adminVendorStatsMap.get(id);
+        document.getElementById('vendorPageSales').textContent = fmtMoney(v.totalSales || 0);
+        document.getElementById('vendorPageTxCount').textContent = (v.totalTransactions != null ? v.totalTransactions : 0);
+        document.getElementById('vendorPageTopItems').textContent = (v.items && v.items.length) ? v.items.slice(0,5).map(i=>`${i.name} (${i.qty})`).join(', ') : '—';
+      }
+
+      // Initialize single calendar range to today if empty and load
+      if (!document.getElementById('adminVendorDateStart').value) {
+        initializeDateRangeToToday();
+      }
+
+      // Initial load
+      adminLoadVendorTransactions();
+    })();
+  </script>
+</body>
+</html>

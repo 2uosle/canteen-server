@@ -24,7 +24,7 @@ npm install
 
 **Option 1: Interactive Setup (Recommended)**
 ```bash
-.\setup-env.ps1
+.\scripts\setup-env.ps1
 # Follow the wizard to create .env
 ```
 
@@ -37,19 +37,32 @@ notepad .env
 
 **Option 3: Validate Existing .env**
 ```bash
-.\validate-env.ps1
+.\scripts\validate-env.ps1
 # Checks if your .env is properly configured
 ```
 
 ### 3. Setup Database
-Create a MySQL database named `canteen_db` and run the schema (see database section below).
+Create a MySQL database named `canteen_db` and run the schema. 
+📖 See [docs/setup/DATABASE-SETUP.md](docs/setup/DATABASE-SETUP.md) for detailed instructions.
 
 ### 4. Start Server
 ```bash
 npm start
+# or
+.\scripts\start-server.ps1
 ```
 
-The server will run on `http://localhost:3000`
+The server will run on `http://localhost:3001`
+
+## 📚 Documentation
+
+All documentation has been organized into [docs/](docs/):
+- **[docs/setup/](docs/setup/)** - Initial setup guides
+- **[docs/guides/](docs/guides/)** - User and feature guides  
+- **[docs/implementation/](docs/implementation/)** - Technical details
+- **[docs/testing/](docs/testing/)** - Testing guides
+
+📖 **Start here**: [docs/README.md](docs/README.md)
 
 ## User Roles
 
@@ -113,15 +126,36 @@ Required tables:
 ### Project Structure
 ```
 canteen-server/
-├── server.js           # Main application
+├── server.js              # Main application
 ├── public/
-│   └── index.html      # Web interface
+│   ├── index.html         # Web interface
+│   ├── js/app.js          # Frontend logic
+│   └── css/components.css # Styles & animations
 ├── config/
-│   ├── redis.js        # Redis configuration
-│   └── websocket.js    # WebSocket server
-├── Arduino1/           # ESP32 firmware
-└── backup/             # Backup files
+│   ├── redis.js           # Redis configuration
+│   └── websocket.js       # WebSocket server
+├── docs/                  # 📚 All documentation
+│   ├── setup/             # Setup guides
+│   ├── guides/            # User guides
+│   ├── implementation/    # Technical docs
+│   └── testing/           # Test guides
+├── scripts/               # PowerShell scripts
+├── Arduino1/              # ESP32 firmware
+├── prisma/                # Database schema
+├── logs/                  # Application logs
+└── tests/                 # Test files
 ```
+
+📖 **Full documentation**: [docs/README.md](docs/README.md)
+
+### Useful Scripts
+All scripts are now in the `scripts/` folder:
+- `scripts/start-server.ps1` - Start the server
+- `scripts/setup-env.ps1` - Interactive environment setup
+- `scripts/validate-env.ps1` - Validate .env configuration
+- `scripts/setup-admin.ps1` - Create admin account
+- `scripts/view-logs.ps1` - View application logs
+- `scripts/quick-backup.ps1` - Quick database backup
 
 ## Version Control (Git)
 

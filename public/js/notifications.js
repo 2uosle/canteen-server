@@ -245,10 +245,16 @@ function handleSaleCancelledNotification(data) {
 
 // Show notification toast
 function showNotification(message, type = 'info', icon = 'bi-info-circle-fill') {
-  // Add to queue
+  // Prefer unified Bootstrap toasts if available
+  if (typeof window.toast === 'function') {
+    // Map types from notifications.js to app.js toast types
+    const map = { success: 'success', info: 'info', warning: 'warn', danger: 'error', error: 'error' };
+    window.toast(message, map[type] || 'info');
+    return;
+  }
+
+  // Fallback to custom notification queue
   notificationQueue.push({ message, type, icon });
-  
-  // Process queue if not already showing
   if (!isShowingNotification) {
     processNotificationQueue();
   }

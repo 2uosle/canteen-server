@@ -7,11 +7,16 @@
 
   function applyTheme(mode){
       root.classList.remove('theme-dark');
+      let effective = mode;
       if (mode === 'dark') root.classList.add('theme-dark');
       if (mode === 'system'){
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         root.classList.toggle('theme-dark', prefersDark);
+        effective = prefersDark ? 'dark' : 'light';
       }
+      // Keep Bootstrap components in sync with our theme
+      root.setAttribute('data-bs-theme', effective === 'dark' ? 'dark' : 'light');
+
       localStorage.setItem(themeKey, mode);
       document.querySelectorAll('.segmented .seg').forEach(btn => btn.classList.remove('active'));
       document.getElementById(
@@ -23,7 +28,8 @@
     function initTheme(){
       const saved = localStorage.getItem(themeKey) || 'system';
       applyTheme(saved);
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e=>{
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      mq.addEventListener('change', e=>{
         if ((localStorage.getItem(themeKey) || 'system') === 'system'){
           applyTheme('system');
         }
@@ -77,7 +83,7 @@
       node.innerHTML = `
         <div class="d-flex">
           <div class="toast-body"><i class="bi bi-${icon} me-2"></i>${message}</div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+          <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>`;
       $("toastRegion").appendChild(node);
       setTimeout(()=> node.remove(), 3500);
@@ -157,6 +163,13 @@
           // Initialize WebSocket for real-time notifications
           if (typeof initWebSocket === 'function') {
             initWebSocket();
+          }
+
+          // Initialize Bootstrap tooltips globally
+          if (window.bootstrap) {
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+              window.bootstrap.Tooltip.getOrCreateInstance(el);
+            });
           }
         } else {
           setAlert("loginAlert", data.error || "Login failed", "danger");
@@ -390,14 +403,14 @@ function updateDateRangeText() {
   } else {
     const endStr = endDate.toLocaleDateString('en-US', formatOptions);
     
-    // Format as "Oct 20 � Oct 28" (with en dash)
+  // Format as "Oct 20 – Oct 28" (with en dash)
     if (startDate.getMonth() === endDate.getMonth()) {
-      // Same month: "Oct 20 � 28"
-      const endDay = endDate.getDate();
-      textEl.textContent = `${startStr} � ${endDay}`;
+  // Same month: "Oct 20 – 28"
+  const endDay = endDate.getDate();
+  textEl.textContent = `${startStr} – ${endDay}`;
     } else {
-      // Different months: "Oct 20 � Nov 5"
-      textEl.textContent = `${startStr} � ${endStr}`;
+  // Different months: "Oct 20 – Nov 5"
+  textEl.textContent = `${startStr} – ${endStr}`;
     }
   }
 }
@@ -544,8 +557,9 @@ async function adminLoadVendorStats() {
     // Render summary cards
     adminRenderVendorSummaryCards(stats);
     
-    // Render table
+  // Render table
     const tbody = $("adminVendorStatsTbody");
+    if (!tbody) return; // Guard: table doesn't exist on vendor-transactions page
     tbody.innerHTML = "";
     
     if (!Array.isArray(stats) || !stats.length) {
@@ -562,8 +576,11 @@ async function adminLoadVendorStats() {
     // Calculate totals for performance percentage
     const totalSales = stats.reduce((sum, v) => sum + (v.totalSales || 0), 0);
     
+    // Save map for quick lookup
+    window._adminVendorStatsMap = new Map(stats.map(v => [v.user_id, v]));
+
     stats.forEach(vendor => {
-      const items = vendor.items.map(i => `${i.name} (${i.qty})`).join(", ");
+  const items = vendor.items.map(i => `${i.name} (${i.qty})`).join(", ");
       const performance = totalSales > 0 ? ((vendor.totalSales / totalSales) * 100).toFixed(1) : 0;
       
       const tr = document.createElement("tr");
@@ -583,7 +600,7 @@ async function adminLoadVendorStats() {
           <div class="fw-semibold text-success">${fmtMoney(vendor.totalSales)}</div>
         </td>
         <td>
-          <div class="small text-secondary">${items}</div>
+          <div class="small text-secondary text-truncate" style="max-width: 520px;" data-bs-toggle="tooltip" title="${items}">${items}</div>
         </td>
         <td class="text-end">
           <div class="d-flex align-items-center justify-content-end gap-2">
@@ -596,6 +613,13 @@ async function adminLoadVendorStats() {
           </div>
         </td>
       `;
+      tr.classList.add('cursor-pointer');
+      tr.addEventListener('click', () => {
+        adminShowVendorDetails(vendor);
+        // highlight selection
+        Array.from(tbody.children).forEach(row => row.classList.remove('table-active'));
+        tr.classList.add('table-active');
+      });
       tbody.appendChild(tr);
     });
     
@@ -669,7 +693,7 @@ function adminRenderVendorSummaryCards(stats) {
           <i class="bi bi-trophy"></i>
         </div>
         <div class="stat-content">
-          <div class="stat-value text-truncate" style="font-size: 1.25rem;">${topVendor ? topVendor.name : '�'}</div>
+          <div class="stat-value text-truncate" style="font-size: 1.25rem;">${topVendor ? topVendor.name : '₱'}</div>
           <div class="stat-label">Top Performer</div>
         </div>
       </div>
@@ -698,7 +722,7 @@ function adminRenderVendorSalesChart(stats) {
     data: {
       labels: stats.map(v => v.name),
       datasets: [{
-        label: 'Total Sales (?)',
+    label: 'Total Sales (₱)',
         data: stats.map(v => v.totalSales),
         backgroundColor: theme.accent2 || '#34C759',
         borderColor: theme.accent2 || '#34C759',
@@ -719,9 +743,9 @@ function adminRenderVendorSalesChart(stats) {
           padding: 12,
           displayColors: false,
           callbacks: {
-            label: function(context) {
-              return 'Sales: ?' + context.parsed.y.toLocaleString();
-            }
+              label: function(context) {
+                return 'Sales: ₱' + context.parsed.y.toLocaleString();
+              }
           }
         }
       },
@@ -740,9 +764,9 @@ function adminRenderVendorSalesChart(stats) {
           ticks: { 
             color: textColor,
             font: { size: 11 },
-            callback: function(value) {
-              return '?' + value.toLocaleString();
-            }
+              callback: function(value) {
+                return '₱' + value.toLocaleString();
+              }
           }, 
           grid: { 
             color: gridColor,
@@ -753,6 +777,42 @@ function adminRenderVendorSalesChart(stats) {
       }
     }
   });
+}
+
+// Show details for selected vendor in the side card
+function adminShowVendorDetails(vendor) {
+  // Ensure global selected vendor ID is set for downstream actions (page load, exports)
+  if (vendor && vendor.user_id) {
+    adminSelectedVendorId = vendor.user_id;
+  }
+  window._adminSelectedVendorObj = vendor;
+  const nameEl = $("adminSelectedVendorName");
+  const salesEl = $("adminSelectedVendorSales");
+  const txCountEl = $("adminSelectedVendorTxCount");
+  const itemsList = $("adminTopItemsList");
+  const viewBtn = $("adminViewVendorTxBtn");
+  if (!nameEl || !salesEl || !txCountEl || !itemsList) return;
+
+  nameEl.textContent = vendor.name || '—';
+  salesEl.textContent = fmtMoney(vendor.totalSales || 0);
+  txCountEl.textContent = (vendor.totalTransactions != null ? vendor.totalTransactions : '0');
+  viewBtn && (viewBtn.style.display = '');
+
+  // Top items
+  itemsList.innerHTML = '';
+  if (!vendor.items || !vendor.items.length) {
+    const li = document.createElement('li');
+    li.className = 'list-group-item bg-transparent text-secondary';
+    li.textContent = 'No items sold in range';
+    itemsList.appendChild(li);
+  } else {
+    vendor.items.slice(0, 5).forEach(it => {
+      const li = document.createElement('li');
+      li.className = 'list-group-item bg-transparent d-flex justify-content-between align-items-center';
+      li.innerHTML = `<span>${it.name}</span><span class="badge bg-secondary">${it.qty}</span>`;
+      itemsList.appendChild(li);
+    });
+  }
 }
 
 function adminExportVendorStats() {
@@ -770,8 +830,9 @@ function adminExportVendorStats() {
   document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
 
-$("adminVendorDateStart").onchange = adminLoadVendorStats;
-$("adminVendorDateEnd").onchange = adminLoadVendorStats;
+// Guard for pages that don't render the admin vendor stats date inputs
+if ($("adminVendorDateStart")) { $("adminVendorDateStart").onchange = adminLoadVendorStats; }
+if ($("adminVendorDateEnd"))   { $("adminVendorDateEnd").onchange   = adminLoadVendorStats; }
 
 // ==================== ADMIN RELOAD STATISTICS ====================
 const adminReloadDateRangeState = {
@@ -1135,7 +1196,7 @@ function adminRenderReloadTrendsChart(chartData, isSingleDay, selectedDate) {
     data: {
       labels: labels,
       datasets: [{
-        label: 'Reload Amount (?)',
+        label: 'Reload Amount (₱)',
         data: data,
         backgroundColor: 'rgba(52, 199, 89, 0.1)',
         borderColor: theme.accent2 || '#34C759',
@@ -1177,7 +1238,7 @@ function adminRenderReloadTrendsChart(chartData, isSingleDay, selectedDate) {
           displayColors: false,
           callbacks: {
             label: function(context) {
-              return 'Amount: ?' + context.parsed.y.toLocaleString();
+              return 'Amount: ₱' + context.parsed.y.toLocaleString();
             }
           }
         }
@@ -1198,9 +1259,13 @@ function adminRenderReloadTrendsChart(chartData, isSingleDay, selectedDate) {
         y: { 
           ticks: { 
             color: textColor,
-            font: { size: 11 },
+            font: {
+              size: 11,
+              family: 'Segoe UI Symbol, Arial Unicode MS, Noto Sans Symbols, Noto Sans, Arial, sans-serif'
+            },
             callback: function(value) {
-              return '?' + value.toLocaleString();
+              console.log('Chart Y-Axis Tick Value:', value, value.toLocaleString());
+              return 'PHP ' + value.toLocaleString();
             }
           }, 
           grid: { 
@@ -1280,49 +1345,540 @@ async function adminLoadVendorCounters() {
 
 function adminSelectVendor(vendorId, vendorName) {
   adminSelectedVendorId = vendorId;
-  $("adminVendorTxCard").style.display = "";
-  $("adminVendorTxTitle").innerHTML = `<i class='bi bi-shop me-2'></i>${vendorName} - Transactions`;
+  // Keep old card hidden by default; we now use a modal
+  const txCard = $("adminVendorTxCard");
+  if (txCard) txCard.style.display = "none";
+  // If stats are loaded, also update the details card
+  if (window._adminVendorStatsMap && window._adminVendorStatsMap.has(vendorId)) {
+    const v = window._adminVendorStatsMap.get(vendorId);
+    adminShowVendorDetails(v);
+    window._adminSelectedVendorObj = v;
+  } else {
+    // Fallback: at least set the name
+    const nameEl = $("adminSelectedVendorName");
+    if (nameEl) nameEl.textContent = vendorName;
+    const viewBtn = $("adminViewVendorTxBtn");
+    if (viewBtn) viewBtn.style.display = '';
+    window._adminSelectedVendorObj = { user_id: vendorId, name: vendorName, totalSales: 0, totalTransactions: 0, items: [] };
+  }
+}
+
+// Open modal for vendor transactions with consistent calendar UX
+function adminOpenVendorTxModal() {
+  if (!window._adminSelectedVendorObj) return;
+  const vendor = window._adminSelectedVendorObj;
+  const nameEl = $("vendorTxModalName");
+  if (nameEl) nameEl.textContent = vendor.name || 'Vendor';
+  // Initialize date range to today if not set
+  const startEl = $("adminVendorTxDateStart");
+  const endEl = $("adminVendorTxDateEnd");
+  if (!startEl.value || !endEl.value) {
+    initializeVendorTxDateRangeToToday();
+  }
+  // Show modal
+  const modalEl = document.getElementById('vendorTxModal');
+  if (modalEl && window.bootstrap) {
+    const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+  }
+  // Load data
   adminLoadVendorTransactions();
 }
 
+// ==================== VENDOR TX DATE RANGE PICKER (consistent) ====================
+let vendorTxRangeState = {
+  currentMonth: new Date(),
+  startDate: null,
+  endDate: null,
+  tempStartDate: null,
+  tempEndDate: null
+};
+
+function initializeVendorTxDateRangeToToday() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  vendorTxRangeState.startDate = today;
+  vendorTxRangeState.endDate = today;
+  vendorTxRangeState.tempStartDate = today;
+  vendorTxRangeState.tempEndDate = today;
+  $("adminVendorTxDateStart").value = formatDateForInput(today);
+  $("adminVendorTxDateEnd").value = formatDateForInput(today);
+  const txt = $("vendorTxDateRangeText");
+  if (txt) txt.textContent = today.toLocaleString('en-US', { month: 'short', day: '2-digit' });
+}
+
+function toggleVendorTxDatePicker(e) {
+  e.stopPropagation();
+  const picker = $("vendorTxDateRangePicker");
+  if (!picker) return;
+  if (picker.style.display === "none" || !picker.style.display) {
+    renderVendorTxCalendar();
+    picker.style.display = "block";
+    document.addEventListener('click', closeVendorTxPickerOnClickOutside);
+  } else {
+    picker.style.display = "none";
+    document.removeEventListener('click', closeVendorTxPickerOnClickOutside);
+  }
+}
+
+function closeVendorTxPickerOnClickOutside(e) {
+  const picker = $("vendorTxDateRangePicker");
+  const wrapper = picker?.parentElement?.closest('.date-range-picker-wrapper');
+  if (picker && !picker.contains(e.target) && !wrapper.contains(e.target)) {
+    picker.style.display = "none";
+    document.removeEventListener('click', closeVendorTxPickerOnClickOutside);
+  }
+}
+
+function changeVendorTxMonth(delta) {
+  // Prevent navigating into future months
+  const next = new Date(vendorTxRangeState.currentMonth);
+  next.setMonth(next.getMonth() + delta);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const cap = new Date(today.getFullYear(), today.getMonth(), 1);
+  if (next > cap) {
+    vendorTxRangeState.currentMonth = new Date(cap);
+  } else {
+    vendorTxRangeState.currentMonth = next;
+  }
+  renderVendorTxCalendar();
+}
+
+function renderVendorTxCalendar() {
+  const month = vendorTxRangeState.currentMonth;
+  const year = month.getFullYear();
+  const firstDay = new Date(year, month.getMonth(), 1).getDay();
+  const daysInMonth = new Date(year, month.getMonth() + 1, 0).getDate();
+  const daysContainer = $("vendorTxCalendarDays");
+  const header = $("vendorTxCurrentMonthYear");
+  if (!daysContainer || !header) return;
+  header.textContent = month.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  let html = '';
+  for (let i = 0; i < firstDay; i++) html += `<div class="day empty"></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(year, month.getMonth(), d);
+    date.setHours(0,0,0,0);
+    const today = new Date(); today.setHours(0,0,0,0);
+    // Hide future dates completely (no number, no click)
+    if (date > today) {
+      html += `<div class="day empty"></div>`;
+      continue;
+    }
+    let classes = ['day'];
+    if (+date === +today) classes.push('today');
+    const s = vendorTxRangeState.tempStartDate;
+    const e = vendorTxRangeState.tempEndDate;
+    if (s && !e) {
+      if (+date === +s) classes.push('start-date','end-date');
+    }
+    if (s && e) {
+      if (+date === +s) classes.push('start-date');
+      else if (+date === +e) classes.push('end-date');
+      else if (date > s && date < e) classes.push('in-range');
+    }
+    html += `<button type="button" class="${classes.join(' ')}" onclick="selectVendorTxDate(${year},${month.getMonth()},${d}); event.stopPropagation();">${d}</button>`;
+  }
+  daysContainer.innerHTML = html;
+}
+
+function selectVendorTxDate(y, m, d) {
+  const clicked = new Date(y, m, d); clicked.setHours(0,0,0,0);
+  if (!vendorTxRangeState.tempStartDate || (vendorTxRangeState.tempStartDate && vendorTxRangeState.tempEndDate)) {
+    vendorTxRangeState.tempStartDate = clicked;
+    vendorTxRangeState.tempEndDate = null;
+  } else if (clicked < vendorTxRangeState.tempStartDate) {
+    vendorTxRangeState.tempEndDate = vendorTxRangeState.tempStartDate;
+    vendorTxRangeState.tempStartDate = clicked;
+  } else {
+    vendorTxRangeState.tempEndDate = clicked;
+  }
+  renderVendorTxCalendar();
+}
+
+function cancelVendorTxDateRange() {
+  const picker = $("vendorTxDateRangePicker");
+  if (picker) picker.style.display = "none";
+  document.removeEventListener('click', closeVendorTxPickerOnClickOutside);
+}
+
+function applyVendorTxDateRange() {
+  const picker = $("vendorTxDateRangePicker");
+  if (!vendorTxRangeState.tempStartDate) return;
+  const start = vendorTxRangeState.tempStartDate;
+  const end = vendorTxRangeState.tempEndDate || vendorTxRangeState.tempStartDate;
+  vendorTxRangeState.startDate = start;
+  vendorTxRangeState.endDate = end;
+  $("adminVendorTxDateStart").value = formatDateForInput(start);
+  $("adminVendorTxDateEnd").value = formatDateForInput(end);
+  const textEl = $("vendorTxDateRangeText");
+  if (textEl) {
+    const startStr = start.toLocaleString('en-US', { month: 'short', day: 'numeric' });
+    const endStr = end.toLocaleString('en-US', { month: 'short', day: 'numeric' });
+    if (start.getMonth() === end.getMonth()) {
+      textEl.textContent = `${startStr} – ${end.getDate()}`;
+    } else {
+      textEl.textContent = `${startStr} – ${endStr}`;
+    }
+  }
+  if (picker) picker.style.display = "none";
+  document.removeEventListener('click', closeVendorTxPickerOnClickOutside);
+}
+
+// ==================== VENDOR TX DEDICATED PAGE ====================
+function adminOpenVendorTxPage() {
+  if (!window._adminSelectedVendorObj) return;
+  const vendor = window._adminSelectedVendorObj;
+  // Guarantee selected vendor id is set even if coming from table row selection
+  if (!adminSelectedVendorId && vendor.user_id) {
+    adminSelectedVendorId = vendor.user_id;
+  }
+  // Ensure ID is set
+  if (!adminSelectedVendorId && vendor.user_id) adminSelectedVendorId = vendor.user_id;
+  const name = encodeURIComponent(vendor.name || 'Vendor');
+  const id = encodeURIComponent(adminSelectedVendorId || vendor.user_id || '');
+  // Navigate to dedicated route with vendor info
+  window.location.assign(`vendor-transactions.html?vendor=${id}&name=${name}`);
+}
+
+function adminBackFromVendorTxPage() {
+  const perf = $("vendorPerformanceDashboard");
+  const page = $("vendorTransactionsPage");
+  if (page) page.style.display = 'none';
+  if (perf) perf.style.display = '';
+  // Smooth scroll back
+  setTimeout(()=>{ perf && perf.scrollIntoView({behavior:'smooth', block:'start'}); }, 50);
+}
+
+// Page-specific date range state
+let vendorPageRangeState = {
+  currentMonth: new Date(),
+  startDate: null,
+  endDate: null,
+  tempStartDate: null,
+  tempEndDate: null
+};
+
+function initializeVendorPageDateRangeToToday() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  vendorPageRangeState.startDate = today;
+  vendorPageRangeState.endDate = today;
+  vendorPageRangeState.tempStartDate = today;
+  vendorPageRangeState.tempEndDate = today;
+  $("vendorPageTxDateStart").value = formatDateForInput(today);
+  $("vendorPageTxDateEnd").value = formatDateForInput(today);
+  const txt = $("vendorPageDateRangeText");
+  if (txt) txt.textContent = today.toLocaleString('en-US', { month: 'short', day: '2-digit' });
+}
+
+function toggleVendorPageDatePicker(e) {
+  e.stopPropagation();
+  const picker = $("vendorPageDateRangePicker");
+  if (!picker) return;
+  if (picker.style.display === 'none' || !picker.style.display) {
+    renderVendorPageCalendar();
+    picker.style.display = 'block';
+    document.addEventListener('click', closeVendorPagePickerOnClickOutside);
+  } else {
+    picker.style.display = 'none';
+    document.removeEventListener('click', closeVendorPagePickerOnClickOutside);
+  }
+}
+
+function closeVendorPagePickerOnClickOutside(e) {
+  const picker = $("vendorPageDateRangePicker");
+  const wrapper = picker?.parentElement?.closest('.date-range-picker-wrapper');
+  if (picker && !picker.contains(e.target) && !wrapper.contains(e.target)) {
+    picker.style.display = 'none';
+    document.removeEventListener('click', closeVendorPagePickerOnClickOutside);
+  }
+}
+
+function changeVendorPageMonth(delta) {
+  // Prevent navigating into future months
+  const next = new Date(vendorPageRangeState.currentMonth);
+  next.setMonth(next.getMonth() + delta);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const cap = new Date(today.getFullYear(), today.getMonth(), 1);
+  if (next > cap) {
+    vendorPageRangeState.currentMonth = new Date(cap);
+  } else {
+    vendorPageRangeState.currentMonth = next;
+  }
+  renderVendorPageCalendar();
+}
+
+function renderVendorPageCalendar() {
+  const month = vendorPageRangeState.currentMonth;
+  const year = month.getFullYear();
+  const firstDay = new Date(year, month.getMonth(), 1).getDay();
+  const daysInMonth = new Date(year, month.getMonth() + 1, 0).getDate();
+  const daysContainer = $("vendorPageCalendarDays");
+  const header = $("vendorPageCurrentMonthYear");
+  if (!daysContainer || !header) return;
+  header.textContent = month.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  let html = '';
+  for (let i=0;i<firstDay;i++) html += `<div class="day empty"></div>`;
+  for (let d=1; d<=daysInMonth; d++) {
+    const date = new Date(year, month.getMonth(), d); date.setHours(0,0,0,0);
+    const today = new Date(); today.setHours(0,0,0,0);
+    // Hide future dates completely (no number, no click)
+    if (date > today) {
+      html += `<div class="day empty"></div>`;
+      continue;
+    }
+    const s = vendorPageRangeState.tempStartDate;
+    const e = vendorPageRangeState.tempEndDate;
+    let classes = ['day'];
+    if (+date === +today) classes.push('today');
+    if (s && !e) {
+      if (+date === +s) classes.push('start-date','end-date');
+    }
+    if (s && e) {
+      if (+date === +s) classes.push('start-date');
+      else if (+date === +e) classes.push('end-date');
+      else if (date > s && date < e) classes.push('in-range');
+    }
+    html += `<button type="button" class="${classes.join(' ')}" onclick="selectVendorPageDate(${year},${month.getMonth()},${d}); event.stopPropagation();">${d}</button>`;
+  }
+  daysContainer.innerHTML = html;
+}
+
+function selectVendorPageDate(y,m,d){
+  const clicked = new Date(y,m,d); clicked.setHours(0,0,0,0);
+  if (!vendorPageRangeState.tempStartDate || (vendorPageRangeState.tempStartDate && vendorPageRangeState.tempEndDate)) {
+    vendorPageRangeState.tempStartDate = clicked; vendorPageRangeState.tempEndDate = null;
+  } else if (clicked < vendorPageRangeState.tempStartDate) {
+    vendorPageRangeState.tempEndDate = vendorPageRangeState.tempStartDate; vendorPageRangeState.tempStartDate = clicked;
+  } else {
+    vendorPageRangeState.tempEndDate = clicked;
+  }
+  renderVendorPageCalendar();
+}
+
+function cancelVendorPageDateRange(){
+  const picker = $("vendorPageDateRangePicker");
+  if (picker) picker.style.display = 'none';
+  document.removeEventListener('click', closeVendorPagePickerOnClickOutside);
+}
+
+function applyVendorPageDateRange(){
+  const picker = $("vendorPageDateRangePicker");
+  if (!vendorPageRangeState.tempStartDate) return;
+  const start = vendorPageRangeState.tempStartDate;
+  const end = vendorPageRangeState.tempEndDate || vendorPageRangeState.tempStartDate;
+  vendorPageRangeState.startDate = start; vendorPageRangeState.endDate = end;
+  $("vendorPageTxDateStart").value = formatDateForInput(start);
+  $("vendorPageTxDateEnd").value = formatDateForInput(end);
+  const textEl = $("vendorPageDateRangeText");
+  if (textEl) {
+    const startStr = start.toLocaleString('en-US',{month:'short',day:'numeric'});
+    const endStr = end.toLocaleString('en-US',{month:'short',day:'numeric'});
+    textEl.textContent = (start.getMonth()===end.getMonth()) ? `${startStr} – ${end.getDate()}` : `${startStr} – ${endStr}`;
+  }
+  if (picker) picker.style.display = 'none';
+  document.removeEventListener('click', closeVendorPagePickerOnClickOutside);
+}
+
 async function adminLoadVendorTransactions() {
-  if (!adminSelectedVendorId) return;
-  const start = $("adminVendorTxDateStart").value;
-  const end = $("adminVendorTxDateEnd").value;
-  let url = API_BASE + `/admin/vendor/${adminSelectedVendorId}/transactions`;
+  // Check both module-scoped and window-scoped vendor ID (for standalone pages)
+  const vendorId = adminSelectedVendorId || window.adminSelectedVendorId;
+  
+  if (!vendorId) {
+    console.warn('adminLoadVendorTransactions: No vendor selected');
+    return;
+  }
+  
+  // Support both modal and dedicated page inputs
+  const startInput = $("adminVendorDateStart") || $("vendorPageTxDateStart");
+  const endInput = $("adminVendorDateEnd") || $("vendorPageTxDateEnd");
+  
+  if (!startInput || !endInput) {
+    console.error('adminLoadVendorTransactions: Date inputs not found');
+    toast("Date inputs not found", "error");
+    return;
+  }
+  
+  const start = startInput.value;
+  const end = endInput.value;
+  
+  console.log('Loading vendor transactions:', { vendorId, start, end });
+  
+  let url = API_BASE + `/admin/vendor/${vendorId}/transactions`;
   if (start && end) url += `?start=${start}&end=${end}`;
+  
   try {
     const res = await fetch(url, { headers: { "Authorization": "Bearer " + token } });
-    const txs = await res.json();
-    const tbody = $("adminVendorTxTbody");
-    tbody.innerHTML = "";
-    if (!Array.isArray(txs) || !txs.length) {
-      tbody.innerHTML = `<tr><td colspan='3' class='text-center text-secondary'>No transactions</td></tr>`;
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error('API error:', res.status, errorText);
+      toast(`Failed to load transactions: ${res.status}`, "error");
       return;
     }
+    
+    const txs = await res.json();
+    console.log('Received transactions:', txs);
+    
+    const tbody = $("vendorPageTxTbody") || $("adminVendorTxTbody");
+    if (!tbody) {
+      console.error('Transaction table body not found');
+      return;
+    }
+    
+    tbody.innerHTML = "";
+    
+    if (!Array.isArray(txs) || !txs.length) {
+      tbody.innerHTML = `<tr><td colspan='3' class='text-center text-secondary'>No transactions found for this date range</td></tr>`;
+      // Update summary cards on dedicated page
+      const salesEl = $("vendorPageSales");
+      const countEl = $("vendorPageTxCount");
+      const topItemsEl = $("vendorPageTopItems");
+      if (salesEl) salesEl.textContent = "₱0";
+      if (countEl) countEl.textContent = "0";
+      if (topItemsEl) topItemsEl.textContent = "—";
+      // Hide pagination
+      const paginationContainer = $("vendorTxPagination");
+      if (paginationContainer) paginationContainer.style.display = "none";
+      return;
+    }
+    
+    // Calculate summary
+    const totalSales = txs.reduce((sum, tx) => sum + (parseFloat(tx.amount) || 0), 0);
+    
+    // Calculate top items from transaction data
+    const itemCounts = {};
     txs.forEach(tx => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${fmtTime(tx.timestamp)}</td><td>${tx.item_name || tx.custom_item || '-'}</td><td>${fmtMoney(tx.amount)}</td>`;
-      tbody.appendChild(tr);
+      const itemName = tx.item_name || tx.custom_item || 'Unknown';
+      if (itemName !== 'Unknown') {
+        itemCounts[itemName] = (itemCounts[itemName] || 0) + 1;
+      }
     });
+    
+    // Sort items by count and get top 3
+    const topItems = Object.entries(itemCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([name, count]) => `${name} (${count})`)
+      .join(', ');
+    
+    // Update summary cards on dedicated page
+    const salesEl = $("vendorPageSales");
+    const countEl = $("vendorPageTxCount");
+    const topItemsEl = $("vendorPageTopItems");
+    if (salesEl) salesEl.textContent = fmtMoney(totalSales);
+    if (countEl) countEl.textContent = txs.length;
+    if (topItemsEl) topItemsEl.textContent = topItems || "—";
+    
+    // Store transactions for pagination
+    window._vendorTransactions = txs;
+    window._vendorTxCurrentPage = 1;
+    
+    // Render first page
+    renderVendorTransactionsPage(1);
+    
+    toast(`Loaded ${txs.length} transaction${txs.length !== 1 ? 's' : ''}`, "success");
   } catch (e) {
     console.error("Error loading vendor transactions:", e);
     toast("Failed to load vendor transactions", "error");
   }
 }
 
-function adminExportVendorTx() {
-  const tbody = $("adminVendorTxTbody");
-  let csv = "Date,Item,Amount\n";
-  Array.from(tbody.children).forEach(tr => {
-    const tds = tr.querySelectorAll("td");
-    if (tds.length === 3) {
-      csv += `"${tds[0].textContent}","${tds[1].textContent}","${tds[2].textContent}"\n`;
-    }
+function renderVendorTransactionsPage(page) {
+  const txs = window._vendorTransactions || [];
+  const tbody = $("vendorPageTxTbody") || $("adminVendorTxTbody");
+  if (!tbody) return;
+  
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(txs.length / itemsPerPage);
+  const startIdx = (page - 1) * itemsPerPage;
+  const endIdx = Math.min(startIdx + itemsPerPage, txs.length);
+  
+  // Clear table
+  tbody.innerHTML = "";
+  
+  // Render current page items
+  const pageTransactions = txs.slice(startIdx, endIdx);
+  pageTransactions.forEach(tx => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${fmtTime(tx.timestamp)}</td><td>${tx.item_name || tx.custom_item || '-'}</td><td>${fmtMoney(tx.amount)}</td>`;
+    tbody.appendChild(tr);
   });
+  
+  // Update pagination UI (only on dedicated page)
+  const paginationContainer = $("vendorTxPagination");
+  const pageInfo = $("vendorTxPageInfo");
+  const pageNumbers = $("vendorTxPageNumbers");
+  
+  if (paginationContainer && pageInfo && pageNumbers) {
+    if (totalPages > 1) {
+      paginationContainer.style.display = "block";
+      pageInfo.textContent = `Showing ${startIdx + 1}-${endIdx} of ${txs.length}`;
+      
+      // Build pagination buttons
+      pageNumbers.innerHTML = "";
+      
+      // Previous button
+      const prevLi = document.createElement("li");
+      prevLi.className = `page-item ${page === 1 ? 'disabled' : ''}`;
+      prevLi.innerHTML = `<a class="page-link" href="#" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a>`;
+      if (page > 1) {
+        prevLi.querySelector('a').onclick = (e) => { e.preventDefault(); renderVendorTransactionsPage(page - 1); };
+      }
+      pageNumbers.appendChild(prevLi);
+      
+      // Page numbers (show max 5 pages at a time)
+      let startPage = Math.max(1, page - 2);
+      let endPage = Math.min(totalPages, startPage + 4);
+      if (endPage - startPage < 4) {
+        startPage = Math.max(1, endPage - 4);
+      }
+      
+      for (let p = startPage; p <= endPage; p++) {
+        const pageLi = document.createElement("li");
+        pageLi.className = `page-item ${p === page ? 'active' : ''}`;
+        pageLi.innerHTML = `<a class="page-link" href="#">${p}</a>`;
+        const currentP = p;
+        pageLi.querySelector('a').onclick = (e) => { e.preventDefault(); renderVendorTransactionsPage(currentP); };
+        pageNumbers.appendChild(pageLi);
+      }
+      
+      // Next button
+      const nextLi = document.createElement("li");
+      nextLi.className = `page-item ${page === totalPages ? 'disabled' : ''}`;
+      nextLi.innerHTML = `<a class="page-link" href="#" aria-label="Next"><span aria-hidden="true">&raquo;</span></a>`;
+      if (page < totalPages) {
+        nextLi.querySelector('a').onclick = (e) => { e.preventDefault(); renderVendorTransactionsPage(page + 1); };
+      }
+      pageNumbers.appendChild(nextLi);
+      
+      window._vendorTxCurrentPage = page;
+    } else {
+      paginationContainer.style.display = "none";
+    }
+  }
+}
+
+function adminExportVendorTx() {
+  // Export all transactions, not just current page
+  const txs = window._vendorTransactions || [];
+  
+  if (!txs.length) {
+    toast("No transactions to export", "warning");
+    return;
+  }
+  
+  let csv = "Date,Item,Amount\n";
+  txs.forEach(tx => {
+    const date = fmtTime(tx.timestamp);
+    const item = tx.item_name || tx.custom_item || '-';
+    const amount = fmtMoney(tx.amount);
+    csv += `"${date}","${item}","${amount}"\n`;
+  });
+  
+  const vendorId = adminSelectedVendorId || window.adminSelectedVendorId || 'vendor';
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
-  const a = Object.assign(document.createElement("a"), { href: url, download: `vendor_${adminSelectedVendorId}_transactions.csv` });
+  const a = Object.assign(document.createElement("a"), { href: url, download: `vendor_${vendorId}_transactions.csv` });
   document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   toast("Export downloaded", "success");
 }
@@ -1350,32 +1906,49 @@ function logout(){
       const savedToken = localStorage.getItem("token");
       const savedRole  = localStorage.getItem("role");
       const savedUser  = localStorage.getItem("username");
-      if (savedToken && savedRole){
-        token = savedToken; userRole = savedRole;
-        hide($("loginStage")); show($("dashboard")); document.querySelectorAll('.auth-only').forEach(show);
-        $("welcomeMsg").textContent = "Welcome, " + (savedUser || "(user)") + " (" + userRole + ")";
-        $("navUserLabel").textContent = (savedUser || "User");
-        if (userRole === "staff") { show($("staffDashboard")); loadReloads(); }
-        else if (userRole === "vendor") { show($("vendorDashboard")); loadMenuItems(); loadSales(); }
-        else if (userRole === "canteen_manager") { 
-          show($("canteenManagerDashboard")); 
-          loadCanteenMenuItems(); 
-          loadMenuAnalytics(); 
-        }
-        else if (userRole === "student") { show($("studentDashboard")); loadMyBalance(); loadMyTransactions(); loadMyReloads(); }
-        else if (userRole === "admin") { 
-          show($("adminDashboard")); 
-          setTimeout(() => { 
-            initializeDateRangeToToday();
-            adminLoadStats(); 
-            adminLoadUsers(); 
-          }, 100);
-        }
-        
-        // Initialize WebSocket for real-time notifications
+      if (!(savedToken && savedRole)) return;
+      token = savedToken; userRole = savedRole;
+
+      // If we're on pages without the main dashboard layout (e.g., vendor-transactions.html),
+      // skip DOM mutations for absent elements and just keep token available.
+      const hasDashboard = Boolean($("dashboard"));
+      if (!hasDashboard) {
+        // Still try to init WebSocket for notifications if available
         if (typeof initWebSocket === 'function') {
-          initWebSocket();
+          try { initWebSocket(); } catch(_) {}
         }
+        return;
+      }
+
+      // Main index.html path
+      const loginStage = $("loginStage");
+      const dashboardEl = $("dashboard");
+      if (loginStage && dashboardEl) { hide(loginStage); show(dashboardEl); }
+      document.querySelectorAll('.auth-only').forEach(show);
+      const welcome = $("welcomeMsg");
+      if (welcome) welcome.textContent = "Welcome, " + (savedUser || "(user)") + " (" + userRole + ")";
+      const userLbl = $("navUserLabel");
+      if (userLbl) userLbl.textContent = (savedUser || "User");
+
+      if (userRole === "staff") { const el=$("staffDashboard"); el&&show(el); loadReloads(); }
+      else if (userRole === "vendor") { const el=$("vendorDashboard"); el&&show(el); loadMenuItems(); loadSales(); }
+      else if (userRole === "canteen_manager") { 
+        const el=$("canteenManagerDashboard"); el&&show(el);
+        loadCanteenMenuItems(); 
+        loadMenuAnalytics(); 
+      }
+      else if (userRole === "student") { const el=$("studentDashboard"); el&&show(el); loadMyBalance(); loadMyTransactions(); loadMyReloads(); }
+      else if (userRole === "admin") { 
+        const el=$("adminDashboard"); el&&show(el);
+        setTimeout(() => { 
+          initializeDateRangeToToday();
+          adminLoadStats(); 
+          adminLoadUsers(); 
+        }, 100);
+      }
+
+      if (typeof initWebSocket === 'function') {
+        try { initWebSocket(); } catch(_) {}
       }
     })();
 
@@ -1464,6 +2037,9 @@ function logout(){
     function setupPosKeyboardInput() {
       const topupInput = $('posTopupAmount');
       const saleInput = $('posSaleAmount');
+      
+      // Guard: only run if POS inputs exist (not present on vendor-transactions.html)
+      if (!topupInput || !saleInput) return;
       
       [topupInput, saleInput].forEach((input, idx) => {
         const mode = idx === 0 ? 'topup' : 'sale';
@@ -2908,7 +3484,7 @@ function logout(){
           data: {
             labels: labels,
             datasets: [{
-              label: 'Reloads (?)',
+              label: 'Reloads (₱)',
               data: hourlyTotals,
               backgroundColor: gradient,
               borderColor: theme.accent2,
@@ -2942,7 +3518,11 @@ function logout(){
             scales: {
               x: { ticks: { color: theme.text }, grid: { color: theme.border } },
               y: {
-                ticks: { color: theme.text, callback: (v) => '?' + Number(v).toLocaleString() },
+                ticks: { 
+                  color: theme.text, 
+                  font: { family: 'Segoe UI Symbol, Arial Unicode MS, Noto Sans Symbols, Noto Sans, Arial, sans-serif' },
+                  callback: (v) => '₱' + Number(v).toLocaleString() 
+                },
                 grid: { color: theme.border }
               }
             }
@@ -2994,7 +3574,7 @@ function logout(){
           data: {
             labels: labels,
             datasets: [{
-              label: 'Reloads (?)',
+              label: 'Reloads (₱)',
               data: dataPoints,
               backgroundColor: gradient,
               borderColor: theme.accent2,
@@ -3028,7 +3608,11 @@ function logout(){
             scales: {
               x: { ticks: { color: theme.text }, grid: { color: theme.border } },
               y: {
-                ticks: { color: theme.text, callback: (v) => '?' + Number(v).toLocaleString() },
+                ticks: { 
+                  color: theme.text, 
+                  font: { family: 'Segoe UI Symbol, Arial Unicode MS, Noto Sans Symbols, Noto Sans, Arial, sans-serif' },
+                  callback: (v) => '₱' + Number(v).toLocaleString() 
+                },
                 grid: { color: theme.border }
               }
             }
@@ -3680,6 +4264,12 @@ function logout(){
     /* Settings (top-right) */
     function bsModal(id){ return new bootstrap.Modal(document.getElementById(id)); }
     function openRegisterModal(){
+      // Reset password rules display
+      ["regRuleLen", "regRuleUpper", "regRuleNum", "regRuleSpec"].forEach(id => {
+        $(id).className = "";
+      });
+      // Initialize event listeners
+      initRegisterModal();
       bsModal('registerModal').show();
     }
     function openTopupModal(){
@@ -3819,12 +4409,51 @@ function logout(){
     let staffPairInterval = null;
     let staffPairDeadline = null;
 
+    // Wire up registration modal events when opened
+    function initRegisterModal() {
+      // Password visibility toggle
+      $("toggleRegPasswordVisibility").onclick = () => {
+        const passInput = $("regPassword");
+        const icon = $("regPasswordToggleIcon");
+        if (passInput.type === "password") {
+          passInput.type = "text";
+          icon.className = "bi bi-eye-slash";
+        } else {
+          passInput.type = "password";
+          icon.className = "bi bi-eye";
+        }
+      };
+      
+      // Live password validation
+      $("regPassword").oninput = () => {
+        const val = $("regPassword").value;
+        $("regRuleLen").className = val.length >= 8 ? "ok" : "bad";
+        $("regRuleUpper").className = /[A-Z]/.test(val) ? "ok" : "bad";
+        $("regRuleNum").className = /\d/.test(val) ? "ok" : "bad";
+        $("regRuleSpec").className = /[^A-Za-z0-9]/.test(val) ? "ok" : "bad";
+      };
+    }
+
     async function registerUser(){
       const name = $("regName").value.trim();
       const username = $("regUsername").value.trim();
       const role = $("regRole").value;
       const password = $("regPassword").value;
-      if (!name || !username || !password){ setAlert("regAlert", "Name, username and password are required", "warning"); return; }
+      
+      if (!name || !username || !password){ 
+        setAlert("regAlert", "Name, username and password are required", "warning"); 
+        return; 
+      }
+      
+      // Validate password requirements
+      const passOk = password.length >= 8 && 
+                     /[A-Z]/.test(password) && 
+                     /\d/.test(password) && 
+                     /[^A-Za-z0-9]/.test(password);
+      if (!passOk) {
+        setAlert("regAlert", "Password does not meet requirements (min 8 chars, 1 uppercase, 1 number, 1 special)", "danger");
+        return;
+      }
 
       try{
         const res = await fetch(API_BASE + "/register", {
@@ -3834,11 +4463,25 @@ function logout(){
         });
         const data = await res.json();
         if (data?.user_id){
-          setAlert("regAlert", `User created (ID: ${data.user_id}).`, "success");
-          if ($("regAutoPair").checked){
-            staffStartPairingForUser(data.user_id, "staffPairStatus");
-          }
+          setAlert("regAlert", `User created successfully (ID: ${data.user_id}).`, "success");
+          
+          // Clear form
           $("regPassword").value = "";
+          $("regName").value = "";
+          $("regUsername").value = "";
+          
+          // Reset password rules
+          ["regRuleLen", "regRuleUpper", "regRuleNum", "regRuleSpec"].forEach(id => {
+            $(id).className = "";
+          });
+          
+          if ($("regAutoPair").checked){
+            // Close register modal and open pairing modal
+            bootstrap.Modal.getInstance($("registerModal")).hide();
+            setTimeout(() => {
+              openPairingModal(data.user_id);
+            }, 300);
+          }
         } else {
           setAlert("regAlert", data.error || "Registration failed", "danger");
         }
@@ -3846,12 +4489,48 @@ function logout(){
         setAlert("regAlert", "Network error during registration", "danger");
       }
     }
+    
+    // Open dedicated pairing modal
+    function openPairingModal(userId) {
+      // Reset states
+      show($("tapWaiting"));
+      hide($("tapSuccess"));
+      hide($("tapError"));
+      
+      // Open modal
+      bsModal("rfidPairingModal").show();
+      
+      // Start pairing
+      staffStartPairingForUser(userId);
+    }
+    
+    function closePairingModal() {
+      if (staffPairInterval) {
+        clearInterval(staffPairInterval);
+        staffPairInterval = null;
+      }
+      bootstrap.Modal.getInstance($("rfidPairingModal")).hide();
+    }
+    
+    function retryPairing() {
+      // Get user ID from somewhere or prompt
+      const uid = $("pairUserId").value.trim();
+      if (uid) {
+        hide($("tapError"));
+        show($("tapWaiting"));
+        staffStartPairingForUser(uid, true);
+      }
+    }
+    
     async function staffStartPairingExisting(){
       const uid = $("pairUserId").value.trim();
       if (!uid){ setAlert("pairExistingAlert", "Enter a User ID", "warning"); return; }
-      staffStartPairingForUser(uid, "pairExistingAlert");
+      
+      // Open pairing modal for existing user
+      openPairingModal(uid);
     }
-    async function staffStartPairingForUser(userId, statusElId){
+    
+    async function staffStartPairingForUser(userId, isExistingUser = false){
       try{
         const res = await fetch(API_BASE + "/rfid/link/start", {
           method:"POST",
@@ -3860,11 +4539,18 @@ function logout(){
         });
         const data = await res.json();
         if (!(data?.success && data?.pending_id)){
-          setAlert(statusElId, data.error || "Could not start pairing", "danger"); return;
+          // Show error in modal
+          hide($("tapWaiting"));
+          show($("tapError"));
+          $("errorMessage").textContent = data.error || "Could not start pairing";
+          return;
         }
+        
         const ttl = Number(data.ttl_seconds || 120);
         staffPairDeadline = Date.now() + ttl*1000;
-        setAlert(statusElId, `Pairing started (User ${userId}). Ask user to tap card. Expires in ${ttl}s…`, "info");
+        
+        // Update timer
+        $("tapTimer").textContent = ttl;
 
         if (staffPairInterval) clearInterval(staffPairInterval);
         staffPairInterval = setInterval(async ()=>{
@@ -3873,18 +4559,40 @@ function logout(){
           });
           const s = await res2.json();
           const remaining = Math.max(0, Math.ceil((staffPairDeadline - Date.now())/1000));
+          
+          // Update countdown timer
+          $("tapTimer").textContent = remaining;
+          
           if (s.confirmed){
             clearInterval(staffPairInterval);
-            setAlert(statusElId, `RFID linked to user ${userId} ✅`, "success");
+            staffPairInterval = null;
+            
+            // Show success
+            hide($("tapWaiting"));
+            show($("tapSuccess"));
+            $("successCardInfo").textContent = `Card ${s.rfid || ''} successfully linked!`;
+            
+            // Auto-close modal after 2 seconds
+            setTimeout(() => {
+              closePairingModal();
+            }, 2000);
+            
           } else if (s.failed || s.expired || remaining<=0){
             clearInterval(staffPairInterval);
-            setAlert(statusElId, `Pairing failed/expired for user ${userId}`, "danger");
-          } else {
-            setAlert(statusElId, `Waiting for tap… ${remaining}s (user ${userId})`, "info");
+            staffPairInterval = null;
+            
+            // Show error
+            hide($("tapWaiting"));
+            show($("tapError"));
+            $("errorMessage").textContent = s.failed ? 
+              (s.error || "Pairing failed - this card may already be linked to another user") : 
+              "Pairing expired. Please try again.";
           }
-        }, 1500);
+        }, 1000);
       }catch(e){
-        setAlert(statusElId, "Network error while starting pairing", "danger");
+        hide($("tapWaiting"));
+        show($("tapError"));
+        $("errorMessage").textContent = "Network error while starting pairing";
       }
     }
 
@@ -4320,6 +5028,20 @@ function logout(){
 
     // Load users list
     async function adminLoadUsers(page = 1) {
+      const tbody = $("adminUsersTbody");
+      if (tbody) {
+        // Show skeleton rows while loading
+        const skeletonRow = `
+          <tr>
+            <td><div class="skeleton skeleton-text" style="width: 60%"></div></td>
+            <td><div class="skeleton skeleton-text" style="width: 40%"></div></td>
+            <td><div class="skeleton skeleton-text" style="width: 50%"></div></td>
+            <td><div class="skeleton skeleton-text" style="width: 24px; height: 24px; border-radius: 9999px"></div></td>
+            <td><div class="skeleton skeleton-text" style="width: 50%"></div></td>
+            <td class="text-end"><div class="skeleton skeleton-text" style="width: 72px"></div></td>
+          </tr>`;
+        tbody.innerHTML = skeletonRow + skeletonRow + skeletonRow + skeletonRow + skeletonRow;
+      }
       try {
         adminCurrentPage = page;
         const search = $("adminSearchInput")?.value || '';
@@ -4344,9 +5066,9 @@ function logout(){
           throw new Error(`HTTP ${res.status}: ${res.statusText}`);
         }
         
-        const data = await res.json();
+  const data = await res.json();
 
-        const tbody = $("adminUsersTbody");
+  const tbody = $("adminUsersTbody");
         tbody.innerHTML = "";
 
         if (!data.users || data.users.length === 0) {
@@ -4386,6 +5108,137 @@ function logout(){
         toast("Failed to load users", "error");
       }
     }
+
+    // Admin search suggestions
+    (function setupAdminSearchSuggestions(){
+      const input = $("adminSearchInput");
+      const list = $("adminSearchSuggestions");
+      if (!input || !list) return;
+
+      let abortCtrl = null;
+      let lastQuery = "";
+      let activeIndex = -1;
+
+      function hideList(){
+        list.classList.add('d-none');
+        input.setAttribute('aria-expanded', 'false');
+        input.removeAttribute('aria-activedescendant');
+        activeIndex = -1;
+      }
+      function showList(){
+        list.classList.remove('d-none');
+        input.setAttribute('aria-expanded', 'true');
+      }
+      function updateActive(items){
+        items.forEach((el, idx)=>{
+          if (idx === activeIndex) {
+            el.classList.add('active');
+            const id = el.id || (`adminSug-${idx}`);
+            el.id = id;
+            input.setAttribute('aria-activedescendant', id);
+            el.scrollIntoView({ block: 'nearest' });
+          } else {
+            el.classList.remove('active');
+          }
+        });
+      }
+
+      input.addEventListener('input', async () => {
+        const q = input.value.trim();
+        if (q.length < 2){ hideList(); return; }
+        if (q === lastQuery) return;
+        lastQuery = q;
+
+        // cancel previous request
+        if (abortCtrl) abortCtrl.abort();
+        abortCtrl = new AbortController();
+        const params = new URLSearchParams({ page: 1, limit: 5, search: q });
+        try {
+          const res = await fetch(API_BASE + "/admin/users?" + params.toString(), {
+            headers: { "Authorization": "Bearer " + token },
+            signal: abortCtrl.signal
+          });
+          if (!res.ok) throw new Error('Failed');
+          const data = await res.json();
+          list.innerHTML = '';
+          if (!data.users || data.users.length === 0){ hideList(); return; }
+          data.users.forEach((u, idx) => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'list-group-item list-group-item-action d-flex align-items-center gap-2';
+            item.innerHTML = `<i class="bi bi-person-circle text-secondary"></i>
+              <div class="text-start">
+                <div class="fw-semibold">${u.name || u.username}</div>
+                <div class="small text-secondary">@${u.username}${u.rfid_uid ? ' • RFID' : ''}</div>
+              </div>`;
+            item.onclick = () => {
+              input.value = u.username || u.name || q;
+              hideList();
+              adminLoadUsers(1);
+            };
+            list.appendChild(item);
+          });
+          showList();
+          activeIndex = -1;
+        } catch(err){
+          // Ignore abort errors
+          if (err.name !== 'AbortError') hideList();
+        }
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (list.classList.contains('d-none')) return;
+        const items = Array.from(list.querySelectorAll('.list-group-item'));
+        if (items.length === 0) return;
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          activeIndex = (activeIndex + 1) % items.length;
+          updateActive(items);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          activeIndex = (activeIndex - 1 + items.length) % items.length;
+          updateActive(items);
+        } else if (e.key === 'Enter') {
+          if (activeIndex >= 0) {
+            e.preventDefault();
+            items[activeIndex].click();
+          }
+        } else if (e.key === 'Escape') {
+          hideList();
+        }
+      });
+
+      // Hide on blur/click outside
+      document.addEventListener('click', (e)=>{
+        if (!list.contains(e.target) && e.target !== input){ hideList(); }
+      });
+    })();
+
+    // Lightweight 3D tilt on summary cards
+    (function enableTiltCards(){
+      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (prefersReduced) return;
+      const cards = document.querySelectorAll('.tilt-card');
+      cards.forEach(card => {
+        const bounds = 10; // max degrees
+        card.style.transformStyle = 'preserve-3d';
+        card.style.transition = 'transform 120ms ease';
+        card.addEventListener('mousemove', (e)=>{
+          const rect = card.getBoundingClientRect();
+          const cx = rect.left + rect.width/2;
+          const cy = rect.top + rect.height/2;
+          const dx = (e.clientX - cx) / (rect.width/2);
+          const dy = (e.clientY - cy) / (rect.height/2);
+          const rx = Math.max(Math.min(-dy * bounds, bounds), -bounds);
+          const ry = Math.max(Math.min(dx * bounds, bounds), -bounds);
+          card.style.transform = `perspective(800px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+        });
+        card.addEventListener('mouseleave', ()=>{
+          card.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg)';
+        });
+        card.addEventListener('touchstart', ()=>{}, {passive: true}); // avoid hover on touch
+      });
+    })();
 
     // Render pagination buttons
     function adminRenderPagination(pagination) {
@@ -4556,6 +5409,31 @@ function logout(){
         }, 400);
       };
       
+      // Password visibility toggles
+      $("togglePasswordVisibility").onclick = () => {
+        const passInput = $("adminCreatePassword");
+        const icon = $("passwordToggleIcon");
+        if (passInput.type === "password") {
+          passInput.type = "text";
+          icon.className = "bi bi-eye-slash";
+        } else {
+          passInput.type = "password";
+          icon.className = "bi bi-eye";
+        }
+      };
+      
+      $("toggleConfirmPasswordVisibility").onclick = () => {
+        const confirmInput = $("adminCreatePassword2");
+        const icon = $("confirmPasswordToggleIcon");
+        if (confirmInput.type === "password") {
+          confirmInput.type = "text";
+          icon.className = "bi bi-eye-slash";
+        } else {
+          confirmInput.type = "password";
+          icon.className = "bi bi-eye";
+        }
+      };
+      
       // Live password validation
       const passInput = $("adminCreatePassword");
       passInput.oninput = () => {
@@ -4620,6 +5498,18 @@ function logout(){
         
         if (password !== confirmPassword) {
           toast("Passwords do not match", "error");
+          return;
+        }
+
+        // Confirmation dialog
+        const roleLabel = $("adminCreateRole").options[$("adminCreateRole").selectedIndex].text;
+        const confirmMsg = `Create new user?\n\n` +
+                          `Username: ${username}\n` +
+                          `Full Name: ${name}\n` +
+                          `Role: ${roleLabel}\n\n` +
+                          `Are you sure you want to proceed?`;
+        
+        if (!confirm(confirmMsg)) {
           return;
         }
 

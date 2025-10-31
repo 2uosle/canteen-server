@@ -56,34 +56,34 @@ const registerSchema = Joi.object({
 
   username: Joi.string()
     .trim()
-    .alphanum()
+    .pattern(/^[A-Za-z0-9._!\-]{3,32}$/)
     .min(3)
-    .max(30)
+    .max(32)
     .required()
     .messages({
       'string.empty': 'Username is required',
-      'string.alphanum': 'Username must contain only letters and numbers',
+      'string.pattern.base': 'Username can only contain letters, numbers, dot (.), underscore (_), hyphen (-), and exclamation (!)',
       'string.min': 'Username must be at least 3 characters',
-      'string.max': 'Username cannot exceed 30 characters'
+      'string.max': 'Username cannot exceed 32 characters'
     }),
 
   password: Joi.string()
     .min(8)
     .max(128)
-    .pattern(/^(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).*$/)
+    .pattern(/^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).*$/)
     .required()
     .messages({
       'string.empty': 'Password is required',
       'string.min': 'Password must be at least 8 characters',
       'string.max': 'Password cannot exceed 128 characters',
-      'string.pattern.base': 'Password must contain at least one uppercase letter and one special character'
+      'string.pattern.base': 'Password must contain at least 1 uppercase letter, 1 number, and 1 special character'
     }),
 
   role: Joi.string()
-    .valid('student', 'staff', 'vendor')
+    .valid('student', 'staff', 'vendor', 'admin', 'canteen_manager')
     .default('student')
     .messages({
-      'any.only': 'Role must be student, staff, or vendor'
+      'any.only': 'Role must be student, staff, vendor, admin, or canteen_manager'
     })
 });
 
@@ -118,10 +118,13 @@ const addUserSchema = Joi.object({
 
   username: Joi.string()
     .trim()
-    .alphanum()
+    .pattern(/^[A-Za-z0-9._!\-]{3,32}$/)
     .min(3)
-    .max(30)
-    .allow(null),
+    .max(32)
+    .allow(null)
+    .messages({
+      'string.pattern.base': 'Username can only contain letters, numbers, dot (.), underscore (_), hyphen (-), and exclamation (!)'
+    }),
 
   rfid_uid: Joi.string()
     .trim()
@@ -134,7 +137,7 @@ const addUserSchema = Joi.object({
     }),
 
   role: Joi.string()
-    .valid('student', 'staff', 'vendor')
+    .valid('student', 'staff', 'vendor', 'admin', 'canteen_manager')
     .default('student'),
 
   balance: Joi.number()

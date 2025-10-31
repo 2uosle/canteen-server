@@ -488,7 +488,7 @@ app.post('/register', authLimiter, validate(registerSchema), async (req, res) =>
       return res.status(400).json({ error: 'name, username, password required' });
     }
     const [dupe] = await pool.query('SELECT 1 FROM users WHERE username=? LIMIT 1', [username]);
-    if (dupe.length) return res.status(400).json({ error: 'username already taken' });
+    if (dupe.length) return res.status(400).json({ error: `Username "${username}" is already taken. Please choose a different username.` });
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const [result] = await pool.query(
@@ -742,7 +742,7 @@ app.post('/rfid/link/confirm', validate(rfidLinkConfirmSchema), async (req, res)
         return res.status(409).json({ 
           success: false, 
           failed: true, 
-          message: `RFID already paired to ${existingUser.name}. Cannot pair to multiple users.` 
+          error: `This RFID card is already paired to another user (${existingUser.name}). Each card can only be linked to one account.` 
         });
       }
       // If RFID is already paired to the SAME user, we'll just update (re-pair same card)
@@ -2037,7 +2037,7 @@ app.get('/admin/vendor-stats', adminAuth, async (req, res) => {
     const [vendors] = await pool.query(query, params);
 
     // For each vendor, get their items sold
-    const vendorStats = await Promise.all(vendors.map(async (vendor) => {
+  const vendorStats = await Promise.all(vendors.map(async (vendor) => {
       let itemQuery = `
         SELECT 
           COALESCE(m.item_name, t.custom_item, 'Unknown') as name,
@@ -2059,8 +2059,10 @@ app.get('/admin/vendor-stats', adminAuth, async (req, res) => {
       const [items] = await pool.query(itemQuery, itemParams);
       
       return {
+        user_id: vendor.user_id,
         name: vendor.name,
         totalSales: parseFloat(vendor.totalSales || 0),
+        totalTransactions: parseInt(vendor.totalTransactions || 0, 10),
         items: items
       };
     }));

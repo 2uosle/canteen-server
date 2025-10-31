@@ -41,6 +41,7 @@ enum Role {
   staff
   vendor
   admin
+  canteen_manager
 }
 
 // ============================================
