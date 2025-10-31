@@ -4466,15 +4466,129 @@ function logout(){
       }
     }
 
+    // Username availability state
+    let usernameCheckTimeout = null;
+    let usernameAvailable = false;
+    let lastCreatedUserId = null;
+    let rfidLinkPending = null;
+    let rfidLinkInterval = null;
+
     // Open create user modal
     function openAdminCreateUserModal() {
       // Clear form
       $("adminCreateUsername").value = "";
       $("adminCreatePassword").value = "";
+      $("adminCreatePassword2").value = "";
       $("adminCreateName").value = "";
       $("adminCreateRole").value = "student";
       
+      // Reset UI states
+      const statusEl = $("usernameStatus");
+      statusEl.innerHTML = "—";
+      statusEl.className = "input-group-text";
+      usernameAvailable = false;
+      lastCreatedUserId = null;
+      
+      // Reset password rules
+      ["ruleLen", "ruleUpper", "ruleNum", "ruleSpec"].forEach(id => {
+        $(id).className = "";
+      });
+      $("passwordMatchHelp").textContent = "";
+      
+      // Reset RFID link UI
+      show($("linkStepIdle"));
+      hide($("linkStepActive"));
+      hide($("linkStepSuccess"));
+      $("linkStatusText").textContent = "";
+      $("btnStartLink").disabled = true;
+      
+      // Wire up event listeners
+      wireCreateUserModalEvents();
+      
       bsModal("adminCreateUserModal").show();
+    }
+
+    function wireCreateUserModalEvents() {
+      // Debounced username availability check
+      const usernameInput = $("adminCreateUsername");
+      usernameInput.oninput = () => {
+        clearTimeout(usernameCheckTimeout);
+        const val = usernameInput.value.trim();
+        if (!val) {
+          const statusEl = $("usernameStatus");
+          statusEl.innerHTML = "—";
+          statusEl.className = "input-group-text";
+          usernameAvailable = false;
+          return;
+        }
+        
+        // Show checking state
+        const statusEl = $("usernameStatus");
+        statusEl.innerHTML = '<i class="bi bi-hourglass-split username-checking"></i>';
+        statusEl.className = "input-group-text";
+        
+        usernameCheckTimeout = setTimeout(async () => {
+          try {
+            const res = await fetch(API_BASE + `/admin/username-available?username=${encodeURIComponent(val)}`, {
+              headers: { "Authorization": "Bearer " + token }
+            });
+            const data = await res.json();
+            
+            if (!data.valid) {
+              statusEl.innerHTML = '<i class="bi bi-x-circle username-invalid"></i>';
+              statusEl.className = "input-group-text";
+              usernameAvailable = false;
+            } else if (!data.available) {
+              statusEl.innerHTML = '<i class="bi bi-exclamation-circle username-invalid"></i>';
+              statusEl.className = "input-group-text";
+              usernameAvailable = false;
+            } else {
+              statusEl.innerHTML = '<i class="bi bi-check-circle username-valid"></i>';
+              statusEl.className = "input-group-text";
+              usernameAvailable = true;
+            }
+          } catch (e) {
+            console.error("Username check error:", e);
+            statusEl.innerHTML = '<i class="bi bi-exclamation-triangle username-invalid"></i>';
+            statusEl.className = "input-group-text";
+            usernameAvailable = false;
+          }
+        }, 400);
+      };
+      
+      // Live password validation
+      const passInput = $("adminCreatePassword");
+      passInput.oninput = () => {
+        const val = passInput.value;
+        $("ruleLen").className = val.length >= 8 ? "ok" : "bad";
+        $("ruleUpper").className = /[A-Z]/.test(val) ? "ok" : "bad";
+        $("ruleNum").className = /\d/.test(val) ? "ok" : "bad";
+        $("ruleSpec").className = /[^A-Za-z0-9]/.test(val) ? "ok" : "bad";
+        checkPasswordMatch();
+      };
+      
+      // Confirm password match
+      const confirmInput = $("adminCreatePassword2");
+      confirmInput.oninput = checkPasswordMatch;
+    }
+    
+    function checkPasswordMatch() {
+      const pass = $("adminCreatePassword").value;
+      const confirm = $("adminCreatePassword2").value;
+      const hint = $("passwordMatchHelp");
+      
+      if (!confirm) {
+        hint.textContent = "";
+        return;
+      }
+      
+      if (pass === confirm) {
+        hint.textContent = "✓ Passwords match";
+        hint.className = "form-text text-success";
+      } else {
+        hint.textContent = "✗ Passwords do not match";
+        hint.className = "form-text text-danger";
+      }
     }
 
     // Create new user
@@ -4482,11 +4596,30 @@ function logout(){
       try {
         const username = $("adminCreateUsername").value.trim();
         const password = $("adminCreatePassword").value;
+        const confirmPassword = $("adminCreatePassword2").value;
         const name = $("adminCreateName").value.trim();
         const role = $("adminCreateRole").value;
 
-        if (!username || !password || !name) {
-          toast("Username, password, and name are required", "error");
+        // Validation
+        if (!username || !password || !confirmPassword || !name) {
+          toast("All fields are required", "error");
+          return;
+        }
+        
+        if (!usernameAvailable) {
+          toast("Please choose a valid and available username", "error");
+          return;
+        }
+        
+        // Check password rules
+        const passOk = password.length >= 8 && /[A-Z]/.test(password) && /\d/.test(password) && /[^A-Za-z0-9]/.test(password);
+        if (!passOk) {
+          toast("Password does not meet requirements", "error");
+          return;
+        }
+        
+        if (password !== confirmPassword) {
+          toast("Passwords do not match", "error");
           return;
         }
 
@@ -4503,7 +4636,16 @@ function logout(){
 
         if (data.success) {
           toast("User created successfully!", "success");
-          bootstrap.Modal.getInstance($("adminCreateUserModal")).hide();
+          lastCreatedUserId = data.user_id;
+          
+          // Enable RFID link button
+          $("btnStartLink").disabled = false;
+          $("btnStartLink").onclick = adminStartRFIDLink;
+          
+          // Wire cancel/retry buttons
+          $("btnCancelLink").onclick = adminCancelRFIDLink;
+          
+          // Refresh user list
           adminLoadUsers(adminCurrentPage);
           adminLoadStats();
         } else {
@@ -4513,6 +4655,92 @@ function logout(){
         console.error("Admin create user error:", e);
         toast("Failed to create user", "error");
       }
+    }
+    
+    // RFID Link Flow (Admin Create User)
+    async function adminStartRFIDLink() {
+      if (!lastCreatedUserId) return;
+      
+      try {
+        const res = await fetch(API_BASE + "/rfid/link/start", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ user_id: lastCreatedUserId })
+        });
+        
+        const data = await res.json();
+        
+        if (data.pending_id) {
+          rfidLinkPending = data.pending_id;
+          hide($("linkStepIdle"));
+          show($("linkStepActive"));
+          $("linkStatusText").textContent = "Waiting for card tap...";
+          $("linkStatusText").className = "small mt-2 text-primary";
+          
+          // Start polling
+          rfidLinkInterval = setInterval(() => adminCheckRFIDLinkStatus(), 1000);
+        } else {
+          toast(data.error || "Failed to start RFID link", "error");
+        }
+      } catch (e) {
+        console.error("RFID link start error:", e);
+        toast("Failed to start RFID link", "error");
+      }
+    }
+    
+    async function adminCheckRFIDLinkStatus() {
+      if (!rfidLinkPending) return;
+      
+      try {
+        const res = await fetch(API_BASE + `/rfid/link/status/${rfidLinkPending}`, {
+          headers: { "Authorization": "Bearer " + token }
+        });
+        
+        const data = await res.json();
+        
+        if (data.status === "confirmed") {
+          clearInterval(rfidLinkInterval);
+          rfidLinkInterval = null;
+          
+          hide($("linkStepActive"));
+          show($("linkStepSuccess"));
+          
+          toast("RFID card linked successfully!", "success");
+          
+          // Close modal after 2 seconds
+          setTimeout(() => {
+            bootstrap.Modal.getInstance($("adminCreateUserModal")).hide();
+          }, 2000);
+        } else if (data.status === "expired" || data.status === "failed") {
+          clearInterval(rfidLinkInterval);
+          rfidLinkInterval = null;
+          
+          $("linkStatusText").textContent = data.status === "expired" ? "Link expired. Please try again." : "Link failed.";
+          $("linkStatusText").className = "small mt-2 text-danger";
+          
+          // Show retry button
+          show($("btnRetryLink"));
+          $("btnRetryLink").onclick = () => {
+            hide($("btnRetryLink"));
+            adminStartRFIDLink();
+          };
+        }
+      } catch (e) {
+        console.error("RFID link status error:", e);
+      }
+    }
+    
+    function adminCancelRFIDLink() {
+      clearInterval(rfidLinkInterval);
+      rfidLinkInterval = null;
+      rfidLinkPending = null;
+      
+      hide($("linkStepActive"));
+      show($("linkStepIdle"));
+      $("btnStartLink").disabled = false;
     }
 
     // Open edit user modal

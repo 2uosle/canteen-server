@@ -1833,6 +1833,52 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   animation: fadeInRow 0.3s ease-in-out;
 }
 
+/* ====== Admin Create User Modal Enhancements ====== */
+#adminCreateUserModal #usernameStatus {
+  min-width: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border-color: var(--border);
+}
+#adminCreateUserModal .username-valid {
+  color: var(--success);
+}
+#adminCreateUserModal .username-invalid {
+  color: var(--danger);
+}
+#adminCreateUserModal .username-checking {
+  color: var(--text-secondary);
+}
+
+#adminCreateUserModal #passwordRules li {
+  padding-left: 1.2rem;
+  position: relative;
+  color: var(--text-secondary);
+}
+#adminCreateUserModal #passwordRules li::before {
+  content: "\f287"; /* bi-dot */
+  font-family: bootstrap-icons;
+  position: absolute;
+  left: 0;
+  color: var(--text-secondary);
+}
+#adminCreateUserModal #passwordRules li.ok {
+  color: var(--success);
+}
+#adminCreateUserModal #passwordRules li.ok::before {
+  content: "\f26e"; /* bi-check-circle */
+  color: var(--success);
+}
+#adminCreateUserModal #passwordRules li.bad {
+  color: var(--danger);
+}
+#adminCreateUserModal #passwordRules li.bad::before {
+  content: "\f623"; /* bi-x-circle */
+  color: var(--danger);
+}
+
 @keyframes fadeInRow {
   from {
     opacity: 0;

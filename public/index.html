@@ -2220,38 +2220,89 @@
 
   <!-- Admin Create User Modal -->
   <div class="modal fade" id="adminCreateUserModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
       <div class="modal-content glass">
         <div class="modal-header">
           <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Create New User</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <div class="mb-3">
-            <label class="form-label">Username</label>
-            <input type="text" class="form-control" id="adminCreateUsername" placeholder="Enter username">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Password</label>
-            <input type="password" class="form-control" id="adminCreatePassword" placeholder="Enter password">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Full Name</label>
-            <input type="text" class="form-control" id="adminCreateName" placeholder="Enter full name">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Role</label>
-            <select class="form-select" id="adminCreateRole">
-              <option value="student">Student</option>
-              <option value="staff">Staff</option>
-              <option value="vendor">Vendor</option>
-              <option value="admin">Admin</option>
-            </select>
+          <div class="row g-4">
+            <div class="col-lg-7">
+              <div class="mb-3">
+                <label class="form-label">Username</label>
+                <div class="input-group">
+                  <input type="text" class="form-control" id="adminCreateUsername" placeholder="e.g. juan.dc or xyz_02!" autocomplete="off">
+                  <span class="input-group-text" id="usernameStatus" title="Username status">—</span>
+                </div>
+                <div class="form-text">Allowed: letters, numbers, dot (.), underscore (_), hyphen (-), exclamation (!). 3–32 characters.</div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Password</label>
+                <input type="password" class="form-control" id="adminCreatePassword" placeholder="Minimum 8 characters" autocomplete="new-password">
+                <ul class="small mt-2 mb-0" id="passwordRules" style="list-style:none; padding-left:0">
+                  <li id="ruleLen">• At least 8 characters</li>
+                  <li id="ruleUpper">• At least 1 uppercase letter (A–Z)</li>
+                  <li id="ruleNum">• At least 1 number (0–9)</li>
+                  <li id="ruleSpec">• At least 1 special character (!@#$…)</li>
+                </ul>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Confirm Password</label>
+                <input type="password" class="form-control" id="adminCreatePassword2" placeholder="Re-type password" autocomplete="new-password">
+                <div class="form-text" id="passwordMatchHelp"></div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Full Name</label>
+                <input type="text" class="form-control" id="adminCreateName" placeholder="Enter full name">
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Role</label>
+                <select class="form-select" id="adminCreateRole">
+                  <option value="student">Student</option>
+                  <option value="staff">Staff</option>
+                  <option value="vendor">Vendor</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="col-lg-5">
+              <div class="p-3 rounded-3 h-100" style="background:var(--surface); border:1px solid var(--border);">
+                <h6 class="fw-semibold mb-2"><i class="bi bi-credit-card me-2"></i>Link RFID Card (optional)</h6>
+                <div class="text-secondary small mb-3">After creating the account, ask the user to tap their card to link it. This is similar to the Top Up / Pay tap flow.</div>
+                <div id="linkStepIdle">
+                  <button class="btn btn-outline-primary w-100" id="btnStartLink" disabled>
+                    <i class="bi bi-nfc me-1"></i>Start Linking
+                  </button>
+                  <div class="form-text mt-2">Create the user first, then click Start Linking.</div>
+                </div>
+                <div id="linkStepActive" class="d-none">
+                  <div class="alert alert-info d-flex align-items-center" role="alert">
+                    <i class="bi bi-phone-vibrate me-2"></i>
+                    <div>Waiting for card tap… Please tap the card on the reader.</div>
+                  </div>
+                  <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary flex-fill" id="btnCancelLink">Cancel</button>
+                    <button class="btn btn-outline-warning flex-fill d-none" id="btnRetryLink">Retry</button>
+                  </div>
+                  <div class="small mt-2" id="linkStatusText"></div>
+                </div>
+                <div id="linkStepSuccess" class="d-none">
+                  <div class="alert alert-success" role="alert">
+                    <i class="bi bi-check-circle me-2"></i>Card linked successfully!
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button class="btn btn-accent" onclick="adminCreateUser()">
+          <button class="btn btn-accent" id="btnCreateUser" onclick="adminCreateUser()">
             <i class="bi bi-person-plus me-1"></i>Create User
           </button>
         </div>

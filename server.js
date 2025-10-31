@@ -647,9 +647,15 @@ app.post('/student/card/unlock', auth('student'), async (req, res) => {
          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
    ========================================================== */
 
-// Staff starts a pending RFID link for a student
+// Staff/Admin starts a pending RFID link for a user
 // Body: { user_id, override?: boolean }
-app.post('/rfid/link/start', auth('staff'), validate(rfidLinkStartSchema), async (req, res) => {
+const staffOrAdmin = (req, res, next) => {
+  if (!req.user || !['staff','admin'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  next();
+};
+app.post('/rfid/link/start', staffOrAdmin, validate(rfidLinkStartSchema), async (req, res) => {
   try {
     let { user_id, override = false } = req.body || {};
     if (!user_id) return res.status(400).json({ error: 'user_id required' });
@@ -765,8 +771,8 @@ app.post('/rfid/link/confirm', validate(rfidLinkConfirmSchema), async (req, res)
   }
 });
 
-// Staff polls pairing status
-app.get('/rfid/link/status/:id', auth('staff'), validate(statusParamSchema, 'params'), async (req, res) => {
+// Staff/Admin polls pairing status
+app.get('/rfid/link/status/:id', staffOrAdmin, validate(statusParamSchema, 'params'), async (req, res) => {
   try {
     const [[row]] = await pool.query(
       'SELECT id, user_id, uid, confirmed, created_at FROM pending_rfid_links WHERE id=?',
@@ -786,8 +792,8 @@ app.get('/rfid/link/status/:id', auth('staff'), validate(statusParamSchema, 'par
   }
 });
 
-// Unlink RFID — STAFF ONLY (lost card replacement)
-app.post('/rfid/unlink', auth('staff'), validate(rfidUnlinkSchema), async (req, res) => {
+// Unlink RFID — STAFF or ADMIN (lost card replacement)
+app.post('/rfid/unlink', staffOrAdmin, validate(rfidUnlinkSchema), async (req, res) => {
   try {
     const { user_id } = req.body || {};
     if (!user_id) return res.status(400).json({ error: 'user_id required' });
@@ -1750,6 +1756,24 @@ app.get('/admin/users/:id', adminAuth, async (req, res) => {
   }
 });
 
+// Username/password validation
+const USERNAME_REGEX = /^[A-Za-z0-9._!\-]{3,32}$/; // allow letters, numbers, dot, underscore, hyphen, exclamation
+const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/; // 1 uppercase, 1 number, 1 special, min 8
+
+// GET /admin/username-available?username=...
+app.get('/admin/username-available', adminAuth, async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username || !USERNAME_REGEX.test(username)) {
+      return res.json({ available: false, valid: false, message: 'Invalid username format' });
+    }
+    const [[existing]] = await pool.query('SELECT 1 FROM users WHERE username = ? LIMIT 1', [username]);
+    res.json({ available: !existing, valid: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /admin/users - Create new user
 app.post('/admin/users', adminAuth, async (req, res) => {
   try {
@@ -1757,6 +1781,14 @@ app.post('/admin/users', adminAuth, async (req, res) => {
 
     if (!username || !password || !name || !role) {
       return res.status(400).json({ error: 'Username, password, name, and role are required' });
+    }
+
+    if (!USERNAME_REGEX.test(username)) {
+      return res.status(400).json({ error: 'Username must be 3-32 chars and may include letters, numbers, \'._!-\'' });
+    }
+
+    if (!PASSWORD_REGEX.test(password)) {
+      return res.status(400).json({ error: 'Password must be at least 8 chars with 1 uppercase, 1 number, and 1 special character' });
     }
 
     // Check if username exists
