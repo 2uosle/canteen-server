@@ -13,13 +13,13 @@ Adafruit_PN532 nfc(SDA_PIN, SCL_PIN);
 /* =========================
    Wi-Fi
    ========================= */
-const char* ssid     = "2uo";
-const char* password = "2uoHome0219!";
+const char* ssid     = "Ronduen WiFi";
+const char* password = "PieckFinger";
 
 /* =========================
    Backend base URL
    ========================= */
-String baseUrl = "http://192.168.1.10:3000";   // <-- your server
+String baseUrl = "http://192.168.100.129:3000";   // <-- your server
 
 /* =========================
    Poll timers (ms)
