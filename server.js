@@ -26,7 +26,11 @@ const {
   changePasswordSchema,
   reportQuerySchema,
   balanceParamSchema,
-  statusParamSchema
+  statusParamSchema,
+  createOrderSchema,
+  addOrderItemSchema,
+  updateOrderItemSchema,
+  orderIdParamSchema
 } = require('./middleware/validation');
 
 const app = express();
@@ -57,9 +61,7 @@ const generalLimiter = rateLimit({
     // Skip rate limiting for localhost in development
     const isDev = process.env.NODE_ENV !== 'production';
     const isLocalhost = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
-    const shouldSkip = isDev && isLocalhost;
-    console.log(`[Rate Limit] IP: ${req.ip}, isDev: ${isDev}, isLocalhost: ${isLocalhost}, skip: ${shouldSkip}`);
-    return shouldSkip;
+    return isDev && isLocalhost;
   }
 });
 
@@ -73,9 +75,7 @@ const authLimiter = rateLimit({
     // Skip rate limiting for localhost in development
     const isDev = process.env.NODE_ENV !== 'production';
     const isLocalhost = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
-    const shouldSkip = isDev && isLocalhost;
-    console.log(`[Auth Rate Limit] IP: ${req.ip}, isDev: ${isDev}, isLocalhost: ${isLocalhost}, skip: ${shouldSkip}`);
-    return shouldSkip;
+    return isDev && isLocalhost;
   }
 });
 
@@ -650,10 +650,20 @@ app.post('/student/card/unlock', auth('student'), async (req, res) => {
 // Staff/Admin starts a pending RFID link for a user
 // Body: { user_id, override?: boolean }
 const staffOrAdmin = (req, res, next) => {
-  if (!req.user || !['staff','admin'].includes(req.user.role)) {
-    return res.status(403).json({ error: 'Forbidden' });
+  const header = req.headers['authorization'];
+  if (!header) return res.status(401).json({ error: "No token provided" });
+
+  const token = header.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    if (!['staff','admin'].includes(decoded.role)) {
+      return res.status(403).json({ error: 'Forbidden: Staff or Admin access required' });
+    }
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: "Invalid token" });
   }
-  next();
 };
 app.post('/rfid/link/start', staffOrAdmin, validate(rfidLinkStartSchema), async (req, res) => {
   try {
@@ -696,7 +706,11 @@ app.get('/rfid/link/latest', async (req, res) => {
         LIMIT 1`,
       [RFID_LINK_TTL_SEC]
     );
-    res.json(rows.length ? rows[0] : {});
+    const result = rows.length ? rows[0] : {};
+    if (rows.length) {
+      console.log(`[Arduino Poll] RFID Link Found: id=${result.id}, user=${result.user_id}`);
+    }
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -880,12 +894,22 @@ app.post('/pending-sale/confirm', validate(confirmPendingSchema), async (req, re
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
-      await conn.query('UPDATE users SET balance = balance - ? WHERE user_id = ?', [price, student.user_id]);
-      await conn.query(
-        'INSERT INTO transactions (user_id, item_id, custom_item, amount, vendor_id, device_id) VALUES (?, ?, ?, ?, ?, ?)',
-        [student.user_id, sale.item_id || null, sale.item_name, price, sale.vendor_id, 'esp32-counter1']
-      );
-      await conn.query('UPDATE pending_sales SET confirmed = 1 WHERE id = ?', [pending_id]);
+
+      // Cart-aware path: if pending sale references an order, finalize it atomically via stored procedure
+      if (sale.order_id) {
+        // Call stored proc to insert per-item transactions and deduct balance
+        await conn.query('CALL finalize_order_checkout(?, ?)', [sale.order_id, student.user_id]);
+        await conn.query('UPDATE pending_sales SET confirmed = 1 WHERE id = ?', [pending_id]);
+      } else {
+        // Legacy single-item flow
+        await conn.query('UPDATE users SET balance = balance - ? WHERE user_id = ?', [price, student.user_id]);
+        await conn.query(
+          'INSERT INTO transactions (user_id, item_id, custom_item, amount, vendor_id, device_id) VALUES (?, ?, ?, ?, ?, ?)',
+          [student.user_id, sale.item_id || null, sale.item_name, price, sale.vendor_id, 'esp32-counter1']
+        );
+        await conn.query('UPDATE pending_sales SET confirmed = 1 WHERE id = ?', [pending_id]);
+      }
+
       await conn.commit();
     } catch (e) {
       await conn.rollback();
@@ -896,13 +920,35 @@ app.post('/pending-sale/confirm', validate(confirmPendingSchema), async (req, re
 
     const newBal = parseFloat(student.balance) - price;
 
+    // Resolve item_name for notifications: if this was a cart order with exactly one line, show that item name (with qty)
+    let resolvedItemName = sale.item_name;
+    if (sale.order_id) {
+      try {
+        const [orderItems] = await pool.query(
+          'SELECT item_id, custom_item, qty FROM order_items WHERE order_id = ? ORDER BY id ASC',
+          [sale.order_id]
+        );
+        if (Array.isArray(orderItems) && orderItems.length === 1) {
+          const it = orderItems[0];
+          if (it.custom_item && it.custom_item.trim()) {
+            resolvedItemName = it.custom_item.trim() + (it.qty > 1 ? ` x${it.qty}` : '');
+          } else if (it.item_id) {
+            const [[mn]] = await pool.query('SELECT item_name FROM menu WHERE item_id = ?', [it.item_id]);
+            if (mn && mn.item_name) {
+              resolvedItemName = mn.item_name + (it.qty > 1 ? ` x${it.qty}` : '');
+            }
+          }
+        }
+      } catch(_) { /* keep original */ }
+    }
+
     // Broadcast balance update to student
     sendToUser(student.user_id, 'balance_updated', {
       user_id: student.user_id,
       new_balance: newBal,
       amount: -price,
       type: 'sale',
-      item_name: sale.item_name
+      item_name: resolvedItemName
     });
 
     // Broadcast sale completion to vendor
@@ -910,9 +956,10 @@ app.post('/pending-sale/confirm', validate(confirmPendingSchema), async (req, re
       pending_id,
       user_id: student.user_id,
       student_name: student.name,
-      item_name: sale.item_name,
+      item_name: resolvedItemName || (sale.order_id ? 'Order #' + sale.order_id : null),
       amount: price,
-      new_balance: newBal
+      new_balance: newBal,
+      order_id: sale.order_id || null
     });
 
     res.json({ success: true, balance: newBal, student_name: student.name });
@@ -924,7 +971,7 @@ app.post('/pending-sale/confirm', validate(confirmPendingSchema), async (req, re
 app.get('/pending-sale/status/:id', auth('vendor'), validate(statusParamSchema, 'params'), async (req, res) => {
   try {
     const [[row]] = await pool.query(
-      `SELECT ps.id, ps.item_id, ps.item_name, ps.amount, ps.confirmed, ps.created_at
+      `SELECT ps.id, ps.item_id, ps.item_name, ps.amount, ps.confirmed, ps.created_at, ps.vendor_id, ps.order_id
        FROM pending_sales ps
        WHERE ps.id = ?`,
       [req.params.id]
@@ -947,25 +994,65 @@ app.get('/pending-sale/status/:id', auth('vendor'), validate(statusParamSchema, 
       });
     }
 
-    // If confirmed, get student info from the most recent transaction
+    // If confirmed, get student info from the most relevant source
     let student_name = null;
     if (row.confirmed === 1) {
-      const [[transactionInfo]] = await pool.query(
-        `SELECT u.name as student_name
-         FROM transactions t
-         JOIN users u ON t.user_id = u.user_id
-         WHERE t.custom_item = ? AND t.amount = ?
-         ORDER BY t.timestamp DESC LIMIT 1`,
-        [row.item_name, row.amount]
-      );
-      student_name = transactionInfo?.student_name || null;
+      // 1) Legacy single-item heuristic (exact match by custom_item and amount)
+      try {
+        const [[transactionInfo]] = await pool.query(
+          `SELECT u.name as student_name
+           FROM transactions t
+           JOIN users u ON t.user_id = u.user_id
+           WHERE t.custom_item = ? AND t.amount = ?
+           ORDER BY t.timestamp DESC LIMIT 1`,
+          [row.item_name, row.amount]
+        );
+        student_name = transactionInfo?.student_name || null;
+      } catch(_) {}
+
+      // 2) Cart flow fallback: pick the first transaction after this pending was created for this vendor
+      if (!student_name && row.vendor_id) {
+        try {
+          const [[tx]] = await pool.query(
+            `SELECT u.name as student_name
+             FROM transactions t
+             JOIN users u ON t.user_id = u.user_id
+             WHERE t.vendor_id = ? AND t.timestamp >= ?
+             ORDER BY t.timestamp ASC LIMIT 1`,
+            [row.vendor_id, row.created_at]
+          );
+          student_name = tx?.student_name || null;
+        } catch(_) {}
+      }
+    }
+
+    // Derive a friendlier item_name for cart orders with exactly one line item
+    let statusItemName = row.item_name;
+    if (row.order_id) {
+      try {
+        const [orderItems] = await pool.query(
+          'SELECT item_id, custom_item, qty FROM order_items WHERE order_id = ? ORDER BY id ASC',
+          [row.order_id]
+        );
+        if (Array.isArray(orderItems) && orderItems.length === 1) {
+          const it = orderItems[0];
+          if (it.custom_item && it.custom_item.trim()) {
+            statusItemName = it.custom_item.trim() + (it.qty > 1 ? ` x${it.qty}` : '');
+          } else if (it.item_id) {
+            const [[mn]] = await pool.query('SELECT item_name FROM menu WHERE item_id = ?', [it.item_id]);
+            if (mn && mn.item_name) {
+              statusItemName = mn.item_name + (it.qty > 1 ? ` x${it.qty}` : '');
+            }
+          }
+        }
+      } catch (_) { /* keep existing */ }
     }
 
     res.json({
       confirmed: row.confirmed === 1,
       failed: row.confirmed === 2,
       expired: expired && row.confirmed === 0,
-      item_name: row.item_name,
+      item_name: statusItemName,
       amount: row.amount,
       student_name: student_name
     });
@@ -1069,6 +1156,191 @@ app.post('/pending-sale/cancel', auth('vendor'), async (req, res) => {
     
   } catch (err) {
     console.error('[Vendor] Cancel sale error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ---------- CART ORDER (MULTI-ITEM) ENDPOINTS ---------- */
+// Create a new order (header)
+app.post('/orders', auth('vendor'), validate(createOrderSchema), async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    
+    const vendor_id = req.user.user_id;
+    const cashier_id = req.user.user_id; // if you differentiate later, pass cashier_id from body
+    const { device_id, notes } = req.body || {};
+    
+    // Validate vendor exists before inserting (prevent FK error)
+    const [[vendorExists]] = await conn.query(
+      'SELECT 1 FROM users WHERE user_id = ? LIMIT 1',
+      [vendor_id]
+    );
+    if (!vendorExists) {
+      await conn.rollback();
+      conn.release();
+      return res.status(400).json({ error: 'Unknown vendor' });
+    }
+    
+    // Insert order
+    const [r] = await conn.query(
+      `INSERT INTO orders (vendor_id, cashier_id, device_id, status, notes)
+       VALUES (?, ?, ?, 'building', ?)`,
+      [vendor_id, cashier_id || null, device_id || null, notes || null]
+    );
+    const order_id = r.insertId;
+    
+    await conn.commit();
+    conn.release();
+    res.json({ success: true, order_id, status: 'building' });
+  } catch (err) {
+    await conn.rollback();
+    conn.release();
+    logger.error('Failed to create order', { error: err.message, vendor_id: req.user?.user_id });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add an item to order
+app.post('/orders/:id/items', auth('vendor'), validate(orderIdParamSchema, 'params'), validate(addOrderItemSchema), async (req, res) => {
+  try {
+    // Debug logging
+    console.log('=== ADD ITEM DEBUG ===');
+    console.log('req.params:', req.params);
+    console.log('req.body:', req.body);
+    console.log('===================');
+    
+    const order_id = parseInt(req.params.id, 10);
+    const { item_id, custom_item, price, qty } = req.body || {};
+    
+    // Verify order exists and belongs to vendor
+    const [[order]] = await pool.query(
+      'SELECT vendor_id, status FROM orders WHERE order_id = ?',
+      [order_id]
+    );
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.vendor_id !== req.user.user_id) {
+      return res.status(403).json({ error: 'Not your order' });
+    }
+    if (order.status !== 'building') {
+      return res.status(400).json({ error: 'Order already submitted' });
+    }
+    
+    const q = Math.max(1, parseInt(qty || 1, 10));
+
+    let unitPrice = price != null ? parseFloat(price) : null;
+    if (unitPrice == null && item_id) {
+      const [[m]] = await pool.query('SELECT price FROM menu WHERE item_id=? AND active=1', [item_id]);
+      if (!m) return res.status(404).json({ error: 'Menu item not found or inactive' });
+      unitPrice = parseFloat(m.price);
+    }
+    if (!(unitPrice > 0)) return res.status(400).json({ error: 'valid price required' });
+
+    await pool.query(
+      `INSERT INTO order_items (order_id, item_id, custom_item, price, qty)
+       VALUES (?, ?, ?, ?, ?)`,
+      [order_id, item_id || null, custom_item || null, unitPrice, q]
+    );
+
+    // Return updated order snapshot
+    const [[o]] = await pool.query('SELECT order_id, subtotal, discount, total_amount, status FROM orders WHERE order_id=?', [order_id]);
+    const [items] = await pool.query(
+      `SELECT id, item_id, custom_item, price, qty, line_total
+         FROM order_items WHERE order_id=? ORDER BY id ASC`, [order_id]
+    );
+    res.json({ success: true, order: o, items });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Remove an item line
+app.delete('/orders/:id/items/:itemLineId', auth('vendor'), validate(orderIdParamSchema, 'params'), async (req, res) => {
+  try {
+    const order_id = parseInt(req.params.id, 10);
+    const lineId = parseInt(req.params.itemLineId, 10);
+    
+    // Verify order belongs to vendor
+    const [[order]] = await pool.query(
+      'SELECT vendor_id, status FROM orders WHERE order_id = ?',
+      [order_id]
+    );
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.vendor_id !== req.user.user_id) {
+      return res.status(403).json({ error: 'Not your order' });
+    }
+    if (order.status !== 'building') {
+      return res.status(400).json({ error: 'Cannot modify submitted order' });
+    }
+    
+    await pool.query('DELETE FROM order_items WHERE id=? AND order_id=?', [lineId, order_id]);
+    const [[o]] = await pool.query('SELECT order_id, subtotal, discount, total_amount, status FROM orders WHERE order_id=?', [order_id]);
+    const [items] = await pool.query('SELECT id, item_id, custom_item, price, qty, line_total FROM order_items WHERE order_id=? ORDER BY id ASC', [order_id]);
+    res.json({ success: true, order: o, items });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Submit order for RFID tap (creates pending sale)
+app.post('/orders/:id/submit', auth('vendor'), validate(orderIdParamSchema, 'params'), async (req, res) => {
+  try {
+    const order_id = parseInt(req.params.id, 10);
+    const [[o]] = await pool.query('SELECT order_id, vendor_id, total_amount, status FROM orders WHERE order_id=?', [order_id]);
+    if (!o) return res.status(404).json({ error: 'Order not found' });
+    if (o.vendor_id !== req.user.user_id) {
+      return res.status(403).json({ error: 'Not your order' });
+    }
+    if (o.status !== 'building') {
+      return res.status(400).json({ error: 'Order is not in building state' });
+    }
+    if (o.total_amount <= 0) {
+      return res.status(400).json({ error: 'Order has no items or zero total' });
+    }
+    
+    // Determine display name: if only 1 line item, show its name; else show 'Multi-item order'
+    let displayName = 'Multi-item order';
+    try {
+      const [orderItems] = await pool.query(
+        'SELECT item_id, custom_item, qty FROM order_items WHERE order_id = ? ORDER BY id ASC',
+        [order_id]
+      );
+      if (Array.isArray(orderItems) && orderItems.length === 1) {
+        const it = orderItems[0];
+        if (it.custom_item && it.custom_item.trim()) {
+          displayName = it.custom_item.trim() + (it.qty > 1 ? ` x${it.qty}` : '');
+        } else if (it.item_id) {
+          const [[mn]] = await pool.query('SELECT item_name FROM menu WHERE item_id = ?', [it.item_id]);
+          if (mn && mn.item_name) {
+            displayName = mn.item_name + (it.qty > 1 ? ` x${it.qty}` : '');
+          }
+        }
+      }
+    } catch (_) {
+      // Fallback remains 'Multi-item order' on any lookup error
+    }
+
+    // Move to awaiting tap and create pending_sale
+    await pool.query('UPDATE orders SET status="awaiting_tap" WHERE order_id=?', [order_id]);
+    const [r] = await pool.query(
+      'INSERT INTO pending_sales (order_id, item_name, amount, vendor_id) VALUES (?, ?, ?, ?)',
+      [order_id, displayName, o.total_amount, o.vendor_id]
+    );
+    res.json({ success: true, pending_id: r.insertId, order_id, amount: o.total_amount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get order snapshot
+app.get('/orders/:id', auth('vendor'), validate(orderIdParamSchema, 'params'), async (req, res) => {
+  try {
+    const order_id = parseInt(req.params.id, 10);
+    const [[o]] = await pool.query('SELECT * FROM orders WHERE order_id=?', [order_id]);
+    if (!o) return res.status(404).json({ error: 'Not found' });
+    const [items] = await pool.query('SELECT id, item_id, custom_item, price, qty, line_total FROM order_items WHERE order_id=? ORDER BY id ASC', [order_id]);
+    res.json({ order: o, items });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

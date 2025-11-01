@@ -177,6 +177,55 @@ function handleSaleNotification(data) {
     if (typeof loadSales === 'function') {
       setTimeout(() => loadSales(), 500);
     }
+
+    // If the POS modal is currently waiting for this sale, advance it to Success
+    try {
+      const isSaleStep3Visible = (function() {
+        const el = document.getElementById('saleStep3');
+        return el && !el.classList.contains('d-none');
+      })();
+
+      if (window.posState && window.posState.sale && isSaleStep3Visible) {
+        const pendingMatches = (typeof data.pending_id !== 'undefined') && (data.pending_id === window.posState.sale.pendingId);
+        if (pendingMatches) {
+          // Stop polling if any
+          if (window.posState.sale.interval) {
+            try { clearInterval(window.posState.sale.interval); } catch(_) {}
+            window.posState.sale.interval = null;
+          }
+
+          // Update success UI like the polling path would
+          const fmt = (n) => `₱${Number(n).toFixed(2)}`;
+          const amountEl = document.getElementById('saleSuccessAmount');
+          if (amountEl) amountEl.textContent = fmt(data.amount);
+          const detailsEl = document.getElementById('saleSuccessDetails');
+          if (detailsEl) {
+            const itemName = data.item_name || (window.posState.sale && window.posState.sale.itemName) || 'Item';
+            detailsEl.innerHTML = `
+              <strong>Item:</strong> ${itemName}<br>
+              <strong>Student:</strong> ${data.student_name || 'N/A'}
+            `;
+          }
+
+          // Clear cart on success
+          if (window.posState && window.posState.sale) {
+            window.posState.sale.cart = { orderId: null, items: [], total: 0 };
+            try { window.posRenderCart && window.posRenderCart(); } catch(_) {}
+          }
+
+          if (typeof window.SoundEffects?.complete === 'function') {
+            window.SoundEffects.complete();
+          }
+          if (typeof window.posShowStep === 'function') {
+            window.posShowStep('sale', 4);
+          }
+          // Clear pending id
+          window.posState.sale.pendingId = null;
+        }
+      }
+    } catch (e) {
+      console.warn('[WebSocket] Failed to sync POS modal:', e);
+    }
   }
 }
 

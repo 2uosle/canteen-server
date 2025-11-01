@@ -1663,6 +1663,22 @@
               </div>
               <div id="settingsPwdAlert" class="alert mt-3 d-none"></div>
             </div>
+            <div class="col-12">
+              <hr>
+              <div class="fw-semibold mb-3"><i class="bi bi-volume-up me-2"></i>Sound Effects</div>
+              <div class="d-flex align-items-center justify-content-between">
+                <div>
+                  <div class="fw-semibold">Enable Sound Effects</div>
+                  <div class="text-secondary small">Play sounds for confirmations and alerts</div>
+                </div>
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="soundToggle" style="width: 3rem; height: 1.5rem;" checked>
+                </div>
+              </div>
+              <button class="btn btn-sm btn-outline-primary mt-2" onclick="SoundEffects.complete()">
+                <i class="bi bi-play-fill me-1"></i>Test Sound
+              </button>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -1762,48 +1778,87 @@
   <div class="modal fade" id="rfidPairingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content glass">
-        <div class="modal-body text-center py-5">
+        <div class="modal-body text-center py-5 px-4">
           <!-- Waiting State -->
           <div id="tapWaiting">
-            <div class="mb-4">
-              <i class="bi bi-credit-card-2-front" style="font-size: 6rem; color: var(--accent);"></i>
+            <div class="mb-4 rfid-icon-container">
+              <div class="rfid-pulse-ring"></div>
+              <div class="rfid-pulse-ring delay-1"></div>
+              <div class="rfid-pulse-ring delay-2"></div>
+              <i class="bi bi-credit-card-2-front rfid-icon"></i>
             </div>
-            <h2 class="fw-bold mb-3">Tap Your RFID Card</h2>
-            <p class="text-secondary fs-5 mb-4">Place your card on the reader now</p>
-            <div class="mb-4">
-              <div class="spinner-border text-primary" style="width: 4rem; height: 4rem;" role="status">
-                <span class="visually-hidden">Waiting...</span>
+            <h2 class="fw-bold mb-3 animate-fade-in">Waiting for RFID Card</h2>
+            <p class="text-secondary fs-5 mb-4 animate-fade-in-delay">Place your card on the reader to link your account</p>
+            <div class="rfid-status-indicator mb-4">
+              <div class="rfid-dots">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
               </div>
+              <div class="text-primary fw-semibold mt-3">Listening for card tap...</div>
             </div>
-            <div id="tapCountdown" class="alert alert-warning d-inline-block px-4 py-2">
-              <i class="bi bi-clock me-2"></i>
-              <span class="fw-bold fs-5">Expires in <span id="tapTimer">120</span> seconds</span>
+            <div id="tapCountdown" class="rfid-timer">
+              <i class="bi bi-clock-history me-2"></i>
+              <span>Session expires in <strong id="tapTimer">120</strong>s</span>
+            </div>
+            <div class="mt-4">
+              <small class="text-muted">
+                <i class="bi bi-info-circle me-1"></i>
+                Make sure the Arduino device is powered on and connected
+              </small>
             </div>
           </div>
 
           <!-- Success State -->
           <div id="tapSuccess" class="d-none">
-            <div class="mb-4">
-              <i class="bi bi-check-circle-fill text-success" style="font-size: 6rem;"></i>
+            <div class="mb-4 success-icon-container">
+              <div class="success-checkmark">
+                <div class="check-icon">
+                  <span class="icon-line line-tip"></span>
+                  <span class="icon-line line-long"></span>
+                  <div class="icon-circle"></div>
+                  <div class="icon-fix"></div>
+                </div>
+              </div>
             </div>
-            <h2 class="fw-bold text-success mb-3">Card Paired Successfully!</h2>
-            <p class="text-secondary fs-5" id="successCardInfo">RFID card has been linked to your account</p>
+            <h2 class="fw-bold text-success mb-3 animate-slide-up">Successfully Linked!</h2>
+            <div class="success-card-info">
+              <div class="success-badge">
+                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                <span id="successCardUID" class="font-monospace fw-bold">XXXX-XXXX</span>
+              </div>
+              <p class="text-secondary mt-3" id="successCardInfo">RFID card has been linked to the account</p>
+            </div>
+            <div class="confetti-container">
+              <div class="confetti"></div>
+              <div class="confetti"></div>
+              <div class="confetti"></div>
+              <div class="confetti"></div>
+              <div class="confetti"></div>
+            </div>
           </div>
 
           <!-- Error State -->
           <div id="tapError" class="d-none">
-            <div class="mb-4">
-              <i class="bi bi-x-circle-fill text-danger" style="font-size: 6rem;"></i>
+            <div class="mb-4 error-icon-container">
+              <div class="error-shake">
+                <i class="bi bi-x-circle-fill text-danger" style="font-size: 6rem;"></i>
+              </div>
             </div>
             <h2 class="fw-bold text-danger mb-3">Pairing Failed</h2>
-            <p class="text-secondary fs-5" id="errorMessage">Please try again</p>
-            <button class="btn btn-primary btn-lg mt-3" onclick="retryPairing()">
-              <i class="bi bi-arrow-clockwise me-2"></i>Retry
+            <div class="alert alert-danger mx-auto" style="max-width: 500px;">
+              <i class="bi bi-exclamation-triangle me-2"></i>
+              <span id="errorMessage">Unable to link RFID card. Please try again.</span>
+            </div>
+            <button class="btn btn-primary btn-lg mt-3 px-5" onclick="retryPairing()">
+              <i class="bi bi-arrow-clockwise me-2"></i>Try Again
             </button>
           </div>
         </div>
-        <div class="modal-footer justify-content-center">
-          <button class="btn btn-outline-secondary" onclick="closePairingModal()">Cancel & Close</button>
+        <div class="modal-footer border-0 justify-content-center pb-4">
+          <button class="btn btn-outline-secondary px-4" onclick="closePairingModal()">
+            <i class="bi bi-x-lg me-2"></i>Cancel
+          </button>
         </div>
       </div>
     </div>
@@ -1869,15 +1924,33 @@
 
           <!-- Step 3: Tap Card -->
           <div id="topupStep3" class="pos-step d-none">
-            <div class="pos-tap-screen">
+            <div class="pos-tap-screen force-animate">
+              <!-- Animated pulse rings -->
+              <div class="tap-pulse-rings">
+                <div class="tap-pulse-ring tap-pulse-ring-1"></div>
+                <div class="tap-pulse-ring tap-pulse-ring-2"></div>
+                <div class="tap-pulse-ring tap-pulse-ring-3"></div>
+              </div>
+              
+              <!-- Card icon with floating animation -->
               <div class="pos-tap-icon">
                 <i class="bi bi-credit-card-2-front"></i>
+                <div class="tap-shine"></div>
               </div>
+              
               <div class="pos-tap-text">TAP CARD NOW</div>
               <div class="pos-tap-amount" id="topupTapAmount">₱0.00</div>
-              <div class="pos-tap-status" id="topupTapStatus">Waiting for card...</div>
+              <div class="pos-tap-status" id="topupTapStatus">
+                <span class="tap-dots">Waiting for card</span>
+                <span class="tap-dot tap-dot-1">.</span>
+                <span class="tap-dot tap-dot-2">.</span>
+                <span class="tap-dot tap-dot-3">.</span>
+              </div>
+              
+              <!-- Animated progress bar -->
               <div class="pos-loading">
                 <div class="pos-loading-bar"></div>
+                <div class="pos-loading-glow"></div>
               </div>
             </div>
             <button class="pos-btn pos-btn-danger mt-3" onclick="posCancelTopup()">
@@ -1904,55 +1977,84 @@
     </div>
   </div>
 
-  <!-- Topup Cancellation Reason Modal -->
+  <!-- Topup Cancellation Reason Modal (Unified UI) -->
   <div class="modal fade" id="topupCancelModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content glass">
-        <div class="modal-header border-0">
-          <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2 text-warning"></i>Cancel Top-Up</h5>
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title">
+            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+            Cancel Top-Up
+          </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <p class="text-muted mb-3">Please select or enter a reason for cancelling this top-up transaction:</p>
-          
-          <div class="mb-3">
-            <label class="form-label fw-semibold">Cancellation Reason</label>
-            <select class="form-select mb-2" id="cancelReasonSelect" onchange="toggleCustomCancelReason()">
-              <option value="">-- Select a reason --</option>
-              <option value="Customer changed mind">Customer changed mind</option>
-              <option value="Wrong amount entered">Wrong amount entered</option>
-              <option value="Card not working">Card not working</option>
-              <option value="Customer left">Customer left</option>
-              <option value="System error">System error</option>
-              <option value="Timeout">Timeout - Customer took too long</option>
-              <option value="custom">Other (specify below)</option>
-            </select>
-            
-            <div id="customCancelReasonDiv" class="d-none">
-              <textarea 
-                class="form-control" 
-                id="customCancelReason" 
-                rows="2" 
-                placeholder="Please specify the reason..."
-                maxlength="200"></textarea>
-              <small class="text-muted">Max 200 characters</small>
-            </div>
+          <p class="text-secondary mb-4">Why are you cancelling this top-up?</p>
+
+          <div class="cancel-reason-options">
+            <button class="cancel-reason-btn topup-cancel-reason" data-reason="wrong_amount">
+              <i class="bi bi-calculator me-2"></i>
+              <div>
+                <div class="fw-semibold">Wrong Amount Entered</div>
+                <div class="small text-secondary">Incorrect value or typo</div>
+              </div>
+              <i class="bi bi-chevron-right ms-auto"></i>
+            </button>
+
+            <button class="cancel-reason-btn topup-cancel-reason" data-reason="student_cancelled">
+              <i class="bi bi-person-x me-2"></i>
+              <div>
+                <div class="fw-semibold">Customer Changed Mind</div>
+                <div class="small text-secondary">Student decided not to continue</div>
+              </div>
+              <i class="bi bi-chevron-right ms-auto"></i>
+            </button>
+
+            <button class="cancel-reason-btn topup-cancel-reason" data-reason="card_issue">
+              <i class="bi bi-credit-card me-2"></i>
+              <div>
+                <div class="fw-semibold">Card Issue</div>
+                <div class="small text-secondary">Card not detected/working</div>
+              </div>
+              <i class="bi bi-chevron-right ms-auto"></i>
+            </button>
+
+            <button class="cancel-reason-btn topup-cancel-reason" data-reason="timeout">
+              <i class="bi bi-hourglass-split me-2"></i>
+              <div>
+                <div class="fw-semibold">Timeout</div>
+                <div class="small text-secondary">Customer took too long</div>
+              </div>
+              <i class="bi bi-chevron-right ms-auto"></i>
+            </button>
+
+            <button class="cancel-reason-btn topup-cancel-reason" data-reason="system_error">
+              <i class="bi bi-bug me-2"></i>
+              <div>
+                <div class="fw-semibold">System Error</div>
+                <div class="small text-secondary">Unexpected technical issue</div>
+              </div>
+              <i class="bi bi-chevron-right ms-auto"></i>
+            </button>
+
+            <button class="cancel-reason-btn topup-cancel-reason" data-reason="custom">
+              <i class="bi bi-pencil-square me-2"></i>
+              <div>
+                <div class="fw-semibold">Other Reason</div>
+                <div class="small text-secondary">Enter custom reason</div>
+              </div>
+              <i class="bi bi-chevron-right ms-auto"></i>
+            </button>
           </div>
 
-          <div class="alert alert-warning d-flex align-items-start">
-            <i class="bi bi-info-circle me-2 mt-1"></i>
-            <div>
-              <strong>Note:</strong> This cancellation will be logged for audit purposes.
-            </div>
+          <!-- Custom reason input (hidden by default) -->
+          <div class="custom-reason-container mt-3 d-none" id="topupCustomReasonContainer">
+            <label class="form-label small">Please specify the reason:</label>
+            <textarea id="topupCustomReasonInput" class="form-control" rows="3" placeholder="Enter cancellation reason..."></textarea>
+            <button type="button" class="btn btn-danger btn-sm mt-2 w-100" onclick="confirmTopupCancellation()">
+              Confirm Cancellation
+            </button>
           </div>
-        </div>
-        <div class="modal-footer border-0">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-            <i class="bi bi-arrow-left me-1"></i>Go Back
-          </button>
-          <button type="button" class="btn btn-danger" onclick="confirmTopupCancellation()">
-            <i class="bi bi-x-circle me-1"></i>Confirm Cancellation
-          </button>
         </div>
       </div>
     </div>
@@ -1960,60 +2062,100 @@
 
   <!-- Sale Modal (Vendor) -->
   <div class="modal fade" id="saleModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content glass">
         <div class="modal-header border-0">
           <h5 class="modal-title"><i class="bi bi-cart-plus me-2"></i>Record Sale</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <!-- Step 1: Select Item & Amount -->
+          <!-- Step 1: Build Cart -->
           <div id="saleStep1" class="pos-step">
-            <div class="pos-label">SELECT ITEM</div>
-            
-            <!-- Search/Custom Item Input -->
-            <div class="pos-item-search-wrapper mb-3">
-              <input 
-                id="posSaleItemSearch" 
-                type="text" 
-                class="pos-input" 
-                placeholder="Type custom item or select from menu below..."
-                oninput="posSaleSearchItems()"
-                onfocus="posShowSaleDropdown()"
-              />
+            <div class="row g-3">
+              <!-- Left: Item Selection & Cart -->
+              <div class="col-md-7">
+                <div class="pos-label">SELECT ITEM</div>
+                
+                <!-- Search/Custom Item Input -->
+                <div class="pos-item-search-wrapper mb-3">
+                  <input 
+                    id="posSaleItemSearch" 
+                    type="text" 
+                    class="pos-input" 
+                    placeholder="Search menu or type custom item..."
+                    oninput="posSaleSearchItems()"
+                    onfocus="posShowSaleDropdown()"
+                  />
+                  
+                  <!-- Dropdown List -->
+                  <div id="posSaleDropdown" class="pos-dropdown" style="display: none;">
+                    <div id="posSaleDropdownItems"></div>
+                  </div>
+                </div>
+                
+                <div class="row g-2 mb-3">
+                  <div class="col-8">
+                    <label class="small text-secondary mb-1">Price</label>
+                    <div class="pos-amount-display">
+                      <span class="currency">₱</span>
+                      <input id="posSaleAmount" type="text" class="pos-amount-input" placeholder="0.00" inputmode="decimal" />
+                    </div>
+                  </div>
+                  <div class="col-4">
+                    <label class="small text-secondary mb-1">Qty</label>
+                    <input id="posSaleQty" type="number" class="form-control form-control-lg text-center" value="1" min="1" max="99" />
+                  </div>
+                </div>
+                
+                <div class="pos-keypad mb-3">
+                  <button class="pos-key" onclick="posAddDigit('sale', '1')">1</button>
+                  <button class="pos-key" onclick="posAddDigit('sale', '2')">2</button>
+                  <button class="pos-key" onclick="posAddDigit('sale', '3')">3</button>
+                  <button class="pos-key" onclick="posAddDigit('sale', '4')">4</button>
+                  <button class="pos-key" onclick="posAddDigit('sale', '5')">5</button>
+                  <button class="pos-key" onclick="posAddDigit('sale', '6')">6</button>
+                  <button class="pos-key" onclick="posAddDigit('sale', '7')">7</button>
+                  <button class="pos-key" onclick="posAddDigit('sale', '8')">8</button>
+                  <button class="pos-key" onclick="posAddDigit('sale', '9')">9</button>
+                  <button class="pos-key pos-key-special" onclick="posAddDigit('sale', '00')">00</button>
+                  <button class="pos-key" onclick="posAddDigit('sale', '0')">0</button>
+                  <button class="pos-key pos-key-clear" onclick="posClearAmount('sale')"><i class="bi bi-backspace"></i></button>
+                </div>
+                
+                <button class="pos-btn pos-btn-primary w-100" onclick="posAddItemToCart()">
+                  <i class="bi bi-plus-circle me-2"></i>ADD TO CART
+                </button>
+              </div>
               
-              <!-- Dropdown List -->
-              <div id="posSaleDropdown" class="pos-dropdown" style="display: none;">
-                <div id="posSaleDropdownItems"></div>
+              <!-- Right: Cart Preview -->
+              <div class="col-md-5">
+                <div class="pos-label">CART</div>
+                <div class="cart-preview" id="saleCartPreview">
+                  <div class="cart-empty" id="saleCartEmpty">
+                    <i class="bi bi-cart3 fs-1 opacity-25 mb-2"></i>
+                    <div class="text-secondary small">No items yet</div>
+                  </div>
+                  <div class="cart-items d-none" id="saleCartItems"></div>
+                  <div class="cart-total d-none" id="saleCartTotalSection">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                      <span class="fw-semibold">Total:</span>
+                      <span class="fs-4 fw-bold text-danger" id="saleCartTotal">₱0.00</span>
+                    </div>
+                    <div class="d-grid gap-2">
+                      <button class="btn btn-danger" onclick="posSubmitCart()">
+                        <i class="bi bi-credit-card me-2"></i>CHECKOUT (<span id="saleCartCount">0</span> items)
+                      </button>
+                      <button class="btn btn-outline-secondary btn-sm" onclick="posClearCart()">
+                        <i class="bi bi-trash me-1"></i>Clear Cart
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-            
-            <div class="pos-label">PRICE</div>
-            <div class="pos-amount-display mb-3">
-              <span class="currency">₱</span>
-              <input id="posSaleAmount" type="text" class="pos-amount-input" placeholder="0.00" inputmode="decimal" />
-            </div>
-            <div class="pos-keypad">
-              <button class="pos-key" onclick="posAddDigit('sale', '1')">1</button>
-              <button class="pos-key" onclick="posAddDigit('sale', '2')">2</button>
-              <button class="pos-key" onclick="posAddDigit('sale', '3')">3</button>
-              <button class="pos-key" onclick="posAddDigit('sale', '4')">4</button>
-              <button class="pos-key" onclick="posAddDigit('sale', '5')">5</button>
-              <button class="pos-key" onclick="posAddDigit('sale', '6')">6</button>
-              <button class="pos-key" onclick="posAddDigit('sale', '7')">7</button>
-              <button class="pos-key" onclick="posAddDigit('sale', '8')">8</button>
-              <button class="pos-key" onclick="posAddDigit('sale', '9')">9</button>
-              <button class="pos-key pos-key-special" onclick="posAddDigit('sale', '00')">00</button>
-              <button class="pos-key" onclick="posAddDigit('sale', '0')">0</button>
-              <button class="pos-key pos-key-clear" onclick="posClearAmount('sale')"><i class="bi bi-backspace"></i></button>
-            </div>
-            
-            <button class="pos-btn pos-btn-primary mt-3" onclick="posConfirmSale()">
-              <i class="bi bi-check-circle me-2"></i>CONTINUE
-            </button>
           </div>
 
-          <!-- Step 2: Confirm Sale -->
+          <!-- Step 2: Confirm (Legacy - now skipped for cart) -->
           <div id="saleStep2" class="pos-step d-none">
             <div class="pos-confirm-header">CONFIRM SALE</div>
             <div class="pos-confirm-details">
@@ -2038,16 +2180,34 @@
 
           <!-- Step 3: Tap Card -->
           <div id="saleStep3" class="pos-step d-none">
-            <div class="pos-tap-screen">
+            <div class="pos-tap-screen force-animate">
+              <!-- Animated pulse rings -->
+              <div class="tap-pulse-rings">
+                <div class="tap-pulse-ring tap-pulse-ring-1"></div>
+                <div class="tap-pulse-ring tap-pulse-ring-2"></div>
+                <div class="tap-pulse-ring tap-pulse-ring-3"></div>
+              </div>
+              
+              <!-- Card icon with floating animation -->
               <div class="pos-tap-icon">
                 <i class="bi bi-credit-card-2-front"></i>
+                <div class="tap-shine"></div>
               </div>
+              
               <div class="pos-tap-text">TAP CARD NOW</div>
               <div class="pos-tap-item" id="saleTapItem">Item</div>
               <div class="pos-tap-amount" id="saleTapAmount">₱0.00</div>
-              <div class="pos-tap-status" id="saleTapStatus">Waiting for card...</div>
+              <div class="pos-tap-status" id="saleTapStatus">
+                <span class="tap-dots">Waiting for card</span>
+                <span class="tap-dot tap-dot-1">.</span>
+                <span class="tap-dot tap-dot-2">.</span>
+                <span class="tap-dot tap-dot-3">.</span>
+              </div>
+              
+              <!-- Animated progress bar -->
               <div class="pos-loading">
                 <div class="pos-loading-bar"></div>
+                <div class="pos-loading-glow"></div>
               </div>
             </div>
             <button class="pos-btn pos-btn-danger mt-3" onclick="posCancelSale()">
@@ -2440,7 +2600,10 @@
                 <span class="text-secondary small">Card Status</span>
                 <div class="fw-semibold" id="adminUserDetailCardStatus">—</div>
               </div>
-              <div class="d-flex gap-2">
+              <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-sm btn-outline-primary" id="adminUserLinkBtn" onclick="adminLinkRFID()" style="display:none">
+                  <i class="bi bi-link-45deg me-1"></i>Link RFID
+                </button>
                 <button class="btn btn-sm btn-outline-danger" id="adminUserLockBtn" onclick="adminLockCard()" style="display:none">
                   <i class="bi bi-lock me-1"></i>Lock Card
                 </button>

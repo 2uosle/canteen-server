@@ -11,6 +11,10 @@ const Joi = require('joi');
  */
 function validate(schema, property = 'body') {
   return (req, res, next) => {
+    // Debug logging
+    console.log(`=== VALIDATION DEBUG (${property}) ===`);
+    console.log('Data being validated:', req[property]);
+    
     const { error, value } = schema.validate(req[property], {
       abortEarly: false, // Return all errors, not just the first one
       stripUnknown: true // Remove unknown fields
@@ -22,12 +26,16 @@ function validate(schema, property = 'body') {
         message: detail.message
       }));
 
+      console.log('Validation FAILED:', errors);
+      
       return res.status(400).json({
         error: 'Validation failed',
         details: errors
       });
     }
 
+    console.log('Validation PASSED');
+    
     // Replace request data with validated (and sanitized) data
     req[property] = value;
     next();
@@ -385,6 +393,77 @@ const statusParamSchema = Joi.object({
     })
 });
 
+// -------------------------------------------------------------------
+// Cart/Order Schemas
+// -------------------------------------------------------------------
+
+const createOrderSchema = Joi.object({
+  device_id: Joi.string()
+    .trim()
+    .max(64)
+    .allow(null, '')
+});
+
+const addOrderItemSchema = Joi.object({
+  item_id: Joi.number()
+    .integer()
+    .positive()
+    .allow(null),
+
+  custom_item: Joi.string()
+    .trim()
+    .min(1)
+    .max(150)
+    .when('item_id', {
+      is: null,
+      then: Joi.required()
+    }),
+
+  price: Joi.number()
+    .positive()
+    .max(10000)
+    .precision(2)
+    .required()
+    .messages({
+      'number.positive': 'Price must be positive',
+      'any.required': 'Price is required'
+    }),
+
+  qty: Joi.number()
+    .integer()
+    .positive()
+    .max(100)
+    .default(1)
+    .messages({
+      'number.positive': 'Quantity must be positive',
+      'number.max': 'Quantity cannot exceed 100'
+    })
+});
+
+const updateOrderItemSchema = Joi.object({
+  qty: Joi.number()
+    .integer()
+    .positive()
+    .max(100)
+    .required()
+    .messages({
+      'number.positive': 'Quantity must be positive',
+      'number.max': 'Quantity cannot exceed 100',
+      'any.required': 'Quantity is required'
+    })
+});
+
+const orderIdParamSchema = Joi.object({
+  id: Joi.number()
+    .integer()
+    .positive()
+    .required()
+    .messages({
+      'any.required': 'Order ID is required',
+      'number.base': 'Order ID must be a number'
+    })
+});
+
 // ===================================================================
 // EXPORTS
 // ===================================================================
@@ -416,6 +495,12 @@ module.exports = {
   // Reports/Queries
   reportQuerySchema,
   balanceParamSchema,
-  statusParamSchema
+  statusParamSchema,
+  
+  // Cart/Orders
+  createOrderSchema,
+  addOrderItemSchema,
+  updateOrderItemSchema,
+  orderIdParamSchema
 };
 

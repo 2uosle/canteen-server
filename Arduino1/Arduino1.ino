@@ -13,13 +13,13 @@ Adafruit_PN532 nfc(SDA_PIN, SCL_PIN);
 /* =========================
    Wi-Fi
    ========================= */
-const char* ssid = "Ronduen WiFi";
-const char* password = "PieckFinger";
+const char* ssid = "2uo";
+const char* password = "2uoHome0219!";
 
 /* =========================
    Backend base URL
    ========================= */
-String baseUrl = "http://192.168.100.129:3000";  // <-- your server
+String baseUrl = "http://192.168.1.20:3000";  // <-- your server
 
 /* =========================
    Poll timers (ms)
@@ -88,6 +88,7 @@ bool httpGET(const String& url, String& resp, int& codeOut) {
   codeOut = code;
   if (code > 0) resp = http.getString();
   http.end();
+  delay(100);  // Small delay to let WiFi stack recover
   return (code == 200);
 }
 
@@ -101,6 +102,7 @@ bool httpPOST(const String& url, const String& jsonPayload, String& resp, int& c
   codeOut = code;
   if (code > 0) resp = http.getString();
   http.end();
+  delay(100);  // Small delay to let WiFi stack recover
   return (code >= 200 && code < 300);
 }
 
@@ -196,6 +198,17 @@ void pollPendingSale() {
       }
     }
 
+    // Optional: log order_id if present (cart flow)
+    int ordPos = resp.indexOf("\"order_id\":");
+    if (ordPos != -1) {
+      int oStart = ordPos + 11;
+      int oEnd = resp.indexOf(",", oStart);
+      if (oEnd == -1) oEnd = resp.indexOf("}", oStart);
+      String orderIdStr = resp.substring(oStart, oEnd);
+      orderIdStr.trim();
+      Serial.printf("➡ Cart order detected: order_id=%s\n", orderIdStr.c_str());
+    }
+
     Serial.printf("➡ Sale waiting: ID=%d Amount=%.2f\n", salePendingId, salePendingAmount);
     Serial.println("Ask student to tap card...");
   } else {
@@ -281,14 +294,29 @@ void setup() {
 }
 
 void loop() {
-  // keep Wi-Fi alive
+  // keep Wi-Fi alive with proper reconnection
   if (WiFi.status() != WL_CONNECTED) {
     static unsigned long lastRetry = 0;
-    if (millis() - lastRetry > 5000) {
+    static int retryCount = 0;
+    
+    if (millis() - lastRetry > 10000) {  // Try every 10 seconds
       lastRetry = millis();
-      Serial.println("Reconnecting WiFi…");
-      WiFi.reconnect();
+      retryCount++;
+      
+      Serial.printf("WiFi disconnected. Reconnect attempt %d...\n", retryCount);
+      
+      // Full reconnect every 3 attempts
+      if (retryCount >= 3) {
+        Serial.println("Multiple failures. Performing full WiFi reset...");
+        WiFi.disconnect(true);
+        delay(1000);
+        connectWiFi();
+        retryCount = 0;
+      } else {
+        WiFi.reconnect();
+      }
     }
+    return;  // Don't poll when WiFi is down
   }
 
   unsigned long now = millis();
@@ -297,18 +325,18 @@ void loop() {
      1) Poll in priority order:
         Pairing > Reload > Sale
      --------------------------- */
-  if (linkPendingId == -1 && (now - lastPollLink) > 1200) {
+  if (linkPendingId == -1 && (now - lastPollLink) > 3000) {
     lastPollLink = now;
     pollPendingLink();
   }
 
   // Only check reload/sale if no pairing is active
   if (linkPendingId == -1) {
-    if (reloadPendingId == -1 && (now - lastPollReload) > 1800) {
+    if (reloadPendingId == -1 && (now - lastPollReload) > 3500) {
       lastPollReload = now;
       pollPendingReload();
     }
-    if (reloadPendingId == -1 && salePendingId == -1 && (now - lastPollSale) > 2200) {
+    if (reloadPendingId == -1 && salePendingId == -1 && (now - lastPollSale) > 4000) {
       lastPollSale = now;
       pollPendingSale();
     }

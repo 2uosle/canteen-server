@@ -770,24 +770,38 @@ html {
   color: #fff;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+/* Hide pulse rings - not needed */
+.tap-pulse-rings {
+  display: none;
 }
 
 .pos-tap-icon {
-  font-size: clamp(2.2rem, 7vw, 3rem);
+  font-size: clamp(3.5rem, 10vw, 5rem);
   margin-bottom: 0.5em;
-  animation: posPulse 2s ease-in-out infinite;
+  position: relative;
+  z-index: 1;
+  animation: tapIconPulse 1.5s ease-in-out infinite;
 }
 
-@keyframes posPulse {
+/* Simple pulse animation */
+@keyframes tapIconPulse {
   0%,
   100% {
     transform: scale(1);
-    opacity: 1;
+    opacity: 0.9;
   }
   50% {
-    transform: scale(1.1);
-    opacity: 0.8;
+    transform: scale(1.05);
+    opacity: 1;
   }
+}
+
+/* Hide shine effect */
+.tap-shine {
+  display: none;
 }
 
 .pos-tap-text {
@@ -817,30 +831,106 @@ html {
   font-size: clamp(0.85rem, 2.2vw, 1rem);
   opacity: 0.8;
   margin-bottom: 1em;
+  position: relative;
+  z-index: 1;
+}
+
+/* Simple animated dots */
+.tap-dot {
+  display: inline-block;
+  animation: tapDotFade 1.2s ease-in-out infinite;
+  font-size: 1.2em;
+  line-height: 1;
+}
+
+.tap-dot-1 {
+  animation-delay: 0s;
+}
+
+.tap-dot-2 {
+  animation-delay: 0.25s;
+}
+
+.tap-dot-3 {
+  animation-delay: 0.5s;
+}
+
+@keyframes tapDotFade {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .pos-loading {
   width: 100%;
-  height: clamp(4px, 1.2vw, 6px);
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
   overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Fallback shimmer stripe that always moves */
+.pos-loading::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -40%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.9),
+    rgba(255, 255, 255, 0)
+  );
+  filter: blur(0.2px);
+  animation: posLoadingStripe 1.4s linear infinite;
+  will-change: transform, left;
 }
 
 .pos-loading-bar {
-  width: 40%;
+  width: 35%;
   height: 100%;
-  background: #fff;
-  border-radius: 3px;
-  animation: posLoading 1.5s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.6) 0%,
+    rgba(255, 255, 255, 1) 50%,
+    rgba(255, 255, 255, 0.6) 100%
+  );
+  border-radius: 10px;
+  animation: posLoadingMove 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
 
-@keyframes posLoading {
+/* Remove the glow - simpler is better */
+.pos-loading-glow {
+  display: none;
+}
+
+@keyframes posLoadingMove {
   0% {
     transform: translateX(-100%);
   }
+  50% {
+    transform: translateX(150%);
+  }
   100% {
-    transform: translateX(350%);
+    transform: translateX(400%);
+  }
+}
+
+@keyframes posLoadingStripe {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
   }
 }
 
@@ -1047,7 +1137,7 @@ html {
 /* Ensure POS modals are always readable and fit on screen at any zoom level */
 #topupModal .modal-dialog,
 #saleModal .modal-dialog {
-  max-width: min(95vw, 420px);
+  max-width: min(95vw, 900px);
   max-height: calc(100vh - 1.5rem);
 }
 
@@ -1067,6 +1157,123 @@ html {
 #topupModal .pos-step,
 #saleModal .pos-step {
   padding: 0;
+}
+
+/* ==================== CART STYLES ==================== */
+.cart-preview {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  min-height: 400px;
+  max-height: 500px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.cart-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.cart-items {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+}
+
+.cart-item {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.cart-item:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  transform: translateX(-2px);
+}
+
+.cart-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cart-item-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cart-item-details {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.cart-item-qty {
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  color: var(--primary);
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.cart-item-price {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cart-item-remove {
+  background: transparent;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  font-size: 1.1rem;
+}
+
+.cart-item-remove:hover {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  transform: scale(1.1);
+}
+
+.cart-total {
+  border-top: 2px solid var(--border);
+  padding-top: 1rem;
+  margin-top: auto;
+}
+
+/* Quantity input */
+#posSaleQty {
+  font-size: 1.25rem;
+  font-weight: 600;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+#posSaleQty:focus {
+  border-color: var(--accent);
+  background: var(--bg);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 /* Custom scrollbar for modal bodies */
@@ -2856,6 +3063,20 @@ html {
   }
 }
 
+/* Allow opt-in animations even when user prefers reduced motion.
+   Use by adding class="force-animate" on a wrapper. */
+@media (prefers-reduced-motion: reduce) {
+  .force-animate,
+  .force-animate *,
+  .force-animate *::before,
+  .force-animate *::after {
+    animation-duration: initial !important;
+    animation-iteration-count: initial !important;
+    transition-duration: initial !important;
+    animation-play-state: running !important;
+  }
+}
+
 /* Stagger animation for multiple rows */
 #canteenManagerDashboard #menuItemsTbody tr:nth-child(1) {
   animation-delay: 0.05s;
@@ -2930,4 +3151,470 @@ html {
 
 #deleteMenuItemModal .text-danger {
   font-weight: 600;
+}
+
+/* ==========================================
+   RFID PAIRING MODAL ANIMATIONS
+   ========================================== */
+
+/* RFID Icon with pulse rings */
+.rfid-icon-container {
+  position: relative;
+  display: inline-block;
+  width: 140px;
+  height: 140px;
+}
+
+.rfid-icon {
+  position: relative;
+  font-size: 6rem !important;
+  color: var(--accent);
+  z-index: 2;
+  animation: rfid-float 3s ease-in-out infinite;
+}
+
+.rfid-pulse-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100px;
+  height: 100px;
+  border: 3px solid var(--accent);
+  border-radius: 50%;
+  opacity: 0;
+  animation: rfid-pulse 2s ease-out infinite;
+}
+
+.rfid-pulse-ring.delay-1 {
+  animation-delay: 0.6s;
+}
+
+.rfid-pulse-ring.delay-2 {
+  animation-delay: 1.2s;
+}
+
+@keyframes rfid-pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.8);
+    opacity: 0;
+  }
+}
+
+@keyframes rfid-float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Loading dots animation */
+.rfid-dots {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.rfid-dots .dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: dot-bounce 1.4s ease-in-out infinite both;
+}
+
+.rfid-dots .dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.rfid-dots .dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes dot-bounce {
+  0%,
+  80%,
+  100% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Status indicator */
+.rfid-status-indicator {
+  padding: 1.5rem;
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  border-radius: var(--radius-lg);
+  border: 2px dashed color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* Timer */
+.rfid-timer {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
+  border-radius: var(--radius-pill);
+  color: var(--warning);
+  font-size: 0.95rem;
+  animation: timer-pulse 2s ease-in-out infinite;
+}
+
+.rfid-timer strong {
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes timer-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--warning) 40%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
+/* Success animations */
+.success-icon-container {
+  position: relative;
+  margin: 2rem auto;
+}
+
+.success-checkmark {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto;
+  border-radius: 50%;
+  display: block;
+  stroke-width: 3;
+  stroke: var(--success);
+  stroke-miterlimit: 10;
+  box-shadow: inset 0 0 0 var(--success);
+  animation: success-fill 0.4s ease-in-out 0.4s forwards,
+    success-scale 0.3s ease-in-out 0.9s both;
+  position: relative;
+}
+
+.check-icon {
+  width: 120px;
+  height: 120px;
+  position: relative;
+  border-radius: 50%;
+  box-sizing: content-box;
+  border: 4px solid var(--success);
+}
+
+.check-icon::before {
+  top: 3px;
+  left: -2px;
+  width: 30px;
+  transform-origin: 100% 50%;
+  border-radius: 100px 0 0 100px;
+}
+
+.check-icon::after {
+  top: 0;
+  left: 30px;
+  width: 60px;
+  transform-origin: 0 50%;
+  border-radius: 0 100px 100px 0;
+  animation: success-rotate-circle 4.25s ease-in;
+}
+
+.icon-line {
+  height: 5px;
+  background-color: var(--success);
+  display: block;
+  border-radius: 2px;
+  position: absolute;
+  z-index: 10;
+}
+
+.icon-line.line-tip {
+  top: 56px;
+  left: 25px;
+  width: 25px;
+  transform: rotate(45deg);
+  animation: success-icon-line-tip 0.75s;
+}
+
+.icon-line.line-long {
+  top: 50px;
+  left: 38px;
+  width: 47px;
+  transform: rotate(-45deg);
+  animation: success-icon-line-long 0.75s;
+}
+
+.icon-circle {
+  top: -4px;
+  left: -4px;
+  z-index: 10;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  position: absolute;
+  box-sizing: content-box;
+  border: 4px solid color-mix(in srgb, var(--success) 30%, transparent);
+}
+
+.icon-fix {
+  top: 8px;
+  width: 5px;
+  left: 26px;
+  z-index: 1;
+  height: 85px;
+  position: absolute;
+  transform: rotate(-45deg);
+  background-color: var(--surface);
+}
+
+@keyframes success-rotate-circle {
+  0% {
+    transform: rotate(-45deg);
+  }
+  5% {
+    transform: rotate(-45deg);
+  }
+  12% {
+    transform: rotate(-405deg);
+  }
+  100% {
+    transform: rotate(-405deg);
+  }
+}
+
+@keyframes success-icon-line-tip {
+  0% {
+    width: 0;
+    left: 1px;
+    top: 19px;
+  }
+  54% {
+    width: 0;
+    left: 1px;
+    top: 19px;
+  }
+  70% {
+    width: 50px;
+    left: -8px;
+    top: 37px;
+  }
+  84% {
+    width: 17px;
+    left: 21px;
+    top: 48px;
+  }
+  100% {
+    width: 25px;
+    left: 25px;
+    top: 56px;
+  }
+}
+
+@keyframes success-icon-line-long {
+  0% {
+    width: 0;
+    right: 46px;
+    top: 54px;
+  }
+  65% {
+    width: 0;
+    right: 46px;
+    top: 54px;
+  }
+  84% {
+    width: 55px;
+    right: 0;
+    top: 35px;
+  }
+  100% {
+    width: 47px;
+    right: 8px;
+    top: 50px;
+  }
+}
+
+@keyframes success-fill {
+  100% {
+    box-shadow: inset 0 0 0 60px var(--success);
+  }
+}
+
+@keyframes success-scale {
+  0%,
+  100% {
+    transform: none;
+  }
+  50% {
+    transform: scale3d(1.1, 1.1, 1);
+  }
+}
+
+/* Success card info */
+.success-card-info {
+  animation: slide-up 0.5s ease-out 0.3s both;
+}
+
+.success-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+  border: 2px solid color-mix(in srgb, var(--success) 30%, transparent);
+  border-radius: var(--radius-pill);
+  font-size: 1.1rem;
+}
+
+/* Confetti animation */
+.confetti-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.confetti {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--accent);
+  top: -10px;
+  opacity: 0;
+  animation: confetti-fall 3s ease-out forwards;
+}
+
+.confetti:nth-child(1) {
+  left: 10%;
+  background: var(--success);
+  animation-delay: 0.2s;
+}
+
+.confetti:nth-child(2) {
+  left: 30%;
+  background: var(--warning);
+  animation-delay: 0.4s;
+}
+
+.confetti:nth-child(3) {
+  left: 50%;
+  background: var(--accent);
+  animation-delay: 0.1s;
+}
+
+.confetti:nth-child(4) {
+  left: 70%;
+  background: var(--danger);
+  animation-delay: 0.3s;
+}
+
+.confetti:nth-child(5) {
+  left: 90%;
+  background: var(--success);
+  animation-delay: 0.5s;
+}
+
+@keyframes confetti-fall {
+  0% {
+    top: -10px;
+    opacity: 1;
+    transform: rotate(0deg);
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+    transform: rotate(720deg);
+  }
+}
+
+/* Error shake animation */
+.error-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-10px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(10px);
+  }
+}
+
+/* Fade in animations */
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out;
+}
+
+.animate-fade-in-delay {
+  animation: fade-in 0.5s ease-out 0.2s both;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.5s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Modal responsiveness */
+@media (max-width: 768px) {
+  .rfid-icon {
+    font-size: 4rem !important;
+  }
+
+  .rfid-icon-container {
+    width: 100px;
+    height: 100px;
+  }
+
+  .check-icon {
+    width: 80px;
+    height: 80px;
+  }
 }

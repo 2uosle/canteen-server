@@ -64,6 +64,106 @@
       }
     });
 
+    /* ==========================================
+       SOUND SYSTEM
+       ========================================== */
+    const SoundEffects = {
+      enabled: localStorage.getItem('soundEnabled') !== 'false', // Enabled by default
+      
+      // Sound effect URLs (using Web Audio API with generated tones)
+      sounds: {},
+      
+      // Initialize audio context
+      audioContext: null,
+      
+      init() {
+        if (!this.audioContext) {
+          this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+      },
+      
+      // Play a beep tone
+      playTone(frequency, duration, type = 'sine') {
+        if (!this.enabled) return;
+        
+        try {
+          this.init();
+          const oscillator = this.audioContext.createOscillator();
+          const gainNode = this.audioContext.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(this.audioContext.destination);
+          
+          oscillator.frequency.value = frequency;
+          oscillator.type = type;
+          
+          gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+          
+          oscillator.start(this.audioContext.currentTime);
+          oscillator.stop(this.audioContext.currentTime + duration);
+        } catch (e) {
+          console.warn('Sound playback failed:', e);
+        }
+      },
+      
+      // Predefined sound effects
+      success() {
+        // Happy ascending tone
+        this.playTone(523.25, 0.1); // C5
+        setTimeout(() => this.playTone(659.25, 0.1), 100); // E5
+        setTimeout(() => this.playTone(783.99, 0.15), 200); // G5
+      },
+      
+      error() {
+        // Descending warning tone
+        this.playTone(392.00, 0.15); // G4
+        setTimeout(() => this.playTone(329.63, 0.25), 150); // E4
+      },
+      
+      tap() {
+        // Quick blip for card tap
+        this.playTone(880, 0.08); // A5
+      },
+      
+      click() {
+        // Subtle click
+        this.playTone(1000, 0.05);
+      },
+      
+      complete() {
+        // Transaction complete (triumph sound)
+        this.playTone(523.25, 0.1); // C5
+        setTimeout(() => this.playTone(659.25, 0.1), 80); // E5
+        setTimeout(() => this.playTone(783.99, 0.1), 160); // G5
+        setTimeout(() => this.playTone(1046.50, 0.2), 240); // C6
+      },
+      
+      notify() {
+        // Gentle notification
+        this.playTone(659.25, 0.1); // E5
+        setTimeout(() => this.playTone(783.99, 0.1), 100); // G5
+      },
+      
+      warning() {
+        // Double beep warning
+        this.playTone(440, 0.1); // A4
+        setTimeout(() => this.playTone(440, 0.1), 150);
+      },
+      
+      toggle() {
+        this.enabled = !this.enabled;
+        localStorage.setItem('soundEnabled', this.enabled);
+        if (this.enabled) {
+          this.success(); // Play a sound to confirm enabled
+        }
+        return this.enabled;
+      }
+    };
+    
+    // Initialize on page load
+    SoundEffects.init();
+
     /* Helpers */
     const API_BASE = "http://127.0.0.1:3000";
     let token = null, userRole = null, pendingCheckInterval = null, pendingSaleId = null;
@@ -72,6 +172,12 @@
     // Helper functions are now in utils.js ($, show, hide, fmtMoney, httpGet, etc.)
 
     function toast(message, type="info"){
+      // Play sound based on type
+      if (type === "success") SoundEffects.success();
+      else if (type === "error") SoundEffects.error();
+      else if (type === "warn") SoundEffects.warning();
+      else SoundEffects.notify();
+      
       const id = "t" + Math.random().toString(36).slice(2);
       const colors = { info:"primary", success:"success", error:"danger", warn:"warning" };
       const icon   = { info:"info-circle", success:"check-circle", error:"exclamation-octagon", warn:"exclamation-triangle" }[type] || "info-circle";
@@ -116,6 +222,7 @@
         const data = await res.json();
 
         if (data.token){
+          SoundEffects.success(); // Login success sound
           token = data.token; userRole = data.role;
           localStorage.setItem("token", token);
           localStorage.setItem("role", userRole);
@@ -1955,7 +2062,22 @@ function logout(){
     /* ==================== POS SYSTEM FUNCTIONS ==================== */
     let posState = {
       topup: { amount: '', pendingId: null, interval: null, pollCount: 0 },
-      sale: { amount: '', itemId: '', itemName: '', pendingId: null, interval: null, pollCount: 0, isCustomItem: false, isMenuItemSelected: false, menuItems: [] }
+      sale: { 
+        amount: '', 
+        itemId: '', 
+        itemName: '', 
+        pendingId: null, 
+        interval: null, 
+        pollCount: 0, 
+        isCustomItem: false, 
+        isMenuItemSelected: false, 
+        menuItems: [],
+        cart: {
+          orderId: null,
+          items: [],
+          total: 0
+        }
+      }
     };
 
     // Format amount as currency
@@ -2231,6 +2353,9 @@ function logout(){
           clearInterval(posState.topup.interval);
           posState.topup.interval = null;
           
+          // Play transaction complete sound
+          SoundEffects.complete();
+          
           $('topupSuccessAmount').textContent = fmtMoney(data.amount);
           $('topupSuccessDetails').innerHTML = `
             <strong>Student:</strong> ${data.student_name || 'N/A'}
@@ -2250,38 +2375,47 @@ function logout(){
       }
     }
 
+    let topupCancelSelectedReason = null;
+
     function posCancelTopup() {
-      // Show cancellation reason modal
+      // Show unified cancellation reason modal
       const cancelModal = new bootstrap.Modal(document.getElementById('topupCancelModal'));
       cancelModal.show();
+
+      // Wire up buttons once (idempotent)
+      document.querySelectorAll('.topup-cancel-reason').forEach(btn => {
+        if (btn._wired) return;
+        btn._wired = true;
+        btn.addEventListener('click', () => topupSelectCancelReason(btn.dataset.reason, btn));
+      });
     }
 
-    function toggleCustomCancelReason() {
-      const select = $('cancelReasonSelect');
-      const customDiv = $('customCancelReasonDiv');
-      const customTextarea = $('customCancelReason');
-      
-      if (select.value === 'custom') {
-        customDiv.classList.remove('d-none');
-        customTextarea.focus();
+    function topupSelectCancelReason(reason, btnEl) {
+      topupCancelSelectedReason = reason;
+      // Toggle selected state
+      document.querySelectorAll('.topup-cancel-reason').forEach(b => b.classList.remove('selected'));
+      if (btnEl) btnEl.classList.add('selected');
+
+      const customBox = document.getElementById('topupCustomReasonContainer');
+      if (reason === 'custom') {
+        customBox?.classList.remove('d-none');
+        document.getElementById('topupCustomReasonInput')?.focus();
       } else {
-        customDiv.classList.add('d-none');
-        customTextarea.value = '';
+        customBox?.classList.add('d-none');
       }
     }
 
     async function confirmTopupCancellation() {
-      const select = $('cancelReasonSelect');
-      const customReason = $('customCancelReason').value.trim();
-      
-      let reason = select.value;
-      if (reason === 'custom') {
-        if (!customReason) {
+      let reasonText = getTopupReasonText(topupCancelSelectedReason);
+      if (topupCancelSelectedReason === 'custom') {
+        const custom = (document.getElementById('topupCustomReasonInput')?.value || '').trim();
+        if (!custom) {
           toast('Please specify a cancellation reason', 'warning');
           return;
         }
-        reason = customReason;
-      } else if (!reason) {
+        reasonText = custom;
+      }
+      if (!reasonText) {
         toast('Please select a cancellation reason', 'warning');
         return;
       }
@@ -2300,13 +2434,13 @@ function logout(){
             },
             body: JSON.stringify({ 
               pending_id: posState.topup.pendingId,
-              reason: reason
+              reason: reasonText
             })
           });
           const data = await res.json();
 
           if (data.success) {
-            toast('Top-up cancelled: ' + reason, 'info');
+            toast('Top-up cancelled: ' + reasonText, 'info');
           } else {
             toast(data.error || 'Failed to cancel top-up', 'error');
           }
@@ -2324,55 +2458,27 @@ function logout(){
 
       // Reset the form
       posResetTopup();
-      
-      // Reset cancellation modal
-      $('cancelReasonSelect').value = '';
-      $('customCancelReason').value = '';
-      $('customCancelReasonDiv').classList.add('d-none');
+      // Reset selection state
+      topupCancelSelectedReason = null;
+      const customBox = document.getElementById('topupCustomReasonContainer');
+      if (customBox) customBox.classList.add('d-none');
+      const input = document.getElementById('topupCustomReasonInput');
+      if (input) input.value = '';
     }
 
-    function posResetTopup() {
-      if (posState.topup.interval) {
-        clearInterval(posState.topup.interval);
-      }
-      posState.topup = { amount: '', pendingId: null, interval: null, pollCount: 0 };
-      $('posTopupAmount').value = '';
-      posShowStep('topup', 1);
-      // Close modal
-      bootstrap.Modal.getInstance(document.getElementById('topupModal'))?.hide();
+    function getTopupReasonText(code) {
+      const map = {
+        wrong_amount: 'Wrong Amount Entered',
+        student_cancelled: 'Customer Changed Mind',
+        card_issue: 'Card Reading Issue',
+        timeout: 'Timeout - Customer took too long',
+        system_error: 'System Error',
+        custom: ''
+      };
+      return map[code] ?? '';
     }
 
-    // ========== SALE FLOW ==========
-    function posConfirmSale() {
-      const searchInput = $('posSaleItemSearch');
-      const itemName = searchInput ? searchInput.value.trim() : '';
-      const amount = $('posSaleAmount').value.trim();
-
-      // Validate item name
-      if (!itemName) {
-        toast('Please enter or select an item', 'warn');
-        return;
-      }
-      
-      // Validate amount
-      if (!amount || parseFloat(amount) <= 0) {
-        toast('Please enter a valid price', 'warn');
-        return;
-      }
-      
-      // If itemName is not in posState yet (user didn't select from dropdown), treat as custom
-      if (!posState.sale.itemName) {
-        posState.sale.itemName = itemName;
-        posState.sale.isCustomItem = true;
-        posState.sale.itemId = '';
-      }
-      
-      posState.sale.amount = amount;
-
-      $('saleConfirmItem').textContent = posState.sale.itemName;
-      $('saleConfirmAmount').textContent = fmtMoney(amount);
-      posShowStep('sale', 2);
-    }
+    // (Removed duplicate/broken posRenderCart implementation)
 
     async function posStartSaleTap() {
       const amount = posState.sale.amount;
@@ -2439,11 +2545,19 @@ function logout(){
           clearInterval(posState.sale.interval);
           posState.sale.interval = null;
           
+          // Play transaction complete sound
+          SoundEffects.complete();
+          
           $('saleSuccessAmount').textContent = fmtMoney(data.amount);
           $('saleSuccessDetails').innerHTML = `
             <strong>Item:</strong> ${data.item_name || posState.sale.itemName}<br>
             <strong>Student:</strong> ${data.student_name || 'N/A'}
           `;
+
+          // Clear cart after successful transaction
+          posState.sale.cart = { orderId: null, items: [], total: 0 };
+          try { posRenderCart(); } catch(_) {}
+          posState.sale.pendingId = null;
           posShowStep('sale', 4);
           loadSales(); // Refresh the table
           toast('Sale completed!', 'success');
@@ -2452,11 +2566,29 @@ function logout(){
           posState.sale.interval = null;
           $('saleTapStatus').textContent = 'Transaction failed!';
           toast('Sale failed (insufficient balance or locked card)', 'error');
+          // Clear cart on failure as well for safety
+          posState.sale.cart = { orderId: null, items: [], total: 0 };
+          try { posRenderCart(); } catch(_) {}
+          posState.sale.pendingId = null;
           setTimeout(() => posResetSale(), 3000);
         }
       } catch (e) {
         console.error('Status check error:', e);
       }
+    }
+
+    // Start polling for a sale that has already created a pending_id (used by cart checkout)
+    function posStartSalePolling() {
+      if (!posState.sale.pendingId) return;
+      // Reset/ensure status label
+      const st = $('saleTapStatus');
+      if (st) st.textContent = 'Waiting for card...';
+      // Clear any previous interval
+      if (posState.sale.interval) clearInterval(posState.sale.interval);
+      posState.sale.pollCount = 0;
+      // Kick an immediate check then start interval
+      posCheckSaleStatus();
+      posState.sale.interval = setInterval(posCheckSaleStatus, 500);
     }
 
     async function posCancelSale() {
@@ -2574,13 +2706,51 @@ function logout(){
       if (posState.sale.interval) {
         clearInterval(posState.sale.interval);
       }
-      posState.sale = { amount: '', itemId: '', itemName: '', pendingId: null, interval: null, pollCount: 0 };
+      // Preserve already-loaded menu items so "NEW SALE" doesn't lose them
+      const existingMenuItems = (posState.sale && Array.isArray(posState.sale.menuItems)) ? posState.sale.menuItems : [];
+      posState.sale = { 
+        amount: '', 
+        itemId: '', 
+        itemName: '', 
+        pendingId: null, 
+        interval: null, 
+        pollCount: 0,
+        menuItems: existingMenuItems,
+        cart: { orderId: null, items: [], total: 0 },
+        isMenuItemSelected: false,
+        isCustomItem: false
+      };
       $('posSaleAmount').value = '';
-      $('posSaleItemManual').value = '';
-      $('posSaleItemSelect').selectedIndex = 0;
+      $('posSaleItemSearch').value = '';
+      $('posSaleQty').value = '1';
+      posRenderCart();
       posShowStep('sale', 1);
+      // If we somehow don't have menu items yet (first run or vendor switched), load them now
+      try {
+        if (!posState.sale.menuItems || posState.sale.menuItems.length === 0) {
+          if (typeof loadMenuItems === 'function') {
+            loadMenuItems();
+          }
+        }
+      } catch (_) {}
       // Close modal
       bootstrap.Modal.getInstance(document.getElementById('saleModal'))?.hide();
+    }
+
+    function posResetTopup() {
+      if (posState.topup.interval) {
+        clearInterval(posState.topup.interval);
+      }
+      posState.topup = { 
+        amount: '', 
+        pendingId: null, 
+        interval: null, 
+        pollCount: 0
+      };
+      $('posTopupAmount').value = '';
+      posShowStep('topup', 1);
+      // Close modal
+      bootstrap.Modal.getInstance(document.getElementById('topupModal'))?.hide();
     }
 
     // Sale item search and dropdown
@@ -2633,7 +2803,8 @@ function logout(){
           <span class="pos-dropdown-item-name">${item.item_name}</span>
           <span class="pos-dropdown-item-price">${fmtMoney(item.price)}</span>
         `;
-        div.onclick = () => posSelectMenuItem(item);
+        // Quick-add: clicking a menu item adds qty=1 to cart immediately
+        div.onclick = () => posQuickAddMenuItem(item);
         dropdownItems.appendChild(div);
       });
     }
@@ -2690,6 +2861,269 @@ function logout(){
       
       amountInput.readOnly = !enabled;
       amountInput.style.cursor = enabled ? 'text' : 'not-allowed';
+    }
+
+    // Quick add a menu item to the cart with qty = 1
+    async function posQuickAddMenuItem(item) {
+      try {
+        // Ensure cart object exists
+        if (!posState.sale.cart) {
+          posState.sale.cart = { orderId: null, items: [], total: 0 };
+        }
+
+        // Ensure order exists
+        if (!posState.sale.cart.orderId) {
+          const resOrder = await fetch(API_BASE + '/orders', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({ device_id: 'web-pos' })
+          });
+          const dataOrder = await resOrder.json();
+          if (!dataOrder.success) throw new Error(dataOrder.error || 'Failed to create order');
+          posState.sale.cart.orderId = dataOrder.order_id;
+        }
+
+        // Add one unit of the item
+        const payload = {
+          item_id: item.item_id || null,
+          price: parseFloat(item.price),
+          qty: 1
+        };
+        
+        const resAdd = await fetch(API_BASE + `/orders/${posState.sale.cart.orderId}/items`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify(payload)
+        });
+        const dataAdd = await resAdd.json();
+        if (!dataAdd.success) {
+          console.error('Add item failed:', dataAdd);
+          throw new Error(dataAdd.error || dataAdd.message || 'Failed to add item');
+        }
+
+        // Update cart state
+        posState.sale.cart.items = dataAdd.items || [];
+        posState.sale.cart.total = dataAdd.order?.total_amount || 0;
+
+        // Render cart and keep dropdown open for rapid entries
+        posRenderCart();
+        const searchInput = $('posSaleItemSearch');
+        if (searchInput) searchInput.focus();
+        const dropdown = $('posSaleDropdown');
+        if (dropdown) dropdown.style.display = 'block';
+        
+        toast(`Added ${item.item_name}`, 'success');
+      } catch (err) {
+        console.error('Quick add error:', err);
+        toast(err.message || 'Failed to add item', 'error');
+      }
+    }
+    
+    /* ==================== CART FUNCTIONS ==================== */
+    async function posAddItemToCart() {
+      const searchInput = $('posSaleItemSearch');
+      const amountInput = $('posSaleAmount');
+      const qtyInput = $('posSaleQty');
+      
+      const itemName = searchInput.value.trim();
+      const price = parseFloat(amountInput.value);
+      const qty = parseInt(qtyInput.value) || 1;
+      
+      if (!itemName) {
+        toast('Please enter item name', 'warn');
+        return;
+      }
+      if (!price || price <= 0) {
+        toast('Please enter valid price', 'warn');
+        return;
+      }
+      
+      try {
+        // Create order if not exists
+        if (!posState.sale.cart.orderId) {
+          const res = await fetch(API_BASE + '/orders', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({ device_id: 'web-pos' })
+          });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.error || 'Failed to create order');
+          posState.sale.cart.orderId = data.order_id;
+        }
+        
+        // Add item to order
+        const res = await fetch(API_BASE + `/orders/${posState.sale.cart.orderId}/items`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({
+            item_id: posState.sale.itemId || null,
+            custom_item: posState.sale.isMenuItemSelected ? null : itemName,
+            price: price,
+            qty: qty
+          })
+        });
+        
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Failed to add item');
+        
+        // Update cart state
+        posState.sale.cart.items = data.items || [];
+        posState.sale.cart.total = data.order?.total_amount || 0;
+        
+        // Play click sound for adding item
+        SoundEffects.click();
+        
+        // Render cart
+        posRenderCart();
+        
+        // Clear inputs
+        searchInput.value = '';
+        amountInput.value = '';
+        qtyInput.value = '1';
+        posState.sale.itemId = '';
+        posState.sale.itemName = '';
+        posState.sale.isMenuItemSelected = false;
+        posState.sale.isCustomItem = false;
+        enableSaleKeypad(true);
+        
+        toast('Item added to cart', 'success');
+      } catch (err) {
+        console.error('Add to cart error:', err);
+        toast(err.message || 'Failed to add item', 'error');
+      }
+    }
+    
+    function posRenderCart() {
+      const cartEmpty = $('saleCartEmpty');
+      const cartItems = $('saleCartItems');
+      const cartTotalSection = $('saleCartTotalSection');
+      const cartTotal = $('saleCartTotal');
+      const cartCount = $('saleCartCount');
+      const cart = (posState && posState.sale && posState.sale.cart) ? posState.sale.cart : { items: [], total: 0 };
+      
+      if (!cart.items || cart.items.length === 0) {
+        if (cartEmpty) cartEmpty.classList.remove('d-none');
+        if (cartItems) cartItems.classList.add('d-none');
+        if (cartTotalSection) cartTotalSection.classList.add('d-none');
+        if (cartTotal) cartTotal.textContent = '₱0.00';
+        if (cartCount) cartCount.textContent = '0';
+        return;
+      }
+      
+      if (cartEmpty) cartEmpty.classList.add('d-none');
+      if (cartItems) cartItems.classList.remove('d-none');
+      if (cartTotalSection) cartTotalSection.classList.remove('d-none');
+      
+      // Render items
+      cartItems.innerHTML = cart.items.map(item => {
+        const itemName = item.custom_item || posState.sale.menuItems.find(m => m.item_id === item.item_id)?.item_name || `Item #${item.item_id}`;
+        const lineTotal = parseFloat(item.line_total || (item.price * item.qty)).toFixed(2);
+        
+        return `
+          <div class="cart-item">
+            <div class="cart-item-info">
+              <div class="cart-item-name">${itemName}</div>
+              <div class="cart-item-details">
+                <span class="cart-item-qty">×${item.qty}</span>
+                <span class="cart-item-price">₱${parseFloat(item.price).toFixed(2)} each</span>
+              </div>
+            </div>
+            <div class="fw-bold">₱${lineTotal}</div>
+            <button class="cart-item-remove" onclick="posRemoveFromCart(${item.id})" title="Remove">
+              <i class="bi bi-x-circle-fill"></i>
+            </button>
+          </div>
+        `;
+      }).join('');
+      
+      // Update total
+      if (cartTotal) cartTotal.textContent = '₱' + parseFloat(cart.total || 0).toFixed(2);
+      if (cartCount) cartCount.textContent = cart.items.length;
+    }
+    
+    async function posRemoveFromCart(lineId) {
+      if (!posState.sale.cart.orderId) return;
+      
+      try {
+        const res = await fetch(API_BASE + `/orders/${posState.sale.cart.orderId}/items/${lineId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Failed to remove item');
+        
+        // Update cart state
+        posState.sale.cart.items = data.items || [];
+        posState.sale.cart.total = data.order?.total_amount || 0;
+        
+        posRenderCart();
+        toast('Item removed', 'info');
+      } catch (err) {
+        console.error('Remove from cart error:', err);
+        toast(err.message || 'Failed to remove item', 'error');
+      }
+    }
+    
+    async function posSubmitCart() {
+      if (!posState.sale.cart.orderId || posState.sale.cart.items.length === 0) {
+        toast('Cart is empty', 'warn');
+        return;
+      }
+      
+      try {
+        const res = await fetch(API_BASE + `/orders/${posState.sale.cart.orderId}/submit`, {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Failed to submit order');
+        
+        // Store pending ID and show tap screen
+        posState.sale.pendingId = data.pending_id;
+        posState.sale.amount = data.amount;
+        
+        // Update tap screen
+        const tapAmount = $('saleTapAmount');
+        const tapItem = $('saleTapItem');
+        if (tapAmount) tapAmount.textContent = '₱' + parseFloat(data.amount).toFixed(2);
+        if (tapItem) tapItem.textContent = `${posState.sale.cart.items.length} items`;
+        
+        // Go to tap screen
+        posShowStep('sale', 3);
+        posStartSalePolling();
+        
+      } catch (err) {
+        console.error('Submit cart error:', err);
+        toast(err.message || 'Failed to submit order', 'error');
+      }
+    }
+    
+    function posClearCart() {
+      if (!confirm('Clear all items from cart?')) return;
+      
+      // Reset cart state
+      posState.sale.cart = {
+        orderId: null,
+        items: [],
+        total: 0
+      };
+      
+      posRenderCart();
+      toast('Cart cleared', 'info');
     }
     
     // Close dropdown when clicking outside
@@ -4278,6 +4712,8 @@ function logout(){
     function openSaleModal(){
       // Reset sale state (preserve menuItems)
       const menuItems = posState.sale.menuItems || [];
+      // Preserve existing cart if present, or initialize a new empty cart
+      const existingCart = (posState && posState.sale && posState.sale.cart) ? posState.sale.cart : { orderId: null, items: [], total: 0 };
       posState.sale = { 
         amount: '', 
         itemId: '', 
@@ -4287,16 +4723,26 @@ function logout(){
         pollCount: 0, 
         isCustomItem: false, 
         isMenuItemSelected: false,
-        menuItems: menuItems
+        menuItems: menuItems,
+        cart: existingCart
       };
       
-      // Reset UI
-      $('posSaleItemSearch').value = '';
-      $('posSaleAmount').value = '';
-      $('posSaleDropdown').style.display = 'none';
+      // Reset UI - guard against missing elements
+      const itemSearch = $('posSaleItemSearch');
+      const amount = $('posSaleAmount');
+      const qty = $('posSaleQty');
+      const dropdown = $('posSaleDropdown');
+      
+      if (itemSearch) itemSearch.value = '';
+      if (amount) amount.value = '';
+      if (qty) qty.value = '1';
+      if (dropdown) dropdown.style.display = 'none';
       
       // Enable keypad by default
       enableSaleKeypad(true);
+      
+  // Render cart on modal open (defensive if cart not initialized for any reason)
+  try { posRenderCart(); } catch (e) { console.warn('posRenderCart failed on open:', e); }
       
       posShowStep('sale', 1);
       bsModal('saleModal').show();
@@ -4356,6 +4802,16 @@ function logout(){
         hide($("settingsStudentOnly"));
       }
 
+      // Set sound toggle state
+      const soundToggle = $('soundToggle');
+      if (soundToggle) {
+        soundToggle.checked = SoundEffects.enabled;
+        soundToggle.onchange = function() {
+          SoundEffects.toggle();
+          toast(SoundEffects.enabled ? 'Sound effects enabled' : 'Sound effects disabled', 'info');
+        };
+      }
+
       bsModal('settingsModal').show();
     }
 
@@ -4395,9 +4851,11 @@ function logout(){
         });
         const data = await res.json();
         if (data?.success){
+          SoundEffects.success(); // Play success sound
           setAlert("settingsPwdAlert", "Password updated", "success");
           $("settingsPwdCurrent").value = $("settingsPwdNew").value = $("settingsPwdNew2").value = "";
         } else {
+          SoundEffects.error(); // Play error sound
           setAlert("settingsPwdAlert", data.error || "Password update failed", "danger");
         }
       }catch(e){
@@ -4513,12 +4971,15 @@ function logout(){
     }
     
     function retryPairing() {
-      // Get user ID from somewhere or prompt
-      const uid = $("pairUserId").value.trim();
-      if (uid) {
+      // Get the last user ID from the current context
+      const userId = lastCreatedUserId || (adminCurrentUser && adminCurrentUser.user_id);
+      if (userId) {
         hide($("tapError"));
         show($("tapWaiting"));
-        staffStartPairingForUser(uid, true);
+        staffStartPairingForUser(userId);
+      } else {
+        closePairingModal();
+        toast("Unable to retry - user ID not found", "error");
       }
     }
     
@@ -4567,15 +5028,28 @@ function logout(){
             clearInterval(staffPairInterval);
             staffPairInterval = null;
             
+            // Play success sound
+            SoundEffects.complete();
+            
             // Show success
             hide($("tapWaiting"));
             show($("tapSuccess"));
-            $("successCardInfo").textContent = `Card ${s.rfid || ''} successfully linked!`;
             
-            // Auto-close modal after 2 seconds
+            // Display RFID UID if available
+            const cardUID = s.rfid || s.uid || 'XXXX-XXXX';
+            $("successCardUID").textContent = cardUID;
+            $("successCardInfo").textContent = `The card has been successfully linked to the account`;
+            
+            // Reload admin users if in admin panel
+            if (typeof adminLoadAllUsers === 'function') {
+              setTimeout(() => adminLoadAllUsers(), 500);
+            }
+            
+            // Auto-close modal after 3 seconds
             setTimeout(() => {
               closePairingModal();
-            }, 2000);
+              toast("RFID card linked successfully!", "success");
+            }, 3000);
             
           } else if (s.failed || s.expired || remaining<=0){
             clearInterval(staffPairInterval);
@@ -5311,6 +5785,7 @@ function logout(){
         $("adminUserLockBtn").style.display = user.is_card_locked ? "none" : "inline-block";
         $("adminUserUnlockBtn").style.display = user.is_card_locked ? "inline-block" : "none";
         $("adminUserUnpairBtn").style.display = user.rfid_uid ? "inline-block" : "none";
+        $("adminUserLinkBtn").style.display = user.rfid_uid ? "none" : "inline-block";
 
         bsModal("adminUserDetailModal").show();
       } catch(e) {
@@ -5551,34 +6026,13 @@ function logout(){
     async function adminStartRFIDLink() {
       if (!lastCreatedUserId) return;
       
-      try {
-        const res = await fetch(API_BASE + "/rfid/link/start", {
-          method: "POST",
-          headers: {
-            "Authorization": "Bearer " + token,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ user_id: lastCreatedUserId })
-        });
-        
-        const data = await res.json();
-        
-        if (data.pending_id) {
-          rfidLinkPending = data.pending_id;
-          hide($("linkStepIdle"));
-          show($("linkStepActive"));
-          $("linkStatusText").textContent = "Waiting for card tap...";
-          $("linkStatusText").className = "small mt-2 text-primary";
-          
-          // Start polling
-          rfidLinkInterval = setInterval(() => adminCheckRFIDLinkStatus(), 1000);
-        } else {
-          toast(data.error || "Failed to start RFID link", "error");
-        }
-      } catch (e) {
-        console.error("RFID link start error:", e);
-        toast("Failed to start RFID link", "error");
-      }
+      // Close create user modal
+      bootstrap.Modal.getInstance($("adminCreateUserModal")).hide();
+      
+      // Open the RFID pairing modal
+      setTimeout(() => {
+        openPairingModal(lastCreatedUserId);
+      }, 300);
     }
     
     async function adminCheckRFIDLinkStatus() {
@@ -5772,6 +6226,19 @@ function logout(){
         console.error("Admin unlock card error:", e);
         toast("Failed to unlock card", "error");
       }
+    }
+
+    // Link RFID for user from detail modal
+    function adminLinkRFID() {
+      if (!adminCurrentUser) return;
+      
+      // Close detail modal
+      bootstrap.Modal.getInstance($("adminUserDetailModal")).hide();
+      
+      // Open RFID pairing modal
+      setTimeout(() => {
+        openPairingModal(adminCurrentUser.user_id);
+      }, 300);
     }
 
     // Unpair RFID
