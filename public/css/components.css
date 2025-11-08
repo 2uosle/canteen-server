@@ -934,6 +934,51 @@ html {
   }
 }
 
+/* =============================
+   ACCESSIBILITY: REDUCED MOTION
+   ============================= */
+@media (prefers-reduced-motion: reduce) {
+  .pos-tap-icon,
+  .tap-dot,
+  .pos-loading::before,
+  .pos-loading-bar,
+  .pos-success-icon {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Skip link styles */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.visually-hidden-focusable:active,
+.visually-hidden-focusable:focus {
+  position: static !important;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  z-index: 1000;
+}
+.skip-link {
+  display: inline-block;
+}
+
 .pos-success-screen {
   text-align: center;
   padding: clamp(1rem, 3.5vw, 1.5rem) clamp(0.75rem, 2.5vw, 1.25rem);
@@ -1397,6 +1442,58 @@ html {
 
 .custom-reason-container textarea {
   min-height: 80px;
+}
+
+/* Scrollable cancellation modal enhancements */
+#cancelReasonModal .modal-body,
+#topupCancelModal .modal-body {
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
+}
+
+#cancelReasonModal .modal-body::-webkit-scrollbar,
+#topupCancelModal .modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+#cancelReasonModal .modal-body::-webkit-scrollbar-track,
+#topupCancelModal .modal-body::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+#cancelReasonModal .modal-body::-webkit-scrollbar-thumb,
+#topupCancelModal .modal-body::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+#cancelReasonModal .modal-body::-webkit-scrollbar-thumb:hover,
+#topupCancelModal .modal-body::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--accent) 80%, var(--text));
+}
+
+/* Add scroll fade indicator */
+#cancelReasonModal .modal-body::after,
+#topupCancelModal .modal-body::after {
+  content: "";
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  background: linear-gradient(to bottom, transparent, var(--surface));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* Show fade when scrollable */
+#cancelReasonModal .modal-body[data-scrollable="true"]::after,
+#topupCancelModal .modal-body[data-scrollable="true"]::after {
+  opacity: 1;
 }
 
 /* ==================== STUDENT DASHBOARD ENHANCEMENTS ==================== */

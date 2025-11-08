@@ -34,6 +34,8 @@ const {
 } = require('./middleware/validation');
 
 const app = express();
+// Async handler utility (initial modularization step)
+const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 /* =====================
    WEBSOCKET INTEGRATION
@@ -159,16 +161,28 @@ const adminAuth = (req, res, next) => {
    ===================== */
 
 // Health check
-app.get('/health', async (req, res) => {
+app.get('/health', asyncHandler(async (req, res) => {
   const dbOk = await checkDb();
   res.json({ ok: true, db: dbOk });
-});
+}));
 
 // WebSocket stats (staff only)
 app.get('/ws/stats', auth('staff'), (req, res) => {
   const stats = getWsStats();
   res.json(stats);
 });
+
+/* =====================
+   INITIAL ROUTE MODULARIZATION
+   ===================== */
+let menuRouterLoaded = false;
+try {
+  const buildMenuRouter = require('./routes/menu');
+  app.use('/', buildMenuRouter({ pool, auth, asyncHandler, logger }));
+  menuRouterLoaded = true;
+} catch (e) {
+  logger.warn('Menu router not loaded; using inline endpoints', { error: e.message });
+}
 
 // Create user (staff-managed account creation)
 app.post('/addUser', auth('staff'), validate(addUserSchema), async (req, res) => {
@@ -819,8 +833,13 @@ app.post('/rfid/unlink', staffOrAdmin, validate(rfidUnlinkSchema), async (req, r
 });
 
 /* ---------- PENDING SALE FLOW (BLOCKED IF CARD LOCKED) ---------- */
-app.post('/pending-sale', auth('vendor'), validate(pendingSaleSchema), async (req, res) => {
+app.post('/pending-sale', auth(), validate(pendingSaleSchema), async (req, res) => {
   try {
+    // Only vendor, staff, and canteen_manager can create pending sales
+    if (!['vendor', 'staff', 'canteen_manager'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only staff, vendors, and canteen managers can create sales' });
+    }
+    
     let { item_id, item_name, amount } = req.body;
     if ((!item_id && !item_name) || amount == null) {
       return res.status(400).json({ error: 'item_id or item_name and amount required' });
@@ -968,8 +987,13 @@ app.post('/pending-sale/confirm', validate(confirmPendingSchema), async (req, re
   }
 });
 
-app.get('/pending-sale/status/:id', auth('vendor'), validate(statusParamSchema, 'params'), async (req, res) => {
+app.get('/pending-sale/status/:id', auth(), validate(statusParamSchema, 'params'), async (req, res) => {
   try {
+    // Only vendor, staff, and canteen_manager can check sale status
+    if (!['vendor', 'staff', 'canteen_manager'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only staff, vendors, and canteen managers can check sale status' });
+    }
+    
     const [[row]] = await pool.query(
       `SELECT ps.id, ps.item_id, ps.item_name, ps.amount, ps.confirmed, ps.created_at, ps.vendor_id, ps.order_id
        FROM pending_sales ps
@@ -1064,9 +1088,22 @@ app.get('/pending-sale/status/:id', auth('vendor'), validate(statusParamSchema, 
 
 /* ---------- VENDOR CANCEL TRANSACTION ---------- */
 // POST /pending-sale/cancel - Cancel a pending sale transaction
-app.post('/pending-sale/cancel', auth('vendor'), async (req, res) => {
+app.post('/pending-sale/cancel', auth(), async (req, res) => {
   try {
     const { pending_id, reason } = req.body;
+    
+    // Debug: Log what we received
+    console.log('Cancel request received:', {
+      body: req.body,
+      pending_id,
+      reason,
+      user_role: req.user.role
+    });
+    
+    // Only vendor, staff, and canteen_manager can cancel sales
+    if (!['vendor', 'staff', 'canteen_manager'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only staff, vendors, and canteen managers can cancel sales' });
+    }
     
     if (!pending_id) {
       return res.status(400).json({ error: 'pending_id required' });
@@ -1633,37 +1670,32 @@ app.post('/pending-reload/cancel', auth('staff'), async (req, res) => {
 });
 
 /* ---------- MENU ---------- */
-app.get('/menu', auth(), async (req, res) => {
-  try {
+// Fallback inline implementation if router isn't loaded
+if (!menuRouterLoaded) {
+  app.get('/menu', auth(), asyncHandler(async (req, res) => {
     const [rows] = await pool.query(
       'SELECT item_id, item_name, price FROM menu WHERE active=1 ORDER BY item_name'
     );
     res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+  }));
+}
 
 /* ---------- CANTEEN MANAGER MENU CRUD ---------- */
 // Get all menu items (including inactive) - canteen_manager only
-app.get('/menu-items', auth(), async (req, res) => {
-  try {
+if (!menuRouterLoaded) {
+  app.get('/menu-items', auth(), asyncHandler(async (req, res) => {
     if (req.user.role !== 'canteen_manager' && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Access denied. Canteen manager role required.' });
     }
-    
     const [rows] = await pool.query(
       'SELECT item_id, item_name, price, active FROM menu ORDER BY item_name'
     );
     res.json(rows);
-  } catch (err) {
-    logger.error('Error fetching menu items:', { error: err.message });
-    res.status(500).json({ error: err.message });
-  }
-});
+  }));
+}
 
-// Add new menu item - canteen_manager only
-app.post('/menu-items', auth(), async (req, res) => {
+// Add new menu item - canteen_manager only (fallback)
+if (!menuRouterLoaded) app.post('/menu-items', auth(), async (req, res) => {
   try {
     if (req.user.role !== 'canteen_manager' && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Access denied. Canteen manager role required.' });
@@ -1700,8 +1732,8 @@ app.post('/menu-items', auth(), async (req, res) => {
   }
 });
 
-// Update menu item - canteen_manager only
-app.put('/menu-items/:id', auth(), async (req, res) => {
+// Update menu item - canteen_manager only (fallback)
+if (!menuRouterLoaded) app.put('/menu-items/:id', auth(), async (req, res) => {
   try {
     if (req.user.role !== 'canteen_manager' && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Access denied. Canteen manager role required.' });
@@ -1743,8 +1775,8 @@ app.put('/menu-items/:id', auth(), async (req, res) => {
   }
 });
 
-// Delete menu item - canteen_manager only
-app.delete('/menu-items/:id', auth(), async (req, res) => {
+// Delete menu item - canteen_manager only (fallback)
+if (!menuRouterLoaded) app.delete('/menu-items/:id', auth(), async (req, res) => {
   try {
     if (req.user.role !== 'canteen_manager' && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Access denied. Canteen manager role required.' });
@@ -1774,6 +1806,16 @@ app.delete('/menu-items/:id', auth(), async (req, res) => {
     logger.error('Error deleting menu item:', { error: err.message, user_id: req.user.user_id });
     res.status(500).json({ error: err.message });
   }
+});
+
+/* =====================
+   ERROR HANDLER (centralized)
+   ===================== */
+// Place after route definitions
+app.use((err, req, res, next) => {
+  logger.error('Unhandled error', { error: err.message, stack: err.stack });
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: err.message || 'Internal Server Error' });
 });
 
 // Get menu analytics - canteen_manager only

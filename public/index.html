@@ -19,6 +19,8 @@
 
 </head>
 <body>
+  <a href="#dashboard" class="skip-link visually-hidden-focusable">Skip to main content</a>
+  <div id="ariaAlerts" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
 
   <!-- Topbar -->
   <nav class="navbar app-nav">
@@ -780,7 +782,7 @@
                     </button>
                   </div>
                   <div class="col-6 col-md-4">
-                    <button class="btn btn-outline-warning w-100 quick-action-btn" onclick="bsModal('settingsModal').show()">
+                    <button class="btn btn-outline-warning w-100 quick-action-btn" onclick="openSettings()">
                       <i class="bi bi-gear-fill d-block fs-3 mb-2"></i>
                       <span>Settings</span>
                     </button>
@@ -1645,23 +1647,14 @@
               </div>
             </div>
             <div class="col-12 col-md-6">
-              <div class="fw-semibold mb-2">Change Password</div>
+              <div class="fw-semibold mb-2">Security</div>
               <div id="settingsPwdDisabled" class="text-secondary small d-none">Password changes are available for student accounts only.</div>
-              <div id="settingsPwdArea" class="row g-2">
-                <div class="col-12">
-                  <input id="settingsPwdCurrent" type="password" class="form-control" placeholder="Current password" />
-                </div>
-                <div class="col-12 col-md-6">
-                  <input id="settingsPwdNew" type="password" class="form-control" placeholder="New password (min 8)" />
-                </div>
-                <div class="col-12 col-md-6">
-                  <input id="settingsPwdNew2" type="password" class="form-control" placeholder="Confirm new password" />
-                </div>
-                <div class="col-12 d-grid mt-2">
-                  <button class="btn btn-success-apple" onclick="changeMyPassword()"><i class="bi bi-key-fill me-1"></i> Update Password</button>
-                </div>
+              <div id="settingsPwdArea">
+                <p class="text-secondary small mb-3">Update your account password to keep your account secure.</p>
+                <button class="btn btn-success-apple w-100" onclick="openChangePasswordModal()">
+                  <i class="bi bi-key-fill me-2"></i>Change Password
+                </button>
               </div>
-              <div id="settingsPwdAlert" class="alert mt-3 d-none"></div>
             </div>
             <div class="col-12">
               <hr>
@@ -1683,6 +1676,51 @@
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change Password Modal -->
+  <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="changePasswordModalTitle">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass">
+        <div class="modal-header">
+          <h5 class="modal-title" id="changePasswordModalTitle"><i class="bi bi-key-fill me-2"></i>Change Password</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info mb-3">
+            <div class="fw-semibold mb-2"><i class="bi bi-info-circle me-2"></i>Password Requirements</div>
+            <ul class="mb-0 small">
+              <li>Minimum 8 characters</li>
+              <li>At least 1 uppercase letter (A-Z)</li>
+              <li>At least 1 special character (!@#$%^&*(),.?":{}|&lt;&gt;)</li>
+            </ul>
+          </div>
+          
+          <div class="mb-3">
+            <label for="changePwdCurrent" class="form-label fw-semibold">Current Password</label>
+            <input id="changePwdCurrent" type="password" class="form-control" placeholder="Enter current password" />
+          </div>
+          
+          <div class="mb-3">
+            <label for="changePwdNew" class="form-label fw-semibold">New Password</label>
+            <input id="changePwdNew" type="password" class="form-control" placeholder="Enter new password" />
+          </div>
+          
+          <div class="mb-3">
+            <label for="changePwdConfirm" class="form-label fw-semibold">Confirm New Password</label>
+            <input id="changePwdConfirm" type="password" class="form-control" placeholder="Re-enter new password" />
+          </div>
+          
+          <div id="changePwdAlert" class="alert d-none"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-success-apple" onclick="changeMyPassword()">
+            <i class="bi bi-check-circle me-1"></i>Update Password
+          </button>
         </div>
       </div>
     </div>
@@ -1865,11 +1903,11 @@
   </div>
 
   <!-- Top-Up Modal (Staff) -->
-  <div class="modal fade" id="topupModal" tabindex="-1" aria-hidden="true">
+  <div class="modal fade" id="topupModal" tabindex="-1" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="topupModalTitle">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content glass">
         <div class="modal-header border-0">
-          <h5 class="modal-title"><i class="bi bi-wallet2 me-2"></i>Quick Top-Up</h5>
+          <h5 class="modal-title" id="topupModalTitle"><i class="bi bi-wallet2 me-2"></i>Quick Top-Up</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
@@ -1978,18 +2016,18 @@
   </div>
 
   <!-- Topup Cancellation Reason Modal (Unified UI) -->
-  <div class="modal fade" id="topupCancelModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered">
+  <div class="modal fade" id="topupCancelModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" role="dialog" aria-modal="true" aria-labelledby="topupCancelTitle">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content glass">
         <div class="modal-header border-0 pb-0">
-          <h5 class="modal-title">
+          <h5 class="modal-title" id="topupCancelTitle">
             <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
             Cancel Top-Up
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body">
-          <p class="text-secondary mb-4">Why are you cancelling this top-up?</p>
+        <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+          <p class="text-secondary mb-3">Why are you cancelling this top-up?</p>
 
           <div class="cancel-reason-options">
             <button class="cancel-reason-btn topup-cancel-reason" data-reason="wrong_amount">
@@ -2061,11 +2099,11 @@
   </div>
 
   <!-- Sale Modal (Vendor) -->
-  <div class="modal fade" id="saleModal" tabindex="-1" aria-hidden="true">
+  <div class="modal fade" id="saleModal" tabindex="-1" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="saleModalTitle">
     <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content glass">
         <div class="modal-header border-0">
-          <h5 class="modal-title"><i class="bi bi-cart-plus me-2"></i>Record Sale</h5>
+          <h5 class="modal-title" id="saleModalTitle"><i class="bi bi-cart-plus me-2"></i>Record Sale</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
@@ -2236,7 +2274,7 @@
 
   <!-- Sale Cancellation Reason Modal -->
   <div class="modal fade" id="cancelReasonModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content glass">
         <div class="modal-header border-0 pb-0">
           <h5 class="modal-title">
@@ -2245,8 +2283,8 @@
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body">
-          <p class="text-secondary mb-4">Why are you cancelling this transaction?</p>
+        <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+          <p class="text-secondary mb-3">Why are you cancelling this transaction?</p>
           
           <div class="cancel-reason-options">
             <button class="cancel-reason-btn" data-reason="insufficient_funds">

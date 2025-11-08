@@ -171,16 +171,43 @@
 
     // Helper functions are now in utils.js ($, show, hide, fmtMoney, httpGet, etc.)
 
+    // Toast deduplication system
+    const recentToasts = new Map(); // Track recent toasts to prevent duplicates
+    const TOAST_DEDUPE_WINDOW = 2000; // 2 seconds window for deduplication
+    
     function toast(message, type="info"){
+      // Generate a unique key for this toast message
+      const toastKey = `${type}:${message}`;
+      const now = Date.now();
+      
+      // Check if we recently showed this exact toast
+      if (recentToasts.has(toastKey)) {
+        const lastShown = recentToasts.get(toastKey);
+        if (now - lastShown < TOAST_DEDUPE_WINDOW) {
+          console.log('[Toast] Prevented duplicate:', message);
+          return; // Skip duplicate toast
+        }
+      }
+      
+      // Record this toast
+      recentToasts.set(toastKey, now);
+      
+      // Clean up old entries (older than dedupe window)
+      for (const [key, timestamp] of recentToasts.entries()) {
+        if (now - timestamp > TOAST_DEDUPE_WINDOW) {
+          recentToasts.delete(key);
+        }
+      }
+      
       // Play sound based on type
       if (type === "success") SoundEffects.success();
       else if (type === "error") SoundEffects.error();
-      else if (type === "warn") SoundEffects.warning();
+      else if (type === "warn" || type === "warning") SoundEffects.warning();
       else SoundEffects.notify();
       
       const id = "t" + Math.random().toString(36).slice(2);
-      const colors = { info:"primary", success:"success", error:"danger", warn:"warning" };
-      const icon   = { info:"info-circle", success:"check-circle", error:"exclamation-octagon", warn:"exclamation-triangle" }[type] || "info-circle";
+      const colors = { info:"primary", success:"success", error:"danger", warn:"warning", warning:"warning" };
+      const icon   = { info:"info-circle", success:"check-circle", error:"exclamation-octagon", warn:"exclamation-triangle", warning:"exclamation-triangle" }[type] || "info-circle";
       const node = document.createElement("div");
       node.id = id;
       node.className = `toast align-items-center text-bg-${colors[type]||"primary"} border-0 show`;
@@ -2402,6 +2429,8 @@ function logout(){
         document.getElementById('topupCustomReasonInput')?.focus();
       } else {
         customBox?.classList.add('d-none');
+        // Immediately confirm cancellation for non-custom reasons
+        confirmTopupCancellation();
       }
     }
 
@@ -2420,8 +2449,24 @@ function logout(){
         return;
       }
 
-      // Hide the cancellation modal
-      bootstrap.Modal.getInstance(document.getElementById('topupCancelModal'))?.hide();
+      // Defensive check: Ensure pendingId exists
+      if (!posState.topup.pendingId) {
+        console.error('Cannot cancel top-up: No pending ID found', posState.topup);
+        toast('No pending top-up to cancel', 'error');
+        posResetTopup();
+        return;
+      }
+
+      // Hide the cancellation modal with defensive check
+      const topupModalElement = document.getElementById('topupCancelModal');
+      const topupModal = bootstrap.Modal.getInstance(topupModalElement);
+      if (topupModal) {
+        topupModal.hide();
+      } else {
+        // If no instance exists, create and hide
+        const modalInstance = new bootstrap.Modal(topupModalElement);
+        modalInstance.hide();
+      }
 
       // Send cancellation to server
       if (posState.topup.pendingId) {
@@ -2655,9 +2700,30 @@ function logout(){
     // Perform the actual cancellation
     async function performCancellation(reason) {
       try {
-        // Close modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById('cancelReasonModal'));
-        modal.hide();
+        // Defensive check: Ensure pendingId exists
+        if (!posState.sale.pendingId) {
+          console.error('Cannot cancel: No pending ID found', posState.sale);
+          toast('No pending transaction to cancel', 'error');
+          posResetSale();
+          return;
+        }
+        
+        // Close modal with defensive check
+        const modalElement = document.getElementById('cancelReasonModal');
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        if (modal) {
+          modal.hide();
+        } else {
+          // If no instance exists, try to hide via Bootstrap's static method
+          const modalInstance = new bootstrap.Modal(modalElement);
+          modalInstance.hide();
+        }
+        
+        // Debug: Log what we're sending
+        console.log('Cancel request data:', {
+          pending_id: posState.sale.pendingId,
+          reason: reason
+        });
         
         const res = await fetch(API_BASE + "/pending-sale/cancel", {
           method: "POST",
@@ -2671,16 +2737,8 @@ function logout(){
         const data = await res.json();
         
         if (data.success) {
-          toast('Transaction cancelled and logged', 'info');
-          
-          // Notify other users
-          if (typeof showNotification === 'function') {
-            showNotification(
-              `Transaction cancelled: ${posState.sale.itemName || 'Unknown item'}`,
-              'warning',
-              'bi-x-circle-fill'
-            );
-          }
+          // Only show one toast - WebSocket will handle notifications for other users
+          toast(`Transaction cancelled: ${posState.sale.itemName || 'Unknown item'}`, 'warning');
         } else {
           toast('Failed to cancel transaction', 'error');
         }
@@ -4748,9 +4806,17 @@ function logout(){
       bsModal('saleModal').show();
     }
     async function openSettings(){
+      // Defensive check: ensure modal element exists
+      const modalEl = document.getElementById('settingsModal');
+      if (!modalEl) {
+        console.error('Settings modal element not found');
+        toast('Settings unavailable. Please refresh the page.', 'error');
+        return;
+      }
+
       // Fill common info
-      $("settingsRole").textContent = (userRole || "�");
-      $("settingsUsername").textContent = (localStorage.getItem("username") || "�");
+      $("settingsRole").textContent = (userRole || "—");
+      $("settingsUsername").textContent = (localStorage.getItem("username") || "—");
       
       // Set User ID from token or student profile
       if (studentProfile && studentProfile.user_id) {
@@ -4759,12 +4825,12 @@ function logout(){
         // Try to decode user_id from token
         try {
           const payload = JSON.parse(atob(token.split('.')[1]));
-          $("settingsUserId").textContent = payload.user_id || "�";
+          $("settingsUserId").textContent = payload.user_id || "—";
         } catch (e) {
-          $("settingsUserId").textContent = "�";
+          $("settingsUserId").textContent = "—";
         }
       } else {
-        $("settingsUserId").textContent = "�";
+        $("settingsUserId").textContent = "—";
       }
 
       if (userRole === 'student'){
@@ -4812,7 +4878,15 @@ function logout(){
         };
       }
 
-      bsModal('settingsModal').show();
+      // Defer modal show to ensure Bootstrap is fully initialized
+      requestAnimationFrame(() => {
+        try {
+          bsModal('settingsModal').show();
+        } catch (e) {
+          console.error('Failed to show settings modal:', e);
+          toast('Failed to open settings. Please try again.', 'error');
+        }
+      });
     }
 
     async function toggleCardLock(){
@@ -4834,14 +4908,64 @@ function logout(){
       }
     }
 
+    function openChangePasswordModal() {
+      if (userRole !== 'student') {
+        toast('Password changes are available for student accounts only.', 'warning');
+        return;
+      }
+      
+      // Clear previous inputs and alerts
+      $("changePwdCurrent").value = "";
+      $("changePwdNew").value = "";
+      $("changePwdConfirm").value = "";
+      hide($("changePwdAlert"));
+      
+      // Get the settings modal element
+      const settingsModalEl = document.getElementById('settingsModal');
+      const settingsModal = bootstrap.Modal.getInstance(settingsModalEl);
+      
+      if (settingsModal) {
+        // Modal is open, hide it first and wait for it to fully close
+        settingsModalEl.addEventListener('hidden.bs.modal', function openChangePwd() {
+          // Remove this listener after it fires once
+          settingsModalEl.removeEventListener('hidden.bs.modal', openChangePwd);
+          
+          // Now show the change password modal
+          const changePwdModal = bsModal('changePasswordModal');
+          changePwdModal.show();
+          
+          // Add listener to return to settings when change password modal closes
+          const changePwdModalEl = document.getElementById('changePasswordModal');
+          changePwdModalEl.addEventListener('hidden.bs.modal', function returnToSettings() {
+            changePwdModalEl.removeEventListener('hidden.bs.modal', returnToSettings);
+            bsModal('settingsModal').show();
+          });
+        });
+        
+        // Trigger the hide
+        settingsModal.hide();
+      } else {
+        // Settings modal not open, just show change password modal
+        const changePwdModal = bsModal('changePasswordModal');
+        changePwdModal.show();
+      }
+    }
+
     async function changeMyPassword(){
-      if (userRole !== 'student'){ setAlert("settingsPwdAlert", "Only students can change password here.", "warning"); return; }
-      const cur = $("settingsPwdCurrent").value;
-      const n1  = $("settingsPwdNew").value;
-      const n2  = $("settingsPwdNew2").value;
-      if (!cur || !n1 || !n2){ setAlert("settingsPwdAlert", "Please fill all fields", "warning"); return; }
-      if (n1 !== n2){ setAlert("settingsPwdAlert", "New passwords do not match", "danger"); return; }
-      if (n1.length < 8){ setAlert("settingsPwdAlert", "New password must be at least 8 characters", "warning"); return; }
+      if (userRole !== 'student'){ setAlert("changePwdAlert", "Only students can change password here.", "warning"); return; }
+      const cur = $("changePwdCurrent").value;
+      const n1  = $("changePwdNew").value;
+      const n2  = $("changePwdConfirm").value;
+      
+      if (!cur || !n1 || !n2){ setAlert("changePwdAlert", "Please fill all fields", "warning"); return; }
+      if (n1 !== n2){ setAlert("changePwdAlert", "New passwords do not match", "danger"); return; }
+      if (n1.length < 8){ setAlert("changePwdAlert", "New password must be at least 8 characters", "warning"); return; }
+      
+      // Check for uppercase letter
+      if (!/[A-Z]/.test(n1)) { setAlert("changePwdAlert", "Password must contain at least 1 uppercase letter", "warning"); return; }
+      
+      // Check for special character
+      if (!/[!@#$%^&*(),.?":{}|<>]/.test(n1)) { setAlert("changePwdAlert", "Password must contain at least 1 special character", "warning"); return; }
 
       try{
         const res = await fetch(API_BASE + "/student/password", {
@@ -4852,14 +4976,19 @@ function logout(){
         const data = await res.json();
         if (data?.success){
           SoundEffects.success(); // Play success sound
-          setAlert("settingsPwdAlert", "Password updated", "success");
-          $("settingsPwdCurrent").value = $("settingsPwdNew").value = $("settingsPwdNew2").value = "";
+          setAlert("changePwdAlert", "Password updated successfully!", "success");
+          $("changePwdCurrent").value = $("changePwdNew").value = $("changePwdConfirm").value = "";
+          
+          // Close modal after 1.5 seconds
+          setTimeout(() => {
+            bsModal('changePasswordModal').hide();
+          }, 1500);
         } else {
           SoundEffects.error(); // Play error sound
-          setAlert("settingsPwdAlert", data.error || "Password update failed", "danger");
+          setAlert("changePwdAlert", data.error || "Password update failed", "danger");
         }
       }catch(e){
-        setAlert("settingsPwdAlert", "Network error", "danger");
+        setAlert("changePwdAlert", "Network error", "danger");
       }
     }
 

@@ -5,6 +5,7 @@
 let ws = null;
 let reconnectInterval = null;
 let isConnected = false;
+let isInitializing = false; // Prevent duplicate initialization
 
 // Notification queue for display
 const notificationQueue = [];
@@ -12,6 +13,20 @@ let isShowingNotification = false;
 
 // Initialize WebSocket connection
 function initWebSocket() {
+  // Prevent duplicate connections
+  if (isInitializing || (ws && ws.readyState === WebSocket.CONNECTING)) {
+    console.log('[WebSocket] Already initializing, skipping...');
+    return;
+  }
+  
+  // Close existing connection if any
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+    console.log('[WebSocket] Closing existing connection before reconnect');
+    ws.close();
+    ws = null;
+  }
+  
+  isInitializing = true;
   const WS_URL = 'ws://127.0.0.1:3001'; // WebSocket server port
   
   try {
@@ -20,6 +35,7 @@ function initWebSocket() {
     ws.onopen = () => {
       console.log('[WebSocket] Connected to notification server');
       isConnected = true;
+      isInitializing = false;
       
       // Clear reconnect interval if connected
       if (reconnectInterval) {
@@ -57,11 +73,13 @@ function initWebSocket() {
     
     ws.onerror = (error) => {
       console.error('[WebSocket] Error:', error);
+      isInitializing = false;
     };
     
     ws.onclose = () => {
       console.log('[WebSocket] Disconnected');
       isConnected = false;
+      isInitializing = false;
       
       // Attempt to reconnect every 5 seconds
       if (!reconnectInterval) {
@@ -74,6 +92,7 @@ function initWebSocket() {
     
   } catch (error) {
     console.error('[WebSocket] Connection failed:', error);
+    isInitializing = false;
   }
 }
 
@@ -271,6 +290,17 @@ function handleSaleCancelledNotification(data) {
   const currentRole = localStorage.getItem('role');
   
   if (currentRole === 'vendor') {
+    // Check if this is our own cancellation (skip duplicate notification)
+    if (window.posState && window.posState.sale && data.pending_id === window.posState.sale.pendingId) {
+      console.log('[WebSocket] Skipping own cancellation notification');
+      // Just refresh the sales list
+      if (typeof loadSales === 'function') {
+        setTimeout(() => loadSales(), 500);
+      }
+      return;
+    }
+    
+    // Show notification for other vendors' cancellations
     showNotification(
       `Transaction cancelled: ${data.item_name || 'Unknown'} - ${data.reason || 'No reason provided'}`,
       'warning',
