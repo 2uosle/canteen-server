@@ -9,9 +9,13 @@ const jwt = require('jsonwebtoken');
  * Generate a valid JWT token for testing
  */
 function generateToken(userId, role = 'student') {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('Test environment missing JWT_SECRET. Set it in tests/setup.js or before running Jest.');
+  }
   return jwt.sign(
     { userId, role },
-    process.env.JWT_SECRET || 'test-secret-key',
+    secret,
     { expiresIn: '24h' }
   );
 }

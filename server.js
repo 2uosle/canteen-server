@@ -87,8 +87,12 @@ app.use(generalLimiter);
 app.use(cors());
 app.use(express.json());
 
-// NOTE: move to .env for production
-const JWT_SECRET = process.env.JWT_SECRET || 'canteen_secret_key';
+// Centralized environment config & validation (enforces JWT_SECRET presence)
+const { JWT_SECRET, JWT_EXPIRES_IN } = require('./config/env');
+// Warn if secret appears to be the insecure legacy default
+if (JWT_SECRET === 'canteen_secret_key') {
+  logger.warn('Insecure legacy JWT secret detected. Generate a strong secret: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
+}
 
 // Pairing timeout (how long a pending RFID link is valid)
 const RFID_LINK_TTL_SEC = parseInt(process.env.RFID_LINK_TTL_SEC || '120', 10);
@@ -535,7 +539,7 @@ app.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
     const match = await bcrypt.compare(password, dbHash);
     if (!match) return res.status(400).json({ error: "Invalid password" });
 
-    const token = jwt.sign({ user_id: user.user_id, role: user.role }, JWT_SECRET, { expiresIn: '2h' });
+  const token = jwt.sign({ user_id: user.user_id, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN || '2h' });
     res.json({ token, role: user.role, username: user.username, name: user.name });
   } catch (err) {
     res.status(500).json({ error: err.message });

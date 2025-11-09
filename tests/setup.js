@@ -1,6 +1,12 @@
 // tests/setup.js
 // Jest setup file to handle test environment initialization
 
+// Ensure test env has a deterministic JWT secret for signing/verification
+process.env.NODE_ENV = 'test';
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = 'test-secret-key';
+}
+
 // Mock the WebSocket server to prevent port conflicts during testing
 jest.mock('../config/websocket', () => {
   // Create a mock WebSocket server

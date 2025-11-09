@@ -8,8 +8,7 @@ app.use(cors());
 app.use(express.json());
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-
-const JWT_SECRET = 'canteen_secret_key'; // TODO: move to .env later
+const { JWT_SECRET } = require('../config/env');
 
 // DB pool
 const pool = mysql.createPool({
