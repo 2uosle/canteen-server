@@ -409,7 +409,7 @@ app.post('/transaction', validate(transactionSchema), async (req, res) => {
 });
 
 /* ---------- REPORTS & EXPORTS ---------- */
-app.get('/report', auth(), validate(reportQuerySchema, 'query'), async (req, res) => {
+app.get('/report', auth('staff'), validate(reportQuerySchema, 'query'), async (req, res) => {
   try {
     const { from, to } = req.query;
     let q = `
@@ -1436,9 +1436,10 @@ app.get('/cancelled-transactions', auth('vendor'), async (req, res) => {
 });
 
 /* ---------- VENDOR SALES ENDPOINTS ---------- */
-// GET /sales - Get all sales transactions (vendor only)
+// GET /sales - Get all sales transactions (vendor only, scoped to caller)
 app.get('/sales', auth('vendor'), async (req, res) => {
   try {
+    const vendor_id = req.user.user_id;
     const [transactions] = await pool.query(
       `SELECT t.tx_id, u.name AS student, 
               COALESCE(m.item_name, t.custom_item) AS item_name,
@@ -1446,8 +1447,10 @@ app.get('/sales', auth('vendor'), async (req, res) => {
        FROM transactions t
        JOIN users u ON t.user_id = u.user_id
        LEFT JOIN menu m ON t.item_id = m.item_id
+       WHERE t.vendor_id = ?
        ORDER BY t.timestamp DESC
-       LIMIT 100`
+       LIMIT 100`,
+      [vendor_id]
     );
     res.json(transactions);
   } catch (err) {
@@ -1456,15 +1459,18 @@ app.get('/sales', auth('vendor'), async (req, res) => {
   }
 });
 
-// GET /sales/week - Get 7-day sales statistics (vendor only)
+// GET /sales/week - Get 7-day sales statistics (vendor only, scoped to caller)
 app.get('/sales/week', auth('vendor'), async (req, res) => {
   try {
+    const vendor_id = req.user.user_id;
     const [stats] = await pool.query(
       `SELECT DATE(timestamp) as day, SUM(amount) as total, COUNT(*) as count
        FROM transactions
        WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+         AND vendor_id = ?
        GROUP BY DATE(timestamp)
-       ORDER BY day ASC`
+       ORDER BY day ASC`,
+      [vendor_id]
     );
     res.json(stats);
   } catch (err) {
@@ -1494,7 +1500,7 @@ app.post('/pending-reload', auth('staff'), async (req, res) => {
   }
 });
 
-app.get('/pending-reload/latest', async (req, res) => {
+app.get('/pending-reload/latest', auth('staff'), async (req, res) => {
   try {
     const [rows] = await pool.query(
       'SELECT * FROM pending_reloads WHERE confirmed = 0 ORDER BY created_at DESC LIMIT 1'
@@ -1507,7 +1513,7 @@ app.get('/pending-reload/latest', async (req, res) => {
 });
 
 // ESP32 confirms reload after card tap
-app.post('/pending-reload/confirm', validate(confirmPendingSchema), async (req, res) => {
+app.post('/pending-reload/confirm', auth('staff'), validate(confirmPendingSchema), async (req, res) => {
   try {
     const { pending_id, uid, device_id } = req.body;
     console.log(`[Reload Confirm] Attempt: pending_id=${pending_id}, uid=${uid}, device=${device_id}`);
