@@ -6,6 +6,7 @@ let ws = null;
 let reconnectInterval = null;
 let isConnected = false;
 let isInitializing = false; // Prevent duplicate initialization
+let hasShownConnectedToast = false; // Only show "Connected" toast once per session
 
 // Notification queue for display
 const notificationQueue = [];
@@ -102,7 +103,11 @@ function handleWebSocketMessage(message) {
   
   switch (message.type) {
     case 'connected':
-      showNotification('Connected to real-time updates', 'success');
+      // Only show this toast on the first connection after login/refresh
+      if (!hasShownConnectedToast) {
+        showNotification('Connected to real-time updates', 'success');
+        hasShownConnectedToast = true;
+      }
       break;
       
     case 'balance_updated':

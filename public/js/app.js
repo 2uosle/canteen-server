@@ -3210,7 +3210,7 @@ function logout(){
       }
     }
     async function loadSales(){
-      const res = await fetch(API_BASE + "/report", { headers:{ "Authorization":"Bearer " + token }});
+      const res = await fetch(API_BASE + "/sales", { headers:{ "Authorization":"Bearer " + token }});
       const rows = await res.json();
       const tbody = $("salesTbody");
       tbody.innerHTML = "";
@@ -3575,13 +3575,13 @@ function logout(){
         return;
       }
       
-      // Use 'from' and 'to' params for /report endpoint
+      // Use 'from' and 'to' params for /sales endpoint
       const params = new URLSearchParams({
         from: startDateInput.value,
         to: endDateInput.value
       });
       
-      const res = await fetch(API_BASE + "/report?" + params, { 
+      const res = await fetch(API_BASE + "/sales?" + params, { 
         headers:{ "Authorization":"Bearer " + token }
       });
       const rows = await res.json();
