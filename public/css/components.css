@@ -2544,32 +2544,46 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   background: linear-gradient(
     135deg,
     var(--accent) 0%,
-    color-mix(in srgb, var(--accent) 80%, #000) 100%
+    color-mix(in srgb, var(--accent) 85%, #000) 100%
   );
   color: white;
   border-bottom: none;
+  padding: 1.25rem 1.5rem;
 }
 
 #adminCreateUserModal .modal-header .btn-close {
   filter: brightness(0) invert(1);
+  opacity: 1;
 }
 
 #adminCreateUserModal .modal-title {
-  font-weight: 600;
-  font-size: 1.25rem;
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: #ffffff !important;
+  background: none !important;
+  -webkit-text-fill-color: #ffffff !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.02em;
+  opacity: 1;
+}
+
+#adminCreateUserModal .modal-title i {
+  color: #ffffff !important;
 }
 
 #adminCreateUserModal .form-label.fw-semibold {
   color: var(--text);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   margin-bottom: 0.5rem;
 }
 
 #adminCreateUserModal .form-control,
 #adminCreateUserModal .form-select {
   border-radius: var(--radius-md);
-  padding: 0.625rem 0.875rem;
-  font-size: 0.95rem;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
 }
 
 #adminCreateUserModal .form-control:focus,
@@ -2598,7 +2612,7 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
 
 #adminCreateUserModal #passwordRules {
   background: var(--surface);
-  padding: 0.75rem;
+  padding: 0.875rem 1rem;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
 }
@@ -2608,9 +2622,10 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   position: relative;
   color: var(--text-secondary);
   transition: all 0.3s ease;
+  font-size: 0.925rem;
 }
 #adminCreateUserModal #passwordRules li i {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   transition: all 0.3s ease;
 }
 #adminCreateUserModal #passwordRules li.ok {
