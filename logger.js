@@ -1,6 +1,7 @@
 const winston = require('winston');
 const DailyRotateFile = require('winston-daily-rotate-file');
 const path = require('path');
+const fs = require('fs');
 
 // Define log format
 const logFormat = winston.format.combine(
@@ -28,8 +29,18 @@ const consoleFormat = winston.format.combine(
   })
 );
 
+// Determine logs directory (configurable via env)
+const logsDir = process.env.LOG_DIR
+  ? path.isAbsolute(process.env.LOG_DIR) ? process.env.LOG_DIR : path.join(__dirname, process.env.LOG_DIR)
+  : path.join(__dirname, 'logs');
+
 // Create logs directory if it doesn't exist
-const logsDir = path.join(__dirname, 'logs');
+try {
+  fs.mkdirSync(logsDir, { recursive: true });
+} catch (err) {
+  // eslint-disable-next-line no-console
+  console.error('[Logger] Failed to create logs directory:', logsDir, err.message);
+}
 
 // Transport for error logs (only errors)
 const errorFileTransport = new DailyRotateFile({

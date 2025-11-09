@@ -11,10 +11,7 @@ const Joi = require('joi');
  */
 function validate(schema, property = 'body') {
   return (req, res, next) => {
-    // Debug logging
-    console.log(`=== VALIDATION DEBUG (${property}) ===`);
-    console.log('Data being validated:', req[property]);
-    
+    // Note: Avoid logging request payloads here to prevent leaking sensitive data
     const { error, value } = schema.validate(req[property], {
       abortEarly: false, // Return all errors, not just the first one
       stripUnknown: true // Remove unknown fields
@@ -25,16 +22,12 @@ function validate(schema, property = 'body') {
         field: detail.path.join('.'),
         message: detail.message
       }));
-
-      console.log('Validation FAILED:', errors);
       
       return res.status(400).json({
         error: 'Validation failed',
         details: errors
       });
     }
-
-    console.log('Validation PASSED');
     
     // Replace request data with validated (and sanitized) data
     req[property] = value;

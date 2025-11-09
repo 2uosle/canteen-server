@@ -13,6 +13,7 @@ const schema = Joi.object({
     'string.min': 'JWT_SECRET must be at least 32 characters. Generate one with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"'
   }),
   JWT_EXPIRES_IN: Joi.string().default('2h'),
+  TRUST_PROXY: Joi.string().optional(),
 }).unknown(true); // allow other vars
 
 const { value: env, error } = schema.validate(process.env, { abortEarly: false });
@@ -44,4 +45,5 @@ module.exports = {
   NODE_ENV: env.NODE_ENV,
   JWT_SECRET: env.JWT_SECRET,
   JWT_EXPIRES_IN: env.JWT_EXPIRES_IN,
+  TRUST_PROXY: env.TRUST_PROXY,
 };

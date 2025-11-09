@@ -52,31 +52,51 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false // Allow cross-origin resources
 }));
 
-// General rate limiter: 100 requests per 15 minutes per IP
+// Load env early for proxy & JWT config
+const { JWT_SECRET, JWT_EXPIRES_IN, TRUST_PROXY } = require('./config/env');
+if (TRUST_PROXY) {
+  const value = TRUST_PROXY === 'true' ? true : (TRUST_PROXY === 'false' ? false : TRUST_PROXY);
+  app.set('trust proxy', value);
+  logger.info(`Trust proxy configured: ${TRUST_PROXY}`);
+}
+
+// Proxy-aware client IP helper (uses first X-Forwarded-For entry if present)
+function getClientIp(req) {
+  const xff = req.headers['x-forwarded-for'];
+  if (xff && typeof xff === 'string') {
+    const first = xff.split(',')[0].trim();
+    if (first) return first;
+  }
+  return req.ip || req.connection?.remoteAddress || 'unknown';
+}
+
+// General rate limiter: 100 requests per 15 minutes per unique client IP
 const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // More lenient in development
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000,
   message: { error: 'Too many requests from this IP, please try again later.' },
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => getClientIp(req),
   skip: (req) => {
-    // Skip rate limiting for localhost in development
+    const ip = getClientIp(req);
     const isDev = process.env.NODE_ENV !== 'production';
-    const isLocalhost = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+    const isLocalhost = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
     return isDev && isLocalhost;
   }
 });
 
-// Strict rate limiter for auth endpoints: 5 requests per 15 minutes
+// Strict rate limiter for auth endpoints: 5 requests per 15 minutes per IP
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 5 : 50, // More lenient in development
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 5 : 50,
   message: { error: 'Too many login attempts, please try again later.' },
-  skipSuccessfulRequests: true, // Don't count successful requests
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => getClientIp(req),
   skip: (req) => {
-    // Skip rate limiting for localhost in development
+    const ip = getClientIp(req);
     const isDev = process.env.NODE_ENV !== 'production';
-    const isLocalhost = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+    const isLocalhost = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
     return isDev && isLocalhost;
   }
 });
@@ -1245,12 +1265,6 @@ app.post('/orders', auth('vendor'), validate(createOrderSchema), async (req, res
 // Add an item to order
 app.post('/orders/:id/items', auth('vendor'), validate(orderIdParamSchema, 'params'), validate(addOrderItemSchema), async (req, res) => {
   try {
-    // Debug logging
-    console.log('=== ADD ITEM DEBUG ===');
-    console.log('req.params:', req.params);
-    console.log('req.body:', req.body);
-    console.log('===================');
-    
     const order_id = parseInt(req.params.id, 10);
     const { item_id, custom_item, price, qty } = req.body || {};
     
