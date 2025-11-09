@@ -151,8 +151,14 @@ function auth(requiredRole) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       req.user = decoded;
-      if (requiredRole && decoded.role !== requiredRole) {
-        return res.status(403).json({ error: "Forbidden: wrong role" });
+      if (requiredRole) {
+        // Allow admin to access staff-guarded routes
+        if (requiredRole === 'staff' && (decoded.role === 'staff' || decoded.role === 'admin')) {
+          return next();
+        }
+        if (decoded.role !== requiredRole) {
+          return res.status(403).json({ error: "Forbidden: wrong role" });
+        }
       }
       next();
     } catch (err) {
@@ -212,6 +218,14 @@ app.post('/addUser', auth('staff'), validate(addUserSchema), async (req, res) =>
   try {
     const { name, username = null, rfid_uid = null, role = 'student', balance = 0, password = null } = req.body;
     if (!name) return res.status(400).json({ error: 'name required' });
+
+    // Only admin can create admin or canteen_manager accounts
+    const privilegedRoles = ['admin', 'canteen_manager'];
+    if (privilegedRoles.includes(role)) {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Only admin can create admin or canteen_manager accounts' });
+      }
+    }
 
     if (username) {
       const [dupe] = await pool.query('SELECT 1 FROM users WHERE username=? LIMIT 1', [username]);
@@ -518,26 +532,28 @@ app.get('/reloads/csv', auth('staff'), async (req, res) => {
 });
 
 /* ---------- AUTH ---------- */
-app.post('/register', authLimiter, validate(registerSchema), async (req, res) => {
-  try {
-    const { name, username, password } = req.body;
-    if (!name || !username || !password) {
-      return res.status(400).json({ error: 'name, username, password required' });
-    }
-    const [dupe] = await pool.query('SELECT 1 FROM users WHERE username=? LIMIT 1', [username]);
-    if (dupe.length) return res.status(400).json({ error: `Username "${username}" is already taken. Please choose a different username.` });
+if (process.env.ALLOW_STUDENT_REGISTRATION === undefined || process.env.ALLOW_STUDENT_REGISTRATION === 'true') {
+  app.post('/register', authLimiter, validate(registerSchema), async (req, res) => {
+    try {
+      const { name, username, password } = req.body;
+      if (!name || !username || !password) {
+        return res.status(400).json({ error: 'name, username, password required' });
+      }
+      const [dupe] = await pool.query('SELECT 1 FROM users WHERE username=? LIMIT 1', [username]);
+      if (dupe.length) return res.status(400).json({ error: `Username "${username}" is already taken. Please choose a different username.` });
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const role = 'student'; // Always force student for public registration
-    const [result] = await pool.query(
-      "INSERT INTO users (name, username, role, password) VALUES (?,?,?,?)",
-      [name, username, role, hashedPassword]
-    );
-    res.json({ user_id: result.insertId, name, username, role });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const role = 'student'; // Always force student for public registration
+      const [result] = await pool.query(
+        "INSERT INTO users (name, username, role, password) VALUES (?,?,?,?)",
+        [name, username, role, hashedPassword]
+      );
+      res.json({ user_id: result.insertId, name, username, role });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+}
 
 // Login (username preferred; fallback to name)
 app.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
