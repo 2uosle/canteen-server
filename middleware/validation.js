@@ -78,13 +78,6 @@ const registerSchema = Joi.object({
       'string.min': 'Password must be at least 8 characters',
       'string.max': 'Password cannot exceed 128 characters',
       'string.pattern.base': 'Password must contain at least 1 uppercase letter, 1 number, and 1 special character'
-    }),
-
-  role: Joi.string()
-    .valid('student', 'staff', 'vendor', 'admin', 'canteen_manager')
-    .default('student')
-    .messages({
-      'any.only': 'Role must be student, staff, vendor, admin, or canteen_manager'
     })
 });
 

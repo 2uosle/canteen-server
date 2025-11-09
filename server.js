@@ -108,7 +108,6 @@ app.use(cors());
 app.use(express.json());
 
 // Centralized environment config & validation (enforces JWT_SECRET presence)
-const { JWT_SECRET, JWT_EXPIRES_IN } = require('./config/env');
 // Warn if secret appears to be the insecure legacy default
 if (JWT_SECRET === 'canteen_secret_key') {
   logger.warn('Insecure legacy JWT secret detected. Generate a strong secret: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
@@ -469,7 +468,7 @@ app.get('/reloads', auth('staff'), async (req, res) => {
   }
 });
 
-app.get('/report/csv', auth(), async (req, res) => {
+app.get('/report/csv', auth('staff'), async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT 
@@ -521,7 +520,7 @@ app.get('/reloads/csv', auth('staff'), async (req, res) => {
 /* ---------- AUTH ---------- */
 app.post('/register', authLimiter, validate(registerSchema), async (req, res) => {
   try {
-    const { name, username, role = 'student', password } = req.body;
+    const { name, username, password } = req.body;
     if (!name || !username || !password) {
       return res.status(400).json({ error: 'name, username, password required' });
     }
@@ -529,6 +528,7 @@ app.post('/register', authLimiter, validate(registerSchema), async (req, res) =>
     if (dupe.length) return res.status(400).json({ error: `Username "${username}" is already taken. Please choose a different username.` });
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const role = 'student'; // Always force student for public registration
     const [result] = await pool.query(
       "INSERT INTO users (name, username, role, password) VALUES (?,?,?,?)",
       [name, username, role, hashedPassword]
