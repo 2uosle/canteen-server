@@ -157,6 +157,7 @@ html {
 .btn {
   position: relative;
   overflow: hidden;
+  min-height: var(--tap-target-min); /* Accessibility: minimum touch target */
 }
 
 .btn::before {
@@ -193,6 +194,65 @@ html {
   outline: none;
 }
 
+/* Button loading state */
+.btn.is-loading {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+  cursor: wait;
+}
+
+.btn.is-loading::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 50%;
+  left: 50%;
+  margin-left: -8px;
+  margin-top: -8px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  border-right-color: transparent;
+  animation: btn-spinner 0.6s linear infinite;
+  color: inherit;
+}
+
+.btn-accent.is-loading::after {
+  color: #fff;
+}
+
+.btn-outline-danger.is-loading::after {
+  color: var(--danger);
+}
+
+@keyframes btn-spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Button error state */
+.btn.is-error {
+  background-color: var(--danger) !important;
+  border-color: var(--danger) !important;
+  color: #fff !important;
+  animation: shake 0.4s ease-in-out;
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-10px);
+  }
+  75% {
+    transform: translateX(10px);
+  }
+}
+
 /* Form controls enhancement */
 .form-control:focus,
 .form-select:focus {
@@ -204,6 +264,43 @@ html {
 .form-control,
 .form-select {
   border-radius: var(--radius-md);
+}
+
+/* Form validation states */
+.form-control.is-invalid,
+.form-select.is-invalid {
+  border-color: var(--danger);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23dc3545' viewBox='0 0 16 16'%3E%3Cpath d='M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right calc(0.375em + 0.1875rem) center;
+  background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+  padding-right: calc(1.5em + 0.75rem);
+}
+
+.form-control.is-valid,
+.form-select.is-valid {
+  border-color: var(--success);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2328a745' viewBox='0 0 16 16'%3E%3Cpath d='M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right calc(0.375em + 0.1875rem) center;
+  background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+  padding-right: calc(1.5em + 0.75rem);
+}
+
+.invalid-feedback,
+.valid-feedback {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.invalid-feedback {
+  color: var(--danger);
+}
+
+.valid-feedback {
+  color: var(--success);
 }
 
 /* Input group enhancements */
@@ -1631,6 +1728,174 @@ html {
   transform: scale(1.1);
 }
 
+/* ==================== STUDENT QUICK ACTION CARDS ==================== */
+.student-quick-action-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 140px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.student-quick-action-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.student-quick-action-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+  border-color: var(--primary);
+}
+
+.student-quick-action-card:hover::before {
+  opacity: 1;
+}
+
+.student-quick-action-card:active {
+  transform: translateY(-2px);
+}
+
+.quick-action-icon-wrapper {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: white;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: transform 0.3s;
+}
+
+.student-quick-action-card:hover .quick-action-icon-wrapper {
+  transform: scale(1.05) rotate(5deg);
+}
+
+.bg-gradient-info {
+  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+}
+
+.bg-gradient-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.bg-gradient-warning {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.bg-gradient-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.bg-gradient-primary {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+}
+
+.quick-action-content {
+  flex: 1;
+}
+
+.quick-action-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: var(--text);
+}
+
+.quick-action-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.quick-action-arrow {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--text-muted);
+  transition: all 0.3s;
+  opacity: 0.6;
+}
+
+.student-quick-action-card:hover .quick-action-arrow {
+  background: var(--primary);
+  color: white;
+  opacity: 1;
+  transform: translateX(4px);
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .student-quick-action-card {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .student-quick-action-card:hover {
+  background: var(--surface-3);
+  border-color: var(--primary);
+}
+
+[data-theme="dark"] .quick-action-arrow {
+  background: var(--surface-3);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .student-quick-action-card {
+    min-height: 120px;
+    padding: 16px;
+  }
+
+  .quick-action-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+  }
+
+  .quick-action-title {
+    font-size: 14px;
+  }
+
+  .quick-action-desc {
+    font-size: 12px;
+  }
+
+  .quick-action-arrow {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+    bottom: 16px;
+    right: 16px;
+  }
+}
+
 /* Chart Wrappers */
 .chart-wrapper {
   position: relative;
@@ -2000,10 +2265,12 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   border-radius: 8px;
 }
 
-/* Seamless range highlighting */
+/* Seamless range highlighting - more connected */
 .day.in-range {
-  background: rgba(95, 157, 255, 0.3);
+  background: rgba(95, 157, 255, 0.4);
   color: #ffffff;
+  border-radius: 0;
+  margin: 0;
 }
 
 .day.start-date {
@@ -2012,6 +2279,7 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   font-weight: 700;
   border-radius: 8px 0 0 8px;
   position: relative;
+  margin: 0;
 }
 
 .day.end-date {
@@ -2020,6 +2288,7 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   font-weight: 700;
   border-radius: 0 8px 8px 0;
   position: relative;
+  margin: 0;
 }
 
 /* When start and end are the same day */
@@ -2027,22 +2296,35 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   border-radius: 8px;
 }
 
-/* First day of a row */
+/* First day of a row - keep rounded on left */
 .day.start-date:nth-child(7n + 1) {
   border-radius: 8px 0 0 8px;
 }
 
-/* Last day of a row */
+/* Last day of a row - keep rounded on right */
 .day.end-date:nth-child(7n) {
   border-radius: 0 8px 8px 0;
 }
 
-/* Range days on edges of rows */
+/* Range days on edges of rows - more seamless */
 .day.in-range:nth-child(7n + 1) {
   border-radius: 8px 0 0 8px;
 }
 
 .day.in-range:nth-child(7n) {
+  border-radius: 0 8px 8px 0;
+}
+
+/* Make in-range dates connect seamlessly */
+.day.in-range + .day.in-range {
+  border-radius: 0;
+}
+
+.day.start-date + .day.in-range {
+  border-radius: 0;
+}
+
+.day.in-range + .day.end-date {
   border-radius: 0 8px 8px 0;
 }
 
@@ -3729,4 +4011,87 @@ html {
     width: 80px;
     height: 80px;
   }
+}
+
+/* Compact Calendar Styles */
+.compact-calendar {
+  max-width: 350px;
+  width: 350px;
+}
+
+.compact-calendar .date-picker-header {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.compact-calendar .date-picker-header .btn-nav {
+  width: 24px;
+  height: 24px;
+  font-size: 0.75rem;
+}
+
+.compact-calendar .weekdays {
+  gap: 0;
+  margin-bottom: 0.2rem;
+}
+
+.compact-calendar .weekdays div {
+  font-size: 0.6rem;
+  padding: 0.2rem 0;
+}
+
+.compact-calendar .days {
+  gap: 0;
+  padding: 0;
+}
+
+.compact-calendar .day {
+  font-size: 0.7rem;
+  min-height: 24px;
+  height: 24px;
+  max-height: 24px;
+  aspect-ratio: 1;
+  margin: 0;
+  border-radius: 0;
+}
+
+/* Override border radius for range selection in compact calendar */
+.compact-calendar .day.start-date {
+  border-radius: 5px 0 0 5px;
+}
+
+.compact-calendar .day.end-date {
+  border-radius: 0 5px 5px 0;
+}
+
+.compact-calendar .day.start-date.end-date {
+  border-radius: 5px;
+}
+
+.compact-calendar .day:not(.in-range):not(.start-date):not(.end-date):hover {
+  border-radius: 5px;
+}
+
+.compact-calendar .date-picker-actions {
+  padding: 0.4rem 0.5rem;
+  gap: 0.4rem;
+}
+
+.compact-calendar .date-picker-actions .btn {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+}
+
+/* Ensure calendar doesn't overlap with content below */
+.date-range-picker-wrapper {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.date-range-picker {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1050;
+  margin-top: 0.5rem;
 }

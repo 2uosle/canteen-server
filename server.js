@@ -617,7 +617,7 @@ app.get('/student/transactions', auth('student'), async (req, res) => {
        LEFT JOIN menu m ON t.item_id = m.item_id
        WHERE t.user_id = ?
        ORDER BY t.timestamp DESC
-       LIMIT 10`,
+       LIMIT 25`,
       [req.user.user_id]
     );
     res.json(rows);
@@ -641,7 +641,7 @@ app.get('/student/reloads', auth('student'), async (req, res) => {
        LEFT JOIN users s ON s.user_id = r.cashier_id
        WHERE r.user_id = ?
        ORDER BY r.timestamp DESC
-       LIMIT 5`,
+       LIMIT 25`,
       [req.user.user_id]
     );
     res.json(rows);

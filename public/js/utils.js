@@ -10,6 +10,31 @@ function bsModal(id) {
   return new bootstrap.Modal(document.getElementById(id));
 }
 
+// Performance: Debounce function for limiting rapid calls
+function debounce(func, wait = 300) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+// Performance: Throttle function for limiting execution rate
+function throttle(func, limit = 300) {
+  let inThrottle;
+  return function(...args) {
+    if (!inThrottle) {
+      func.apply(this, args);
+      inThrottle = true;
+      setTimeout(() => inThrottle = false, limit);
+    }
+  };
+}
+
 // Format money with Philippine Peso symbol
 function fmtMoney(val) {
   return '₱' + parseFloat(val).toFixed(2);

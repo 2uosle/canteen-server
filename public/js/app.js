@@ -1,9 +1,119 @@
-/* Theme */
+﻿/* Theme */
     const root = document.documentElement;
     const themeKey = 'canteen_theme';
   // Chart instances (must be declared before any function uses them)
   let spendingChartInstance = null;
   let reloadsChartInstance = null;
+
+  // Create debounced version of refreshChartStyles for better performance
+  const debouncedRefreshChartStyles = debounce(function refreshChartStylesImpl() {
+    const ch = window._reloadChartInstance;
+    if (ch) {
+      const theme = getThemeColors();
+      ch.options.scales.x.ticks.color = theme.text;
+      ch.options.scales.y.ticks.color = theme.text;
+      ch.options.scales.x.grid.color = theme.border;
+      ch.options.scales.y.grid.color = theme.border;
+      ch.options.plugins.tooltip.backgroundColor = theme.surface2;
+      ch.options.plugins.tooltip.titleColor = theme.text;
+      ch.options.plugins.tooltip.bodyColor = theme.text;
+      ch.options.plugins.tooltip.borderColor = theme.border;
+      ch.data.datasets[0].borderColor = theme.accent2;
+
+      const canvas = ch.canvas;
+      const ctx = canvas.getContext('2d');
+      const gradient = ctx.createLinearGradient(0,0,0,canvas.height);
+      gradient.addColorStop(0, hexToRgba(theme.accent2, 0.25));
+      gradient.addColorStop(1, hexToRgba(theme.accent2, 0.05));
+      ch.data.datasets[0].backgroundColor = gradient;
+      ch.update();
+    }
+
+    // Update sales chart
+    const ch2 = window._salesChartInstance;
+    if (ch2) {
+      const theme = getThemeColors();
+      const isDark = document.documentElement.classList.contains('theme-dark');
+      const textColor = isDark ? '#ffffff' : '#1a1a1a';
+      const gridColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)';
+      
+      ch2.options.scales.x.ticks.color = textColor;
+      ch2.options.scales.y.ticks.color = textColor;
+      ch2.options.scales.x.grid.color = gridColor;
+      ch2.options.scales.y.grid.color = gridColor;
+      ch2.options.plugins.tooltip.backgroundColor = theme.surface2;
+      ch2.options.plugins.tooltip.titleColor = textColor;
+      ch2.options.plugins.tooltip.bodyColor = textColor;
+      ch2.options.plugins.tooltip.borderColor = gridColor;
+      ch2.data.datasets[0].borderColor = theme.danger;
+
+      const canvas2 = ch2.canvas;
+      const ctx2 = canvas2.getContext('2d');
+      const gradient2 = ctx2.createLinearGradient(0,0,0,canvas2.height);
+      gradient2.addColorStop(0, hexToRgba(theme.danger, 0.25));
+      gradient2.addColorStop(1, hexToRgba(theme.danger, 0.05));
+      ch2.data.datasets[0].backgroundColor = gradient2;
+      ch2.update();
+    }
+
+    // Update spending pattern chart
+    if (spendingChartInstance) {
+      const theme = getThemeColors();
+      spendingChartInstance.options.scales.x.ticks.color = theme.text;
+      spendingChartInstance.options.scales.y.ticks.color = theme.text;
+      spendingChartInstance.options.scales.x.grid.color = theme.border;
+      spendingChartInstance.options.scales.y.grid.color = theme.border;
+      spendingChartInstance.options.plugins.tooltip.backgroundColor = theme.surface2;
+      spendingChartInstance.options.plugins.tooltip.titleColor = theme.text;
+      spendingChartInstance.options.plugins.tooltip.bodyColor = theme.text;
+      spendingChartInstance.options.plugins.tooltip.borderColor = theme.border;
+      spendingChartInstance.data.datasets[0].borderColor = theme.accent;
+      spendingChartInstance.data.datasets[0].backgroundColor = hexToRgba(theme.accent, 0.2);
+      spendingChartInstance.update();
+    }
+
+    // Update reloads trend chart
+    if (reloadsChartInstance) {
+      const theme = getThemeColors();
+      reloadsChartInstance.options.scales.x.ticks.color = theme.text;
+      reloadsChartInstance.options.scales.y.ticks.color = theme.text;
+      reloadsChartInstance.options.scales.x.grid.color = theme.border;
+      reloadsChartInstance.options.scales.y.grid.color = theme.border;
+      reloadsChartInstance.options.plugins.tooltip.backgroundColor = theme.surface2;
+      reloadsChartInstance.options.plugins.tooltip.titleColor = theme.text;
+      reloadsChartInstance.options.plugins.tooltip.bodyColor = theme.text;
+      reloadsChartInstance.options.plugins.tooltip.borderColor = theme.border;
+      reloadsChartInstance.data.datasets[0].borderColor = theme.success;
+      reloadsChartInstance.data.datasets[0].backgroundColor = hexToRgba(theme.success, 0.2);
+      reloadsChartInstance.update();
+    }
+
+    // Update admin vendor sales chart
+    if (window._adminVendorSalesChart) {
+      const isDark = document.documentElement.classList.contains('theme-dark');
+      const textColor = isDark ? '#ffffff' : '#1a1a1a';
+      const gridColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)';
+      
+      window._adminVendorSalesChart.options.scales.x.ticks.color = textColor;
+      window._adminVendorSalesChart.options.scales.y.ticks.color = textColor;
+      window._adminVendorSalesChart.options.scales.x.grid.color = gridColor;
+      window._adminVendorSalesChart.options.scales.y.grid.color = gridColor;
+      window._adminVendorSalesChart.update();
+    }
+
+    // Update admin reload trends chart
+    if (window._adminReloadTrendsChart) {
+      const isDark = document.documentElement.classList.contains('theme-dark');
+      const textColor = isDark ? '#ffffff' : '#1a1a1a';
+      const gridColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)';
+      
+      window._adminReloadTrendsChart.options.scales.x.ticks.color = textColor;
+      window._adminReloadTrendsChart.options.scales.y.ticks.color = textColor;
+      window._adminReloadTrendsChart.options.scales.x.grid.color = gridColor;
+      window._adminReloadTrendsChart.options.scales.y.grid.color = gridColor;
+      window._adminReloadTrendsChart.update();
+    }
+  }, 150); // Debounce chart updates by 150ms
 
   function applyTheme(mode){
       root.classList.remove('theme-dark');
@@ -18,12 +128,24 @@
       root.setAttribute('data-bs-theme', effective === 'dark' ? 'dark' : 'light');
 
       localStorage.setItem(themeKey, mode);
-      document.querySelectorAll('.segmented .seg').forEach(btn => btn.classList.remove('active'));
-      document.getElementById(
-        mode === 'dark' ? 'segThemeDark' :
-        mode === 'light' ? 'segThemeLight' : 'segThemeSystem'
-      ).classList.add('active');
-      refreshChartStyles();
+      
+      // Update theme dropdown button if it exists
+      const themeIcon = document.getElementById('themeIcon');
+      const themeLabel = document.getElementById('themeLabel');
+      if (themeIcon && themeLabel) {
+        if (mode === 'system') {
+          themeIcon.className = 'bi bi-circle-half me-1';
+          themeLabel.textContent = 'System';
+        } else if (mode === 'light') {
+          themeIcon.className = 'bi bi-sun me-1';
+          themeLabel.textContent = 'Light';
+        } else if (mode === 'dark') {
+          themeIcon.className = 'bi bi-moon me-1';
+          themeLabel.textContent = 'Dark';
+        }
+      }
+      
+      debouncedRefreshChartStyles();
     }
     function initTheme(){
       const saved = localStorage.getItem(themeKey) || 'system';
@@ -35,10 +157,16 @@
         }
       });
     }
-    document.getElementById('segThemeSystem').onclick = ()=>applyTheme('system');
-    document.getElementById('segThemeLight').onclick = ()=>applyTheme('light');
-    document.getElementById('segThemeDark').onclick = ()=>applyTheme('dark');
-    initTheme();
+    
+    // Initialize theme when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initTheme);
+    } else {
+      initTheme();
+    }
+    
+    // Expose applyTheme globally for ui.js integration
+    window.applyTheme = applyTheme;
     
     /* Login form - Press Enter to submit */
     document.addEventListener('DOMContentLoaded', () => {
@@ -165,11 +293,26 @@
     SoundEffects.init();
 
     /* Helpers */
-    const API_BASE = "http://127.0.0.1:3000";
+    // Dynamic API_BASE - works on localhost and network devices
+    const API_BASE = window.location.origin;
     let token = null, userRole = null, pendingCheckInterval = null, pendingSaleId = null;
     let studentProfile = null; // filled when opening Settings (student)
 
     // Helper functions are now in utils.js ($, show, hide, fmtMoney, httpGet, etc.)
+
+    // Read error text/json safely from a failed fetch Response
+    async function safeReadError(res) {
+      try {
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          const j = await res.json();
+          return j?.error || j?.message || JSON.stringify(j);
+        }
+        return await res.text();
+      } catch {
+        return '';
+      }
+    }
 
     // Toast deduplication system
     const recentToasts = new Map(); // Track recent toasts to prevent duplicates
@@ -314,6 +457,9 @@
         login.isSubmitting = false;
       }
     }
+    
+    // Expose functions globally for onclick handlers
+    window.login = login;
 
 // ==================== DATE RANGE PICKER ====================
 let dateRangeState = {
@@ -1169,9 +1315,9 @@ function updateAdminReloadDateRangeText() {
   if (start.toISOString().split('T')[0] === end.toISOString().split('T')[0]) {
     textEl.textContent = `${startMonth} ${startDay}`;
   } else if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-    textEl.textContent = `${startMonth} ${startDay} � ${endDay}`;
+    textEl.textContent = `${startMonth} ${startDay} - ${endDay}`;
   } else {
-    textEl.textContent = `${startMonth} ${startDay} � ${endMonth} ${endDay}`;
+    textEl.textContent = `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
   }
 }
 
@@ -1882,13 +2028,10 @@ async function adminLoadVendorTransactions() {
     // Calculate top items from transaction data
     const itemCounts = {};
     txs.forEach(tx => {
-      const itemName = tx.item_name || tx.custom_item || 'Unknown';
-      if (itemName !== 'Unknown') {
-        itemCounts[itemName] = (itemCounts[itemName] || 0) + 1;
-      }
+      const name = tx.item_name || tx.custom_item || '-';
+      if (!name || name === '-') return;
+      itemCounts[name] = (itemCounts[name] || 0) + 1;
     });
-    
-    // Sort items by count and get top 3
     const topItems = Object.entries(itemCounts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
@@ -3747,7 +3890,7 @@ function logout(){
       const totalPages = Math.max(1, Math.ceil(total / pageSize));
       const startIdx = total ? (page - 1) * pageSize + 1 : 0;
       const endIdx = total ? Math.min(page * pageSize, total) : 0;
-      if (pageInfo) pageInfo.textContent = `Showing ${startIdx}�${endIdx} of ${total}`;
+      if (pageInfo) pageInfo.textContent = `Showing ${startIdx}-${endIdx} of ${total}`;
       if (prevBtn) prevBtn.disabled = (page <= 1 || total === 0);
       if (nextBtn) nextBtn.disabled = (page >= totalPages || total === 0);
     }
@@ -3857,7 +4000,7 @@ function logout(){
       });
       const data = await res.json();
       if (data?.success){
-        setAlert("reloadAlert", `Reload successful � New balance: ${fmtMoney(data.new_balance)}`, "success");
+        setAlert("reloadAlert", `Reload successful - New balance: ${fmtMoney(data.new_balance)}`, "success");
         loadReloads();
       } else {
         setAlert("reloadAlert", data?.error || "Reload failed", "danger");
@@ -4112,113 +4255,9 @@ function logout(){
         });
       }
     }
-    function refreshChartStyles(){
-      const ch = window._reloadChartInstance;
-      if (ch) {
-        const theme = getThemeColors();
-        ch.options.scales.x.ticks.color = theme.text;
-        ch.options.scales.y.ticks.color = theme.text;
-        ch.options.scales.x.grid.color = theme.border;
-        ch.options.scales.y.grid.color = theme.border;
-        ch.options.plugins.tooltip.backgroundColor = theme.surface2;
-        ch.options.plugins.tooltip.titleColor = theme.text;
-        ch.options.plugins.tooltip.bodyColor = theme.text;
-        ch.options.plugins.tooltip.borderColor = theme.border;
-        ch.data.datasets[0].borderColor = theme.accent2;
-
-        const canvas = ch.canvas;
-        const ctx = canvas.getContext('2d');
-        const gradient = ctx.createLinearGradient(0,0,0,canvas.height);
-        gradient.addColorStop(0, hexToRgba(theme.accent2, 0.25));
-        gradient.addColorStop(1, hexToRgba(theme.accent2, 0.05));
-        ch.data.datasets[0].backgroundColor = gradient;
-        ch.update();
-      }
-
-      // Update sales chart
-      const ch2 = window._salesChartInstance;
-      if (ch2) {
-        const theme = getThemeColors();
-        const isDark = document.documentElement.classList.contains('theme-dark');
-        const textColor = isDark ? '#ffffff' : '#1a1a1a';
-        const gridColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)';
-        
-        ch2.options.scales.x.ticks.color = textColor;
-        ch2.options.scales.y.ticks.color = textColor;
-        ch2.options.scales.x.grid.color = gridColor;
-        ch2.options.scales.y.grid.color = gridColor;
-        ch2.options.plugins.tooltip.backgroundColor = theme.surface2;
-        ch2.options.plugins.tooltip.titleColor = textColor;
-        ch2.options.plugins.tooltip.bodyColor = textColor;
-        ch2.options.plugins.tooltip.borderColor = gridColor;
-        ch2.data.datasets[0].borderColor = theme.danger;
-
-        const canvas2 = ch2.canvas;
-        const ctx2 = canvas2.getContext('2d');
-        const gradient2 = ctx2.createLinearGradient(0,0,0,canvas2.height);
-        gradient2.addColorStop(0, hexToRgba(theme.danger, 0.25));
-        gradient2.addColorStop(1, hexToRgba(theme.danger, 0.05));
-        ch2.data.datasets[0].backgroundColor = gradient2;
-        ch2.update();
-      }
-
-      // Update spending pattern chart
-      if (spendingChartInstance) {
-        const theme = getThemeColors();
-        spendingChartInstance.options.scales.x.ticks.color = theme.text;
-        spendingChartInstance.options.scales.y.ticks.color = theme.text;
-        spendingChartInstance.options.scales.x.grid.color = theme.border;
-        spendingChartInstance.options.scales.y.grid.color = theme.border;
-        spendingChartInstance.options.plugins.tooltip.backgroundColor = theme.surface2;
-        spendingChartInstance.options.plugins.tooltip.titleColor = theme.text;
-        spendingChartInstance.options.plugins.tooltip.bodyColor = theme.text;
-        spendingChartInstance.options.plugins.tooltip.borderColor = theme.border;
-        spendingChartInstance.data.datasets[0].borderColor = theme.accent;
-        spendingChartInstance.data.datasets[0].backgroundColor = hexToRgba(theme.accent, 0.2);
-        spendingChartInstance.update();
-      }
-
-      // Update reloads trend chart
-      if (reloadsChartInstance) {
-        const theme = getThemeColors();
-        reloadsChartInstance.options.scales.x.ticks.color = theme.text;
-        reloadsChartInstance.options.scales.y.ticks.color = theme.text;
-        reloadsChartInstance.options.scales.x.grid.color = theme.border;
-        reloadsChartInstance.options.scales.y.grid.color = theme.border;
-        reloadsChartInstance.options.plugins.tooltip.backgroundColor = theme.surface2;
-        reloadsChartInstance.options.plugins.tooltip.titleColor = theme.text;
-        reloadsChartInstance.options.plugins.tooltip.bodyColor = theme.text;
-        reloadsChartInstance.options.plugins.tooltip.borderColor = theme.border;
-        reloadsChartInstance.data.datasets[0].borderColor = theme.accent2;
-        reloadsChartInstance.data.datasets[0].backgroundColor = hexToRgba(theme.accent2, 0.2);
-        reloadsChartInstance.update();
-      }
-
-      // Update admin vendor sales chart
-      if (window._adminVendorSalesChart) {
-        const isDark = document.documentElement.classList.contains('theme-dark');
-        const textColor = isDark ? '#ffffff' : '#1a1a1a';
-        const gridColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)';
-        
-        window._adminVendorSalesChart.options.scales.x.ticks.color = textColor;
-        window._adminVendorSalesChart.options.scales.y.ticks.color = textColor;
-        window._adminVendorSalesChart.options.scales.x.grid.color = gridColor;
-        window._adminVendorSalesChart.options.scales.y.grid.color = gridColor;
-        window._adminVendorSalesChart.update();
-      }
-
-      // Update admin reload trends chart
-      if (window._adminReloadTrendsChart) {
-        const isDark = document.documentElement.classList.contains('theme-dark');
-        const textColor = isDark ? '#ffffff' : '#1a1a1a';
-        const gridColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)';
-        
-        window._adminReloadTrendsChart.options.scales.x.ticks.color = textColor;
-        window._adminReloadTrendsChart.options.scales.y.ticks.color = textColor;
-        window._adminReloadTrendsChart.options.scales.x.grid.color = gridColor;
-        window._adminReloadTrendsChart.options.scales.y.grid.color = gridColor;
-        window._adminReloadTrendsChart.update();
-      }
+    // Wrapper function for backward compatibility
+    function refreshChartStyles() {
+      debouncedRefreshChartStyles();
     }
 
     async function downloadReport(){
@@ -4448,7 +4487,7 @@ function logout(){
       const totalPages = Math.max(1, Math.ceil(total / pageSize));
       const startIdx = total ? (page - 1) * pageSize + 1 : 0;
       const endIdx = total ? Math.min(page * pageSize, total) : 0;
-      if (pageInfo) pageInfo.textContent = `Showing ${startIdx}�${endIdx} of ${total}`;
+      if (pageInfo) pageInfo.textContent = `Showing ${startIdx}-${endIdx} of ${total}`;
       if (prevBtn) prevBtn.disabled = (page <= 1 || total === 0);
       if (nextBtn) nextBtn.disabled = (page >= totalPages || total === 0);
     }
@@ -4991,6 +5030,12 @@ function logout(){
         setAlert("changePwdAlert", "Network error", "danger");
       }
     }
+    
+    // Expose settings-related functions globally
+    window.openSettings = openSettings;
+    window.toggleCardLock = toggleCardLock;
+    window.openChangePasswordModal = openChangePasswordModal;
+    window.changeMyPassword = changeMyPassword;
 
     /* Staff — Register & Pair */
     let staffPairInterval = null;
@@ -5201,39 +5246,136 @@ function logout(){
 
     /* Student: balance/tx/reloads */
     async function loadMyBalance(){
-      const res = await fetch(API_BASE + "/student/me", { headers:{ "Authorization":"Bearer " + token }});
-      const data = await res.json();
-      $("balanceValue").textContent = fmtMoney(data.balance || 0);
+      try {
+        const res = await fetch(API_BASE + "/student/me", { headers:{ "Authorization":"Bearer " + token }});
+        if (!res.ok) {
+          const msg = await safeReadError(res);
+          console.warn("loadMyBalance failed:", res.status, msg);
+          toast(`Balance load failed (${res.status})${msg ? ": " + msg : ""}`, "error");
+          return;
+        }
+        const data = await res.json();
+        $("balanceValue").textContent = fmtMoney(data.balance || 0);
+      } catch (e) {
+        console.error("loadMyBalance error", e);
+        toast("Network error loading balance", "error");
+      }
     }
-    async function loadMyTransactions(){
-      const res = await fetch(API_BASE + "/student/transactions", { headers:{ "Authorization":"Bearer " + token }});
-      const rows = await res.json();
-      const tbody = $("myTxTbody");
-      tbody.innerHTML = "";
-      
-      // Check if rows is an array
-      if (!Array.isArray(rows)) {
-        tbody.innerHTML = `<tr><td colspan="3" class="text-center text-danger">Failed to load transactions</td></tr>`;
+    // In-memory store for student lists (max 25)
+    let _studentTx = [];
+    let _studentTxPage = 1;
+    let _studentReloads = [];
+    let _studentReloadsPage = 1;
+
+    const STUDENT_PAGE_SIZE = 5;
+    const STUDENT_MAX_ITEMS = 25;
+
+    function updatePaginationControls(prefix, page, total) {
+      const pages = Math.max(1, Math.min(5, Math.ceil(total / STUDENT_PAGE_SIZE)));
+      const container = $(prefix + 'Pagination');
+      const prevBtn = $(prefix + 'PrevBtn');
+      const nextBtn = $(prefix + 'NextBtn');
+      const info = $(prefix + 'PageInfo');
+      if (!container || !prevBtn || !nextBtn || !info) return;
+      if (total === 0) {
+        container.classList.add('d-none');
         return;
       }
-      
-      if (!rows.length){ 
-        tbody.innerHTML = `<tr><td colspan="3" class="text-center text-secondary py-4"><i class="bi bi-inbox fs-4 d-block mb-2"></i><div class="small">No transactions yet</div></td></tr>`; 
-        updateStudentStats(rows); 
-        return; 
+      container.classList.remove('d-none');
+      prevBtn.disabled = page <= 1;
+      nextBtn.disabled = page >= pages;
+      const start = (page - 1) * STUDENT_PAGE_SIZE + 1;
+      const end = Math.min(page * STUDENT_PAGE_SIZE, total);
+      info.textContent = `Showing ${start}–${end} of ${total}`;
+    }
+
+    function renderStudentTxPage(page){
+      const tbody = $("myTxTbody");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+      const total = _studentTx.length;
+      const pages = Math.max(1, Math.min(5, Math.ceil(total / STUDENT_PAGE_SIZE)));
+      _studentTxPage = Math.max(1, Math.min(page, pages));
+      if (total === 0){
+        tbody.innerHTML = `<tr><td colspan="3" class="text-center text-secondary py-4"><i class="bi bi-inbox fs-4 d-block mb-2"></i><div class="small">No transactions yet</div></td></tr>`;
+        updatePaginationControls('myTx', 1, 0);
+        return;
       }
-      
-      rows.forEach(r=>{
-        const tr = document.createElement("tr");
+      const startIdx = (_studentTxPage - 1) * STUDENT_PAGE_SIZE;
+      const pageItems = _studentTx.slice(startIdx, startIdx + STUDENT_PAGE_SIZE);
+      pageItems.forEach(r => {
+        const tr = document.createElement('tr');
         const name = (r.item_name ?? r.custom_item ?? "-");
         tr.innerHTML = `<td class="text-secondary">${fmtTime(r.timestamp)}</td>
                         <td>${name}</td>
                         <td class="text-end fw-semibold">${fmtMoney(r.amount)}</td>`;
         tbody.appendChild(tr);
       });
-      
-      // Update stats
-      updateStudentStats(rows);
+      updatePaginationControls('myTx', _studentTxPage, total);
+    }
+
+    function renderStudentReloadsPage(page){
+      const tbody = $("myReloadsTbody");
+      if (!tbody) return;
+      tbody.innerHTML = "";
+      const total = _studentReloads.length;
+      const pages = Math.max(1, Math.min(5, Math.ceil(total / STUDENT_PAGE_SIZE)));
+      _studentReloadsPage = Math.max(1, Math.min(page, pages));
+      if (total === 0){
+        tbody.innerHTML = `<tr><td colspan="3" class="text-center text-secondary py-4"><i class="bi bi-inbox fs-4 d-block mb-2"></i><div class="small">No reloads yet</div></td></tr>`;
+        updatePaginationControls('myReloads', 1, 0);
+        return;
+      }
+      const startIdx = (_studentReloadsPage - 1) * STUDENT_PAGE_SIZE;
+      const pageItems = _studentReloads.slice(startIdx, startIdx + STUDENT_PAGE_SIZE);
+      pageItems.forEach(r => {
+        const cashier = r.cashier || r.cashier_name || "-";
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td class="text-secondary">${fmtTime(r.timestamp)}</td>
+                        <td>${cashier}</td>
+                        <td class="text-end fw-semibold">${fmtMoney(r.amount)}</td>`;
+        tbody.appendChild(tr);
+      });
+      updatePaginationControls('myReloads', _studentReloadsPage, total);
+    }
+
+    // Handlers for pagination buttons (wired via onclick in HTML)
+    window.studentTxPrev = function(){ renderStudentTxPage(_studentTxPage - 1); };
+    window.studentTxNext = function(){ renderStudentTxPage(_studentTxPage + 1); };
+    window.studentReloadsPrev = function(){ renderStudentReloadsPage(_studentReloadsPage - 1); };
+    window.studentReloadsNext = function(){ renderStudentReloadsPage(_studentReloadsPage + 1); };
+
+    async function loadMyTransactions(){
+      let rows = [];
+      try {
+        const res = await fetch(API_BASE + "/student/transactions", { headers:{ "Authorization":"Bearer " + token }});
+        if (!res.ok) {
+          const msg = await safeReadError(res);
+          console.warn("loadMyTransactions failed:", res.status, msg);
+          const tbody = $("myTxTbody");
+          tbody.innerHTML = `<tr><td colspan="3" class="text-center text-danger">Transactions failed (${res.status})${msg ? ": " + msg : ""}</td></tr>`;
+          return;
+        }
+        rows = await res.json();
+      } catch (e) {
+        console.error("loadMyTransactions error", e);
+        const tbody = $("myTxTbody");
+        tbody.innerHTML = `<tr><td colspan="3" class="text-center text-danger">Network error loading transactions</td></tr>`;
+        return;
+      }
+      // Check if rows is an array
+      if (!Array.isArray(rows)) {
+        const tbody = $("myTxTbody");
+        tbody.innerHTML = `<tr><td colspan=\"3\" class=\"text-center text-danger\">Failed to load transactions</td></tr>`;
+        updatePaginationControls('myTx', 1, 0);
+        return;
+      }
+
+      // keep at most 25
+      _studentTx = rows.slice(0, STUDENT_MAX_ITEMS);
+      // Update stats based on limited set
+      updateStudentStats(_studentTx);
+      renderStudentTxPage(1);
     }
     
     function updateStudentStats(transactions) {
@@ -5251,31 +5393,35 @@ function logout(){
       if ($('statAvgSpending')) $('statAvgSpending').textContent = fmtMoney(avgSpending);
     }
     async function loadMyReloads(){
-      const res = await fetch(API_BASE + "/student/reloads", { headers:{ "Authorization":"Bearer " + token }});
-      const rows = await res.json();
-      const tbody = $("myReloadsTbody");
-      tbody.innerHTML = "";
-      
-      // Check if rows is an array
-      if (!Array.isArray(rows)) {
-        tbody.innerHTML = `<tr><td colspan="3" class="text-center text-danger">Failed to load reloads</td></tr>`;
+      let rows = [];
+      try {
+        const res = await fetch(API_BASE + "/student/reloads", { headers:{ "Authorization":"Bearer " + token }});
+        if (!res.ok) {
+          const msg = await safeReadError(res);
+          console.warn("loadMyReloads failed:", res.status, msg);
+          const tbody = $("myReloadsTbody");
+          tbody.innerHTML = `<tr><td colspan="3" class="text-center text-danger">Reloads failed (${res.status})${msg ? ": " + msg : ""}</td></tr>`;
+          return;
+        }
+        rows = await res.json();
+      } catch (e) {
+        console.error("loadMyReloads error", e);
+        const tbody = $("myReloadsTbody");
+        tbody.innerHTML = `<tr><td colspan="3" class="text-center text-danger">Network error loading reloads</td></tr>`;
         return;
       }
-      
-      if (!rows.length){ 
-        tbody.innerHTML = `<tr><td colspan="3" class="text-center text-secondary py-4"><i class="bi bi-inbox fs-4 d-block mb-2"></i><div class="small">No reloads yet</div></td></tr>`; 
-        updateLastReload(null);
-        return; 
+      // Check if rows is an array
+      if (!Array.isArray(rows)) {
+        const tbody = $("myReloadsTbody");
+        tbody.innerHTML = `<tr><td colspan=\"3\" class=\"text-center text-danger\">Failed to load reloads</td></tr>`;
+        updatePaginationControls('myReloads', 1, 0);
+        return;
       }
-      
-      rows.forEach(r => {
-        const cashier = r.cashier || r.cashier_name || "-";
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td class="text-secondary">${fmtTime(r.timestamp)}</td>
-                        <td>${cashier}</td>
-                        <td class="text-end fw-semibold">${fmtMoney(r.amount)}</td>`;
-        tbody.appendChild(tr);
-      });
+
+      // keep at most 25
+      _studentReloads = rows.slice(0, STUDENT_MAX_ITEMS);
+      updateLastReload(_studentReloads[0] || null);
+      renderStudentReloadsPage(1);
       
       // Update last reload stat
       if (rows.length > 0) {
@@ -5349,15 +5495,15 @@ function logout(){
         itemCounts[item] = (itemCounts[item] || 0) + 1;
       });
       const mostBought = Object.entries(itemCounts).sort((a,b) => b[1] - a[1])[0];
-      if ($('mostBoughtItem')) $('mostBoughtItem').textContent = mostBought ? `${mostBought[0]} (${mostBought[1]}�)` : '-';
+      if ($('mostBoughtItem')) $('mostBoughtItem').textContent = mostBought ? `${mostBought[0]} (${mostBought[1]}×)` : '-';
       
       // Favorite spending range
       const amounts = transactions.map(t => parseFloat(t.amount || 0));
       const ranges = {
-        '?0-?50': amounts.filter(a => a <= 50).length,
-        '?50-?100': amounts.filter(a => a > 50 && a <= 100).length,
-        '?100-?200': amounts.filter(a => a > 100 && a <= 200).length,
-        '?200+': amounts.filter(a => a > 200).length
+        '₱0-₱50': amounts.filter(a => a <= 50).length,
+        '₱50-₱100': amounts.filter(a => a > 50 && a <= 100).length,
+        '₱100-₱200': amounts.filter(a => a > 100 && a <= 200).length,
+        '₱200+': amounts.filter(a => a > 200).length
       };
       const favRange = Object.entries(ranges).sort((a,b) => b[1] - a[1])[0];
       if ($('favSpendingRange')) $('favSpendingRange').textContent = favRange ? favRange[0] : '-';
