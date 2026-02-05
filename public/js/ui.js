@@ -239,6 +239,9 @@
     }
   };
 
+  // Expose escapeHtml globally
+  window.escapeHtml = UI.escapeHtml;
+
   /* =========================================================================
      ACCESSIBILITY ENHANCEMENTS
      ========================================================================= */

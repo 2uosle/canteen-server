@@ -872,6 +872,209 @@ app.post('/rfid/unlink', staffOrAdmin, validate(rfidUnlinkSchema), async (req, r
   }
 });
 
+/* ---------- NEW: RFID LINKING PAGE API ---------- */
+
+// Search users for RFID linking - staff/admin only
+// Query params: q (search term), onlyNoRfid (boolean filter)
+app.get('/rfid/search-users', staffOrAdmin, async (req, res) => {
+  try {
+    const { q = '', onlyNoRfid = 'false' } = req.query;
+    const searchTerm = `%${q.trim()}%`;
+    const onlyNoRfidBool = onlyNoRfid === 'true' || onlyNoRfid === '1';
+
+    let query = `
+      SELECT 
+        user_id,
+        name,
+        username,
+        student_number,
+        course,
+        rfid_uid,
+        role,
+        balance,
+        created_at
+      FROM users
+      WHERE role = 'student'
+    `;
+    const params = [];
+
+    // Add search filter
+    if (q.trim()) {
+      query += ` AND (
+        name LIKE ? 
+        OR username LIKE ?
+        OR student_number LIKE ?
+      )`;
+      params.push(searchTerm, searchTerm, searchTerm);
+    }
+
+    // Add RFID filter
+    if (onlyNoRfidBool) {
+      query += ` AND rfid_uid IS NULL`;
+    }
+
+    query += ` ORDER BY name ASC LIMIT 100`;
+
+    const [users] = await pool.query(query, params);
+
+    res.json({
+      success: true,
+      users: users.map(u => ({
+        user_id: u.user_id,
+        name: u.name,
+        username: u.username,
+        student_number: u.student_number || 'N/A',
+        course: u.course || 'N/A',
+        has_rfid: !!u.rfid_uid,
+        rfid_uid: u.rfid_uid,
+        balance: u.balance,
+        created_at: u.created_at
+      }))
+    });
+  } catch (err) {
+    logger.error('Error searching users for RFID linking', { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Device (ESP32) sends RFID scan - stores in pending_rfid_scans
+// Body: { uid, device_id? }
+app.post('/rfid/scan', async (req, res) => {
+  try {
+    const { uid, device_id } = req.body || {};
+    
+    if (!uid) {
+      return res.status(400).json({ error: 'uid required' });
+    }
+
+    // Store the scan in pending table
+    await pool.query(
+      'INSERT INTO pending_rfid_scans (uid, device_id, scanned_at) VALUES (?, ?, NOW())',
+      [uid, device_id || null]
+    );
+
+    logger.info('RFID scan received', { uid, device_id });
+
+    res.json({ 
+      success: true, 
+      uid,
+      message: 'Scan stored, awaiting link confirmation' 
+    });
+  } catch (err) {
+    logger.error('Error storing RFID scan', { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Frontend polls this to check for recent scans and complete linking
+// Query params: userId (required)
+app.get('/rfid/pending', staffOrAdmin, async (req, res) => {
+  try {
+    const { userId } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'userId required' });
+    }
+
+    // Find the most recent unconsumed scan within last 60 seconds
+    const [scans] = await pool.query(
+      `SELECT scan_id, uid, device_id, scanned_at
+       FROM pending_rfid_scans
+       WHERE consumed = 0
+         AND scanned_at >= (NOW() - INTERVAL 60 SECOND)
+       ORDER BY scanned_at DESC
+       LIMIT 1`
+    );
+
+    if (scans.length === 0) {
+      // No recent scan - still waiting
+      return res.json({ status: 'waiting' });
+    }
+
+    const scan = scans[0];
+    const scannedUid = scan.uid;
+
+    // Check if this UID is already linked to another user
+    const [[existingUser]] = await pool.query(
+      'SELECT user_id, name, student_number FROM users WHERE rfid_uid = ?',
+      [scannedUid]
+    );
+
+    if (existingUser && existingUser.user_id !== parseInt(userId)) {
+      // UID already linked to someone else
+      await pool.query(
+        'UPDATE pending_rfid_scans SET consumed = 1 WHERE scan_id = ?',
+        [scan.scan_id]
+      );
+
+      logger.warn('RFID linking rejected - already in use', {
+        uid: scannedUid,
+        existing_user: existingUser.user_id,
+        target_user: userId
+      });
+
+      return res.json({
+        status: 'error',
+        message: `This card is already linked to ${existingUser.name} (${existingUser.student_number || existingUser.user_id})`
+      });
+    }
+
+    // Link the UID to the target user
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      // Update user with new RFID
+      await conn.query(
+        'UPDATE users SET rfid_uid = ? WHERE user_id = ?',
+        [scannedUid, userId]
+      );
+
+      // Mark scan as consumed
+      await conn.query(
+        'UPDATE pending_rfid_scans SET consumed = 1 WHERE scan_id = ?',
+        [scan.scan_id]
+      );
+
+      await conn.commit();
+
+      // Get updated user info
+      const [[user]] = await conn.query(
+        'SELECT user_id, name, username, student_number, rfid_uid FROM users WHERE user_id = ?',
+        [userId]
+      );
+
+      logger.info('RFID successfully linked', {
+        user_id: userId,
+        uid: scannedUid,
+        name: user.name
+      });
+
+      res.json({
+        status: 'success',
+        uid: scannedUid,
+        user: {
+          user_id: user.user_id,
+          name: user.name,
+          username: user.username,
+          student_number: user.student_number,
+          rfid_uid: user.rfid_uid
+        }
+      });
+
+    } catch (e) {
+      await conn.rollback();
+      throw e;
+    } finally {
+      conn.release();
+    }
+
+  } catch (err) {
+    logger.error('Error in RFID pending check', { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /* ---------- PENDING SALE FLOW (BLOCKED IF CARD LOCKED) ---------- */
 app.post('/pending-sale', auth(), validate(pendingSaleSchema), async (req, res) => {
   try {
@@ -1441,7 +1644,7 @@ app.get('/sales', auth('vendor'), async (req, res) => {
   try {
     const vendor_id = req.user.user_id;
     const [transactions] = await pool.query(
-      `SELECT t.tx_id, u.name AS student, 
+      `SELECT t.tx_id, u.name AS user_name, 
               COALESCE(m.item_name, t.custom_item) AS item_name,
               t.amount, t.timestamp
        FROM transactions t
@@ -2092,18 +2295,8 @@ app.get('/admin/users/:id', adminAuth, async (req, res) => {
 
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // Get activity stats (counts only, no amounts!)
-    const [[stats]] = await pool.query(
-      `SELECT 
-        (SELECT COUNT(*) FROM transactions WHERE user_id = ?) as transaction_count,
-        (SELECT COUNT(*) FROM reloads WHERE user_id = ?) as reload_count,
-        (SELECT MAX(timestamp) FROM transactions WHERE user_id = ?) as last_transaction,
-        (SELECT MAX(timestamp) FROM reloads WHERE user_id = ?) as last_reload
-      FROM DUAL`,
-      [user.user_id, user.user_id, user.user_id, user.user_id]
-    );
-
-    res.json({ ...user, stats });
+    // Return user details only (stats provided separately by /admin/stats)
+    res.json(user);
   } catch (err) {
     console.error('Admin user detail error:', err);
     res.status(500).json({ error: err.message });
@@ -2288,6 +2481,7 @@ app.get('/admin/stats', adminAuth, async (req, res) => {
         (SELECT COUNT(*) FROM users WHERE role = 'student') as total_students,
         (SELECT COUNT(*) FROM users WHERE role = 'staff') as total_staff,
         (SELECT COUNT(*) FROM users WHERE role = 'vendor') as total_vendors,
+        (SELECT COUNT(*) FROM users WHERE role = 'canteen_manager') as total_managers,
         (SELECT COUNT(*) FROM users WHERE is_card_locked = 1) as locked_cards,
         (SELECT COUNT(*) FROM users WHERE rfid_uid IS NOT NULL) as paired_cards,
         (SELECT COUNT(*) FROM users WHERE rfid_uid IS NULL) as unpaired_users
@@ -2299,7 +2493,8 @@ app.get('/admin/stats', adminAuth, async (req, res) => {
       ...stats,
       students: stats.total_students,
       staff: stats.total_staff,
-      vendors: stats.total_vendors
+      vendors: stats.total_vendors,
+      managers: stats.total_managers
     });
   } catch (err) {
     console.error('Admin stats error:', err);
@@ -2424,6 +2619,63 @@ app.get('/admin/vendor-stats', adminAuth, async (req, res) => {
     res.json(vendorStats);
   } catch (err) {
     console.error('Admin vendor stats error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /admin/cancellation-logs - Fetch cancellation logs (date range optional)
+app.get('/admin/cancellation-logs', adminAuth, async (req, res) => {
+  try {
+    const { start, end } = req.query;
+    // Primary: cancelled_transactions table
+    let rows = [];
+    const baseParams = [];
+    let baseQuery = `SELECT pending_id, item_name, amount, vendor_id, vendor_name, reason, cancelled_at
+                     FROM cancelled_transactions`;
+    if (start && end) {
+      baseQuery += ` WHERE DATE(cancelled_at) BETWEEN ? AND ?`;
+      baseParams.push(start, end);
+    } else {
+      baseQuery += ` WHERE cancelled_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)`;
+    }
+    baseQuery += ` ORDER BY cancelled_at DESC LIMIT 500`;
+    try {
+      const [primary] = await pool.query(baseQuery, baseParams);
+      rows = primary.map(r => ({ ...r, source: 'primary' }));
+    } catch (primaryErr) {
+      // Fallback: derive from pending_sales confirmed=2
+      console.warn('Primary cancellation table unavailable, falling back:', primaryErr.message);
+      let fbParams = [];
+      let fbQuery = `SELECT id as pending_id, item_name, amount, vendor_id, NULL as vendor_name, 'Cancelled' as reason, updated_at as cancelled_at
+                     FROM pending_sales WHERE confirmed = 2`;
+      if (start && end) {
+        fbQuery += ` AND DATE(updated_at) BETWEEN ? AND ?`;
+        fbParams.push(start, end);
+      } else {
+        fbQuery += ` AND updated_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)`;
+      }
+      fbQuery += ` ORDER BY updated_at DESC LIMIT 500`;
+      const [fallback] = await pool.query(fbQuery, fbParams);
+      // Enrich vendor_name if missing
+      if (fallback.length) {
+        const vendorIds = [...new Set(fallback.map(r => r.vendor_id).filter(Boolean))];
+        let vendorMap = new Map();
+        if (vendorIds.length) {
+          const [vendors] = await pool.query(`SELECT user_id, name, username FROM users WHERE user_id IN (${vendorIds.map(() => '?').join(',')})`, vendorIds);
+          vendors.forEach(v => vendorMap.set(v.user_id, v.name || v.username));
+        }
+        rows = fallback.map(r => ({
+          ...r,
+          vendor_name: r.vendor_name || vendorMap.get(r.vendor_id) || 'Unknown',
+          source: 'fallback'
+        }));
+      } else {
+        rows = [];
+      }
+    }
+    res.json(rows);
+  } catch (err) {
+    console.error('Admin cancellation logs error:', err);
     res.status(500).json({ error: err.message });
   }
 });

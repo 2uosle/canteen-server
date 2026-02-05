@@ -55,9 +55,9 @@ Adafruit_PN532 nfc(PN532_IRQ, PN532_RESET, &Wire);
 // =========================  
 // Wi-Fi / Backend
 // =========================
-const char* ssid     = "2uo";
-const char* password = "2uoHome0219!";
-String baseUrl = "http://192.168.1.7:3000";
+const char* ssid     = "2uosle";
+const char* password = "cjrobijuan123";
+String baseUrl = "http://172.20.10.6:3000";
 // Use the server's stable profile endpoint
 #define PROFILE_ENDPOINT "/balance/"
 

@@ -128,10 +128,11 @@ function handleMessage(clientId, message) {
                 client.ws.send(JSON.stringify({ type: 'auth_ok', data: { user_id: client.userId, role: client.role } }));
             } catch (err) {
                 console.warn(`[WebSocket] Auth failed for ${clientId}: ${err.message}`);
+                console.warn(`[WebSocket] Token preview: ${token ? token.substring(0, 20) + '...' : 'null'}`);
                 try {
-                    client.ws.send(JSON.stringify({ type: 'auth_error', data: { message: 'Invalid token' } }));
+                    client.ws.send(JSON.stringify({ type: 'auth_error', data: { message: 'Invalid token', detail: err.message } }));
                 } catch (_) {}
-                client.ws.close(4001, 'Invalid token');
+                // Don't close connection immediately - allow client to handle error
             }
             break;
         }

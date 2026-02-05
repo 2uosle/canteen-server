@@ -2163,8 +2163,8 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  padding: 1rem;
-  min-width: 320px;
+  padding: 0.875rem;
+  min-width: 380px;
   animation: slideDown 0.2s ease;
 }
 
@@ -2183,14 +2183,14 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.6rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .date-picker-header span {
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: #ffffff;
 }
 
@@ -2222,10 +2222,10 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
 
 .weekdays div {
   text-align: center;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.5);
-  padding: 0.5rem 0;
+  padding: 0.3rem 0;
 }
 
 .days {
@@ -2236,11 +2236,11 @@ input[type="date"]::-webkit-datetime-edit-year-field:focus {
 }
 
 .day {
-  aspect-ratio: 1;
+  aspect-ratio: 1.3;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 500;
   color: #ffffff;
   cursor: pointer;
@@ -4094,4 +4094,20 @@ html {
   left: 0;
   z-index: 1050;
   margin-top: 0.5rem;
+}
+
+/* Smaller dropdown menu styling */
+.dropdown-menu-sm {
+  min-width: 140px;
+  font-size: 0.8125rem;
+  padding: 0.25rem;
+}
+
+.dropdown-item-sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.dropdown-item-sm i {
+  font-size: 0.875rem;
 }

@@ -1,4 +1,4 @@
-﻿// ============================================
+// ============================================
 // Real-Time Notifications via WebSocket
 // ============================================
 
@@ -14,6 +14,15 @@ let isShowingNotification = false;
 
 // Initialize WebSocket connection
 function initWebSocket() {
+  // Check if user is logged in with a valid token
+  const token = localStorage.getItem('token');
+  const role = localStorage.getItem('role');
+  
+  if (!token || !role) {
+    console.log('[WebSocket] No authentication token found, skipping WebSocket connection');
+    return;
+  }
+  
   // Prevent duplicate connections
   if (isInitializing || (ws && ws.readyState === WebSocket.CONNECTING)) {
     console.log('[WebSocket] Already initializing, skipping...');
@@ -28,7 +37,7 @@ function initWebSocket() {
   }
   
   isInitializing = true;
-  const WS_URL = 'ws://127.0.0.1:3001'; // WebSocket server port
+  const hostname = window.location.hostname; const WS_PORT = 3001; const WS_URL = `ws://${hostname}:${WS_PORT}`; console.log('[WebSocket] Connecting to:', WS_URL); // WebSocket server port
   
   try {
     ws = new WebSocket(WS_URL);
@@ -47,19 +56,20 @@ function initWebSocket() {
       // Authenticate with server if logged in
       const token = localStorage.getItem('token');
       const role = localStorage.getItem('role');
-      const username = localStorage.getItem('username');
       
       if (token && role) {
-        // Extract user_id from token (simple parsing, in production use proper JWT decode)
+        console.log('[WebSocket] Token found, length:', token.length);
+        console.log('[WebSocket] Token preview:', token.substring(0, 30) + '...');
+        // Send authentication message with token
         ws.send(JSON.stringify({
           type: 'authenticate',
           data: {
-            token,
-            role,
-            username
+            token: token
           }
         }));
-        console.log('[WebSocket] Authenticated as', role);
+        console.log('[WebSocket] Authenticating as', role);
+      } else {
+        console.warn('[WebSocket] No valid token found, skipping authentication');
       }
     };
     
@@ -110,6 +120,26 @@ function handleWebSocketMessage(message) {
       }
       break;
       
+    case 'auth_error':
+      console.error('[WebSocket] Authentication failed:', message.data?.message || 'Invalid token');
+      console.error('[WebSocket] Auth error detail:', message.data?.detail || 'No additional info');
+      // Stop reconnecting on auth errors - likely token expired
+      if (reconnectInterval) {
+        clearInterval(reconnectInterval);
+        reconnectInterval = null;
+      }
+      isConnected = false;
+      isInitializing = false;
+      // Show a one-time notification that login may be needed
+      if (typeof showNotification === 'function') {
+        showNotification('Session may have expired. Please refresh or log in again.', 'warning');
+      }
+      break;
+      
+    case 'auth_ok':
+      console.log('[WebSocket] Authentication successful');
+      break;
+      
     case 'balance_updated':
       handleBalanceUpdate(message.data);
       break;
@@ -152,11 +182,11 @@ function handleBalanceUpdate(data) {
     loadMyBalance();
     
     if (data.type === 'reload') {
-      showNotification(`₱${parseFloat(data.amount).toFixed(2)} added to your balance!`, 'success', 'bi-cash-coin');
+      showNotification(`?${parseFloat(data.amount).toFixed(2)} added to your balance!`, 'success', 'bi-cash-coin');
       playNotificationSound('success');
     } else if (data.type === 'transaction' || data.type === 'sale') {
       const amount = Math.abs(data.amount);
-      showNotification(`Purchase of ₱${amount.toFixed(2)} completed`, 'info', 'bi-cart-check');
+      showNotification(`Purchase of ?${amount.toFixed(2)} completed`, 'info', 'bi-cart-check');
       playNotificationSound('info');
     }
     
@@ -173,7 +203,7 @@ function handleReloadNotification(data) {
   
   if (currentRole === 'staff') {
     showNotification(
-      `Top-up completed: ₱${parseFloat(data.amount).toFixed(2)}`,
+      `Top-up completed: ?${parseFloat(data.amount).toFixed(2)}`,
       'success',
       'bi-cash-stack'
     );
@@ -191,7 +221,7 @@ function handleSaleNotification(data) {
   
   if (currentRole === 'vendor') {
     showNotification(
-      `Sale completed: ₱${parseFloat(data.amount).toFixed(2)}`,
+      `Sale completed: ?${parseFloat(data.amount).toFixed(2)}`,
       'success',
       'bi-cart-check-fill'
     );
@@ -219,7 +249,7 @@ function handleSaleNotification(data) {
           }
 
           // Update success UI like the polling path would
-          const fmt = (n) => `₱${Number(n).toFixed(2)}`;
+          const fmt = (n) => `?${Number(n).toFixed(2)}`;
           const amountEl = document.getElementById('saleSuccessAmount');
           if (amountEl) amountEl.textContent = fmt(data.amount);
           const detailsEl = document.getElementById('saleSuccessDetails');
@@ -283,7 +313,7 @@ function handleCardLockNotification(data) {
 // Handle low balance warning
 function handleLowBalanceNotification(data) {
   showNotification(
-    `Low balance warning: ₱${parseFloat(data.balance).toFixed(2)} remaining`,
+    `Low balance warning: ?${parseFloat(data.balance).toFixed(2)} remaining`,
     'warning',
     'bi-exclamation-triangle-fill'
   );

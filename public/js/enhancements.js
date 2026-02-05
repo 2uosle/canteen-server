@@ -655,6 +655,42 @@
   };
 
   /* =========================================================================
+     REDUCED MOTION OVERRIDE (Optional)
+     ========================================================================= */
+  const ReducedMotion = {
+    media: window.matchMedia('(prefers-reduced-motion: reduce)'),
+    isReduced() { return this.media.matches; },
+    force(enable = true) {
+      document.documentElement.classList.toggle('force-animate', !!enable);
+      localStorage.setItem('forceAnimate', enable ? '1' : '0');
+    },
+    init() {
+      // Reapply saved preference
+      if (localStorage.getItem('forceAnimate') === '1') {
+        this.force(true);
+      }
+      // Listen for system changes; if user opted in, keep override
+      if (this.media.addEventListener) {
+        this.media.addEventListener('change', () => {
+          if (localStorage.getItem('forceAnimate') === '1') {
+            this.force(true);
+          }
+        });
+      } else if (this.media.addListener) { // Older browsers
+        this.media.addListener(() => {
+          if (localStorage.getItem('forceAnimate') === '1') {
+            this.force(true);
+          }
+        });
+      }
+    }
+  };
+
+  // Expose a tiny API for toggling animations even if OS prefers reduced motion
+  window.UIEnhancements.forceAnimations = (enable = true) => ReducedMotion.force(enable);
+  window.UIEnhancements.isReducedMotion = () => ReducedMotion.isReduced();
+
+  /* =========================================================================
      INITIALIZATION
      ========================================================================= */
 
@@ -667,6 +703,7 @@
         AutoSave.init();
         ContextMenu.init();
         QuickActions.init();
+        ReducedMotion.init();
       });
     } else {
       TableSort.init();
@@ -675,6 +712,7 @@
       AutoSave.init();
       ContextMenu.init();
       QuickActions.init();
+      ReducedMotion.init();
     }
   }
 

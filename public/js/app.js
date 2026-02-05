@@ -1,4 +1,48 @@
-﻿/* Theme */
+﻿// Polyfill escapeHtml if not present (ensures global availability)
+if (typeof window.escapeHtml !== 'function') {
+  window.escapeHtml = function(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  };
+}
+
+// Token expiration checker
+function isTokenExpired() {
+  const token = localStorage.getItem('token');
+  if (!token) return true;
+  
+  try {
+    // Decode JWT payload (2nd part of token)
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const exp = payload.exp * 1000; // Convert to milliseconds
+    const now = Date.now();
+    const isExpired = now >= exp;
+    
+    if (isExpired) {
+      console.warn('[Auth] Token expired at', new Date(exp));
+    }
+    
+    return isExpired;
+  } catch (e) {
+    console.error('[Auth] Failed to decode token:', e);
+    return true;
+  }
+}
+
+// Check token validity on page load
+if (isTokenExpired()) {
+  console.warn('[Auth] Token expired, clearing session');
+  localStorage.removeItem('token');
+  localStorage.removeItem('role');
+  localStorage.removeItem('username');
+  // Redirect to login if not already there
+  if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+    window.location.href = '/';
+  }
+}
+
+/* Theme */
     const root = document.documentElement;
     const themeKey = 'canteen_theme';
   // Chart instances (must be declared before any function uses them)
@@ -167,6 +211,11 @@
     
     // Expose applyTheme globally for ui.js integration
     window.applyTheme = applyTheme;
+    
+    // Expose changeTheme globally for HTML onclick handlers
+    window.changeTheme = function(theme) {
+      applyTheme(theme);
+    };
     
     /* Login form - Press Enter to submit */
     document.addEventListener('DOMContentLoaded', () => {
@@ -751,6 +800,336 @@ function togglePerformanceDashboard() {
   }
 }
 
+// ==================== ADMIN ANALYTICS INNER TABS ====================
+function showAdminAnalyticsSection(which) {
+  const vendorIds = ["vendorPerformanceTriggerCard", "adminVendorCounters", "vendorPerformanceDashboard"]; // Removed vendorTransactionsPage & adminVendorTxCard (deprecated)
+  const reloadIds = ["reloadPerformanceTriggerCard", "adminReloadPerformanceDashboard"];
+  const cancellationIds = ["adminCancellationLogs"];
+
+  // Helper to set display
+  function setGroup(ids, show) {
+    ids.forEach(id => {
+      const el = $(id);
+      if (!el) return;
+      el.style.display = show ? (el.getAttribute('data-display-original') || (el.tagName === 'DIV' ? 'block' : '')) : 'none';
+    });
+  }
+
+  // Preserve original display values once
+  [...vendorIds, ...reloadIds, ...cancellationIds].forEach(id => {
+    const el = $(id);
+    if (el && !el.getAttribute('data-display-original') && el.style.display && el.style.display !== 'none') {
+      el.setAttribute('data-display-original', el.style.display);
+    }
+  });
+
+  // Show/hide groups based on selection
+  setGroup(vendorIds, which === 'vendor');
+  setGroup(reloadIds, which === 'reload');
+  setGroup(cancellationIds, which === 'cancellation');
+
+  if (which === 'cancellation') {
+    // Initialize date range if not set
+    const startHidden = $("adminCancellationDateStart");
+    if (startHidden && !startHidden.value) {
+      initializeAdminCancellationDateRangeToToday();
+    }
+    if (typeof adminLoadCancellationLogs === 'function') {
+      adminLoadCancellationLogs();
+    }
+  }
+
+  // If switching to reload and dashboard is hidden internally, trigger its toggle
+  if (which === 'reload') {
+    const dash = $("adminReloadPerformanceDashboard");
+    if (dash && dash.style.display === 'none') {
+      // Try to open via existing toggle if available
+      if (typeof toggleAdminReloadPerformanceDashboard === 'function') {
+        toggleAdminReloadPerformanceDashboard();
+      } else {
+        dash.style.display = 'block';
+      }
+    }
+  }
+
+  // If switching to vendor and dashboard previously hidden, leave as is until user clicks trigger
+  // Update active classes in nav
+  const tabsContainer = document.getElementById('adminAnalyticsInnerTabs');
+  if (tabsContainer) {
+    const buttons = tabsContainer.querySelectorAll('button.nav-link');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    const whichIndex = which === 'vendor' ? 0 : which === 'reload' ? 1 : 2;
+    if (buttons[whichIndex]) buttons[whichIndex].classList.add('active');
+  }
+  // Auto-load cancellation logs on first switch
+  if (which === 'cancellation') {
+    adminLoadCancellationLogs();
+  }
+}
+
+// Expose globally for inline handlers
+window.showAdminAnalyticsSection = showAdminAnalyticsSection;
+
+// Initialize default view (vendor only) when Analytics tab is first shown
+const _adminStatsTab = document.getElementById('adminStatisticsTab');
+if (_adminStatsTab) {
+  _adminStatsTab.addEventListener('shown.bs.tab', () => {
+    if (!window._adminAnalyticsInit) {
+      showAdminAnalyticsSection('vendor');
+      window._adminAnalyticsInit = true;
+    }
+  });
+}
+
+// ==================== ADMIN CANCELLATION LOGS ====================
+const adminCancellationDateRangeState = {
+  currentMonth: new Date().getMonth(),
+  currentYear: new Date().getFullYear(),
+  startDate: null,
+  endDate: null
+};
+
+function initializeAdminCancellationDateRangeToToday() {
+  const today = new Date();
+  const dateStr = today.toISOString().split('T')[0];
+  adminCancellationDateRangeState.startDate = today;
+  adminCancellationDateRangeState.endDate = today;
+  $("adminCancellationDateStart").value = dateStr;
+  $("adminCancellationDateEnd").value = dateStr;
+  updateAdminCancellationDateRangeText();
+}
+
+function toggleAdminCancellationDatePicker(event) {
+  event.stopPropagation();
+  const picker = $("adminCancellationDateRangePicker");
+  const isVisible = picker.style.display === "block";
+  if (!isVisible) {
+    picker.style.display = "block";
+    renderAdminCancellationCalendar();
+    document.addEventListener('click', closeAdminCancellationDatePicker);
+  } else {
+    closeAdminCancellationDatePicker();
+  }
+}
+
+function closeAdminCancellationDatePicker() {
+  const picker = $("adminCancellationDateRangePicker");
+  if (picker) picker.style.display = "none";
+  document.removeEventListener('click', closeAdminCancellationDatePicker);
+}
+
+function changeAdminCancellationMonth(delta) {
+  adminCancellationDateRangeState.currentMonth += delta;
+  if (adminCancellationDateRangeState.currentMonth > 11) {
+    adminCancellationDateRangeState.currentMonth = 0;
+    adminCancellationDateRangeState.currentYear++;
+  } else if (adminCancellationDateRangeState.currentMonth < 0) {
+    adminCancellationDateRangeState.currentMonth = 11;
+    adminCancellationDateRangeState.currentYear--;
+  }
+  renderAdminCancellationCalendar();
+}
+
+function renderAdminCancellationCalendar() {
+  const monthYear = $("adminCancellationCurrentMonthYear");
+  const daysContainer = $("adminCancellationCalendarDays");
+  if (!monthYear || !daysContainer) return;
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  monthYear.textContent = `${monthNames[adminCancellationDateRangeState.currentMonth]} ${adminCancellationDateRangeState.currentYear}`;
+  const firstDay = new Date(adminCancellationDateRangeState.currentYear, adminCancellationDateRangeState.currentMonth, 1);
+  const lastDay = new Date(adminCancellationDateRangeState.currentYear, adminCancellationDateRangeState.currentMonth + 1, 0);
+  const prevLastDay = new Date(adminCancellationDateRangeState.currentYear, adminCancellationDateRangeState.currentMonth, 0);
+  const firstDayIndex = firstDay.getDay();
+  const lastDateNum = lastDay.getDate();
+  const prevLastDateNum = prevLastDay.getDate();
+  daysContainer.innerHTML = "";
+  // Previous month days (non-clickable unless viewing that month logic omitted for simplicity)
+  for (let i = firstDayIndex; i > 0; i--) {
+    const day = document.createElement('div');
+    day.className = 'day other-month disabled';
+    day.textContent = prevLastDateNum - i + 1;
+    daysContainer.appendChild(day);
+  }
+  const today = new Date(); today.setHours(0,0,0,0);
+  for (let i=1; i<=lastDateNum; i++) {
+    const day = document.createElement('div');
+    day.className = 'day';
+    day.textContent = i;
+    const currentDate = new Date(adminCancellationDateRangeState.currentYear, adminCancellationDateRangeState.currentMonth, i);
+    currentDate.setHours(0,0,0,0);
+    if (currentDate > today) {
+      day.classList.add('disabled');
+      day.style.visibility = 'hidden';
+      daysContainer.appendChild(day);
+      continue;
+    }
+    const startStr = adminCancellationDateRangeState.startDate?.toISOString().split('T')[0];
+    const endStr = adminCancellationDateRangeState.endDate?.toISOString().split('T')[0];
+    const dateStr = currentDate.toISOString().split('T')[0];
+    if (dateStr === startStr) {
+      day.classList.add('start-date');
+      if (dateStr === endStr) day.classList.add('end-date');
+    } else if (dateStr === endStr) {
+      day.classList.add('end-date');
+    }
+    if (adminCancellationDateRangeState.startDate && adminCancellationDateRangeState.endDate) {
+      if (currentDate > adminCancellationDateRangeState.startDate && currentDate < adminCancellationDateRangeState.endDate) {
+        day.classList.add('in-range');
+      }
+    }
+    day.onclick = (e) => { e.stopPropagation(); selectAdminCancellationDate(currentDate); };
+    daysContainer.appendChild(day);
+  }
+}
+
+function selectAdminCancellationDate(date) {
+  if (!adminCancellationDateRangeState.startDate || (adminCancellationDateRangeState.startDate && adminCancellationDateRangeState.endDate)) {
+    adminCancellationDateRangeState.startDate = date;
+    adminCancellationDateRangeState.endDate = null;
+  } else {
+    if (date < adminCancellationDateRangeState.startDate) {
+      adminCancellationDateRangeState.endDate = adminCancellationDateRangeState.startDate;
+      adminCancellationDateRangeState.startDate = date;
+    } else {
+      adminCancellationDateRangeState.endDate = date;
+    }
+  }
+  renderAdminCancellationCalendar();
+}
+
+function applyAdminCancellationDateRange() {
+  if (adminCancellationDateRangeState.startDate && adminCancellationDateRangeState.endDate) {
+    $("adminCancellationDateStart").value = adminCancellationDateRangeState.startDate.toISOString().split('T')[0];
+    $("adminCancellationDateEnd").value = adminCancellationDateRangeState.endDate.toISOString().split('T')[0];
+    updateAdminCancellationDateRangeText();
+    closeAdminCancellationDatePicker();
+    adminLoadCancellationLogs();
+  }
+}
+
+function cancelAdminCancellationDateRange() { closeAdminCancellationDatePicker(); }
+
+function updateAdminCancellationDateRangeText() {
+  const start = adminCancellationDateRangeState.startDate;
+  const end = adminCancellationDateRangeState.endDate;
+  const el = $("adminCancellationDateRangeText");
+  if (!el) return;
+  if (!start || !end) { el.textContent = 'Select date range'; return; }
+  const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const startMonth = monthNames[start.getMonth()];
+  const endMonth = monthNames[end.getMonth()];
+  const startDay = start.getDate();
+  const endDay = end.getDate();
+  if (start.toISOString().split('T')[0] === end.toISOString().split('T')[0]) {
+    el.textContent = `${startMonth} ${startDay}`;
+  } else if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+    el.textContent = `${startMonth} ${startDay} - ${endDay}`;
+  } else {
+    el.textContent = `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
+  }
+}
+
+// Data + pagination state
+let _adminCancellationLogs = [];
+let _adminCancellationPage = 1;
+const ADMIN_CANCELLATION_PAGE_SIZE = 10;
+
+async function adminLoadCancellationLogs() {
+  const start = $("adminCancellationDateStart").value;
+  const end = $("adminCancellationDateEnd").value;
+  // If not initialized, set to today and continue
+  if (!start || !end) {
+    initializeAdminCancellationDateRangeToToday();
+  }
+  const finalStart = $("adminCancellationDateStart").value;
+  const finalEnd = $("adminCancellationDateEnd").value;
+  if (!finalStart || !finalEnd) {
+    console.warn('adminLoadCancellationLogs: date range not set');
+    return;
+  }
+  let url = API_BASE + '/admin/cancellation-logs';
+  url += `?start=${finalStart}&end=${finalEnd}`;
+  try {
+    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token }});
+    if (!res.ok) throw new Error('Failed to load cancellation logs');
+    const data = await res.json();
+    if (!Array.isArray(data)) {
+      console.warn('Unexpected cancellation logs response format');
+      _adminCancellationLogs = [];
+    } else {
+      _adminCancellationLogs = data;
+    }
+  } catch (e) {
+    console.error('adminLoadCancellationLogs error:', e.message);
+    // Fallback placeholder (simulate empty or sample data)
+    _adminCancellationLogs = [];
+  }
+  _adminCancellationPage = 1;
+  renderAdminCancellationLogs();
+}
+
+function renderAdminCancellationLogs() {
+  const tbody = $("adminCancellationLogsTbody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  if (!_adminCancellationLogs.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-secondary py-4"><i class='bi bi-inbox fs-4 d-block mb-2 opacity-50'></i><div class='small'>No cancellation logs for selected period</div></td></tr>`;
+    const pag = $("adminCancellationPagination"); if (pag) pag.style.display = 'none';
+    return;
+  }
+  const startIdx = (_adminCancellationPage - 1) * ADMIN_CANCELLATION_PAGE_SIZE;
+  const endIdx = Math.min(startIdx + ADMIN_CANCELLATION_PAGE_SIZE, _adminCancellationLogs.length);
+  const pageItems = _adminCancellationLogs.slice(startIdx, endIdx);
+  pageItems.forEach(log => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${fmtTime(log.cancelled_at || log.timestamp || '')}</td>
+      <td>${escapeHtml(log.vendor_name || log.user_name || '—')}</td>
+      <td>${escapeHtml(log.item_name || '—')}</td>
+      <td>${fmtMoney(log.amount || 0)}</td>
+      <td>${escapeHtml(log.cancelled_by || log.vendor_name || '—')}</td>
+      <td>${escapeHtml(log.reason || '—')}</td>`;
+    tbody.appendChild(tr);
+  });
+  const pag = $("adminCancellationPagination");
+  const info = $("adminCancellationPaginationInfo");
+  const prevBtn = $("adminCancellationPrevBtn");
+  const nextBtn = $("adminCancellationNextBtn");
+  if (pag && info && prevBtn && nextBtn) {
+    pag.style.display = 'flex';
+    info.textContent = `Showing ${startIdx + 1}-${endIdx} of ${_adminCancellationLogs.length}`;
+    prevBtn.disabled = _adminCancellationPage === 1;
+    nextBtn.disabled = endIdx >= _adminCancellationLogs.length;
+  }
+}
+
+function adminCancellationPrev() { if (_adminCancellationPage > 1){ _adminCancellationPage--; renderAdminCancellationLogs(); } }
+function adminCancellationNext() { const max = Math.ceil(_adminCancellationLogs.length / ADMIN_CANCELLATION_PAGE_SIZE); if (_adminCancellationPage < max){ _adminCancellationPage++; renderAdminCancellationLogs(); } }
+
+function adminExportCancellationLogs() {
+  if (!_adminCancellationLogs.length) { toast('No logs to export', 'warning'); return; }
+  let csv = 'Time,User,Item,Amount,Cancelled By,Reason\n';
+  _adminCancellationLogs.forEach(l => {
+    csv += `"${fmtTime(l.cancelled_at || l.timestamp || '')}","${(l.vendor_name||l.user_name||'').replace(/"/g,'')}","${(l.item_name||'').replace(/"/g,'')}","${(l.amount||0)}","${(l.cancelled_by||l.vendor_name||'').replace(/"/g,'')}","${(l.reason||'').replace(/"/g,'')}"\n`;
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'cancellation_logs.csv';
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  toast('Cancellation logs exported', 'success');
+}
+
+// Expose functions globally
+window.adminLoadCancellationLogs = adminLoadCancellationLogs;
+window.adminExportCancellationLogs = adminExportCancellationLogs;
+window.adminCancellationPrev = adminCancellationPrev;
+window.adminCancellationNext = adminCancellationNext;
+window.toggleAdminCancellationDatePicker = toggleAdminCancellationDatePicker;
+window.changeAdminCancellationMonth = changeAdminCancellationMonth;
+window.applyAdminCancellationDateRange = applyAdminCancellationDateRange;
+window.cancelAdminCancellationDateRange = cancelAdminCancellationDateRange;
+
 // Reload chart view state (for booth staff)
 let currentReloadChartView = '7d'; // Default to 7 days
 
@@ -1211,24 +1590,47 @@ function renderAdminReloadCalendar() {
   
   daysContainer.innerHTML = "";
   
+  // Show previous month's days, but only allow click if viewing that month
   for (let i = firstDayIndex; i > 0; i--) {
     const day = document.createElement("div");
     day.className = "day other-month";
     day.textContent = prevLastDateNum - i + 1;
+    // Calculate the date for previous month's day
+    const prevMonthDate = new Date(adminReloadDateRangeState.currentYear, adminReloadDateRangeState.currentMonth - 1, prevLastDateNum - i + 1);
+    // Only allow click if calendar is showing previous month
+    if (
+      adminReloadDateRangeState.currentMonth === (new Date().getMonth() - 1) &&
+      adminReloadDateRangeState.currentYear === new Date().getFullYear()
+    ) {
+      day.onclick = (e) => {
+        e.stopPropagation();
+        selectAdminReloadDate(prevMonthDate);
+      };
+    } else {
+      day.classList.add("disabled");
+    }
     daysContainer.appendChild(day);
   }
   
+  const today = new Date();
   for (let i = 1; i <= lastDateNum; i++) {
     const day = document.createElement("div");
     day.className = "day";
     day.textContent = i;
-    
     const currentDate = new Date(adminReloadDateRangeState.currentYear, adminReloadDateRangeState.currentMonth, i);
     const dateStr = currentDate.toISOString().split('T')[0];
-    
     const startStr = adminReloadDateRangeState.startDate?.toISOString().split('T')[0];
     const endStr = adminReloadDateRangeState.endDate?.toISOString().split('T')[0];
-    
+    // Hide future dates
+    if (
+      currentDate > today &&
+      (currentDate.getMonth() === today.getMonth() && currentDate.getFullYear() === today.getFullYear())
+    ) {
+      day.classList.add("disabled");
+      day.style.visibility = "hidden";
+      daysContainer.appendChild(day);
+      continue;
+    }
     if (dateStr === startStr) {
       day.classList.add("start-date");
       if (dateStr === endStr) {
@@ -1237,18 +1639,18 @@ function renderAdminReloadCalendar() {
     } else if (dateStr === endStr) {
       day.classList.add("end-date");
     }
-    
     if (adminReloadDateRangeState.startDate && adminReloadDateRangeState.endDate) {
       if (currentDate > adminReloadDateRangeState.startDate && currentDate < adminReloadDateRangeState.endDate) {
         day.classList.add("in-range");
       }
     }
-    
-    day.onclick = (e) => {
-      e.stopPropagation();
-      selectAdminReloadDate(currentDate);
-    };
-    
+    // Only allow click if not disabled
+    if (!day.classList.contains("disabled")) {
+      day.onclick = (e) => {
+        e.stopPropagation();
+        selectAdminReloadDate(currentDate);
+      };
+    }
     daysContainer.appendChild(day);
   }
 }
@@ -1544,8 +1946,7 @@ function adminRenderReloadTrendsChart(chartData, isSingleDay, selectedDate) {
               family: 'Segoe UI Symbol, Arial Unicode MS, Noto Sans Symbols, Noto Sans, Arial, sans-serif'
             },
             callback: function(value) {
-              console.log('Chart Y-Axis Tick Value:', value, value.toLocaleString());
-              return 'PHP ' + value.toLocaleString();
+              return '₱' + value.toLocaleString();
             }
           }, 
           grid: { 
@@ -1805,159 +2206,6 @@ function applyVendorTxDateRange() {
 }
 
 // ==================== VENDOR TX DEDICATED PAGE ====================
-function adminOpenVendorTxPage() {
-  if (!window._adminSelectedVendorObj) return;
-  const vendor = window._adminSelectedVendorObj;
-  // Guarantee selected vendor id is set even if coming from table row selection
-  if (!adminSelectedVendorId && vendor.user_id) {
-    adminSelectedVendorId = vendor.user_id;
-  }
-  // Ensure ID is set
-  if (!adminSelectedVendorId && vendor.user_id) adminSelectedVendorId = vendor.user_id;
-  const name = encodeURIComponent(vendor.name || 'Vendor');
-  const id = encodeURIComponent(adminSelectedVendorId || vendor.user_id || '');
-  // Navigate to dedicated route with vendor info
-  window.location.assign(`vendor-transactions.html?vendor=${id}&name=${name}`);
-}
-
-function adminBackFromVendorTxPage() {
-  const perf = $("vendorPerformanceDashboard");
-  const page = $("vendorTransactionsPage");
-  if (page) page.style.display = 'none';
-  if (perf) perf.style.display = '';
-  // Smooth scroll back
-  setTimeout(()=>{ perf && perf.scrollIntoView({behavior:'smooth', block:'start'}); }, 50);
-}
-
-// Page-specific date range state
-let vendorPageRangeState = {
-  currentMonth: new Date(),
-  startDate: null,
-  endDate: null,
-  tempStartDate: null,
-  tempEndDate: null
-};
-
-function initializeVendorPageDateRangeToToday() {
-  const today = new Date(); today.setHours(0,0,0,0);
-  vendorPageRangeState.startDate = today;
-  vendorPageRangeState.endDate = today;
-  vendorPageRangeState.tempStartDate = today;
-  vendorPageRangeState.tempEndDate = today;
-  $("vendorPageTxDateStart").value = formatDateForInput(today);
-  $("vendorPageTxDateEnd").value = formatDateForInput(today);
-  const txt = $("vendorPageDateRangeText");
-  if (txt) txt.textContent = today.toLocaleString('en-US', { month: 'short', day: '2-digit' });
-}
-
-function toggleVendorPageDatePicker(e) {
-  e.stopPropagation();
-  const picker = $("vendorPageDateRangePicker");
-  if (!picker) return;
-  if (picker.style.display === 'none' || !picker.style.display) {
-    renderVendorPageCalendar();
-    picker.style.display = 'block';
-    document.addEventListener('click', closeVendorPagePickerOnClickOutside);
-  } else {
-    picker.style.display = 'none';
-    document.removeEventListener('click', closeVendorPagePickerOnClickOutside);
-  }
-}
-
-function closeVendorPagePickerOnClickOutside(e) {
-  const picker = $("vendorPageDateRangePicker");
-  const wrapper = picker?.parentElement?.closest('.date-range-picker-wrapper');
-  if (picker && !picker.contains(e.target) && !wrapper.contains(e.target)) {
-    picker.style.display = 'none';
-    document.removeEventListener('click', closeVendorPagePickerOnClickOutside);
-  }
-}
-
-function changeVendorPageMonth(delta) {
-  // Prevent navigating into future months
-  const next = new Date(vendorPageRangeState.currentMonth);
-  next.setMonth(next.getMonth() + delta);
-  const today = new Date(); today.setHours(0,0,0,0);
-  const cap = new Date(today.getFullYear(), today.getMonth(), 1);
-  if (next > cap) {
-    vendorPageRangeState.currentMonth = new Date(cap);
-  } else {
-    vendorPageRangeState.currentMonth = next;
-  }
-  renderVendorPageCalendar();
-}
-
-function renderVendorPageCalendar() {
-  const month = vendorPageRangeState.currentMonth;
-  const year = month.getFullYear();
-  const firstDay = new Date(year, month.getMonth(), 1).getDay();
-  const daysInMonth = new Date(year, month.getMonth() + 1, 0).getDate();
-  const daysContainer = $("vendorPageCalendarDays");
-  const header = $("vendorPageCurrentMonthYear");
-  if (!daysContainer || !header) return;
-  header.textContent = month.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-  let html = '';
-  for (let i=0;i<firstDay;i++) html += `<div class="day empty"></div>`;
-  for (let d=1; d<=daysInMonth; d++) {
-    const date = new Date(year, month.getMonth(), d); date.setHours(0,0,0,0);
-    const today = new Date(); today.setHours(0,0,0,0);
-    // Hide future dates completely (no number, no click)
-    if (date > today) {
-      html += `<div class="day empty"></div>`;
-      continue;
-    }
-    const s = vendorPageRangeState.tempStartDate;
-    const e = vendorPageRangeState.tempEndDate;
-    let classes = ['day'];
-    if (+date === +today) classes.push('today');
-    if (s && !e) {
-      if (+date === +s) classes.push('start-date','end-date');
-    }
-    if (s && e) {
-      if (+date === +s) classes.push('start-date');
-      else if (+date === +e) classes.push('end-date');
-      else if (date > s && date < e) classes.push('in-range');
-    }
-    html += `<button type="button" class="${classes.join(' ')}" onclick="selectVendorPageDate(${year},${month.getMonth()},${d}); event.stopPropagation();">${d}</button>`;
-  }
-  daysContainer.innerHTML = html;
-}
-
-function selectVendorPageDate(y,m,d){
-  const clicked = new Date(y,m,d); clicked.setHours(0,0,0,0);
-  if (!vendorPageRangeState.tempStartDate || (vendorPageRangeState.tempStartDate && vendorPageRangeState.tempEndDate)) {
-    vendorPageRangeState.tempStartDate = clicked; vendorPageRangeState.tempEndDate = null;
-  } else if (clicked < vendorPageRangeState.tempStartDate) {
-    vendorPageRangeState.tempEndDate = vendorPageRangeState.tempStartDate; vendorPageRangeState.tempStartDate = clicked;
-  } else {
-    vendorPageRangeState.tempEndDate = clicked;
-  }
-  renderVendorPageCalendar();
-}
-
-function cancelVendorPageDateRange(){
-  const picker = $("vendorPageDateRangePicker");
-  if (picker) picker.style.display = 'none';
-  document.removeEventListener('click', closeVendorPagePickerOnClickOutside);
-}
-
-function applyVendorPageDateRange(){
-  const picker = $("vendorPageDateRangePicker");
-  if (!vendorPageRangeState.tempStartDate) return;
-  const start = vendorPageRangeState.tempStartDate;
-  const end = vendorPageRangeState.tempEndDate || vendorPageRangeState.tempStartDate;
-  vendorPageRangeState.startDate = start; vendorPageRangeState.endDate = end;
-  $("vendorPageTxDateStart").value = formatDateForInput(start);
-  $("vendorPageTxDateEnd").value = formatDateForInput(end);
-  const textEl = $("vendorPageDateRangeText");
-  if (textEl) {
-    const startStr = start.toLocaleString('en-US',{month:'short',day:'numeric'});
-    const endStr = end.toLocaleString('en-US',{month:'short',day:'numeric'});
-    textEl.textContent = (start.getMonth()===end.getMonth()) ? `${startStr} – ${end.getDate()}` : `${startStr} – ${endStr}`;
-  }
-  if (picker) picker.style.display = 'none';
-  document.removeEventListener('click', closeVendorPagePickerOnClickOutside);
-}
 
 async function adminLoadVendorTransactions() {
   // Check both module-scoped and window-scoped vendor ID (for standalone pages)
@@ -3385,17 +3633,35 @@ function logout(){
           tbody.appendChild(tr);
         });
 
+        // Calculate statistics
+        let totalCount = rows.length;
+        let totalAmount = 0;
+        let highest = 0;
+
         rows.forEach(r=>{
+          const amt = Number(r.amount||0);
+          totalAmount += amt;
+          if (amt > highest) highest = amt;
+          
           const t = new Date(r.timestamp);
-          if (t.toDateString() === todayStr) todayTotal += Number(r.amount||0);
-          if (t >= start7d) sevenDayTotal += Number(r.amount||0);
+          if (t.toDateString() === todayStr) todayTotal += amt;
+          if (t >= start7d) sevenDayTotal += amt;
         });
 
+        const avgAmount = totalCount > 0 ? totalAmount / totalCount : 0;
+
+        // Update KPI pills
         const kpiToday = $("salesKpiToday");
         const kpi7d = $("salesKpi7d");
         kpiToday.textContent = `Today: ${fmtMoney(todayTotal)}`;
         kpi7d.textContent = `7-day: ${fmtMoney(sevenDayTotal)}`;
         show(kpiToday); show(kpi7d);
+
+        // Update stat cards
+        if ($('salesRecentTotalCount')) $('salesRecentTotalCount').textContent = totalCount;
+        if ($('salesRecentTotalAmount')) $('salesRecentTotalAmount').textContent = fmtMoney(totalAmount);
+        if ($('salesRecentAvgAmount')) $('salesRecentAvgAmount').textContent = fmtMoney(avgAmount);
+        if ($('salesRecentHighestAmount')) $('salesRecentHighestAmount').textContent = fmtMoney(highest);
 
         try {
           const daysBack = 7;
@@ -3849,8 +4115,12 @@ function logout(){
             },
             y: {
               ticks: { 
-                color: theme.text, 
-                callback: (v) => '?' + Number(v).toLocaleString() 
+                color: theme.text,
+                font: {
+                  size: 11,
+                  family: 'Segoe UI, Segoe UI Symbol, Arial Unicode MS, Noto Sans, system-ui, sans-serif'
+                }, 
+                callback: (v) => '₱' + Number(v).toLocaleString() 
               },
               grid: { color: theme.border }
             }
@@ -4039,17 +4309,35 @@ function logout(){
           tbody.appendChild(tr);
         });
 
+        // Calculate statistics
+        let totalCount = rows.length;
+        let totalAmount = 0;
+        let highest = 0;
+
         rows.forEach(r=>{
+          const amt = Number(r.amount||0);
+          totalAmount += amt;
+          if (amt > highest) highest = amt;
+          
           const t = new Date(r.timestamp);
-          if (t.toDateString() === todayStr) todayTotal += Number(r.amount||0);
-          if (t >= start7d) sevenDayTotal += Number(r.amount||0);
+          if (t.toDateString() === todayStr) todayTotal += amt;
+          if (t >= start7d) sevenDayTotal += amt;
         });
 
+        const avgAmount = totalCount > 0 ? totalAmount / totalCount : 0;
+
+        // Update KPI pills
         const kpiToday = $("reloadKpiToday");
         const kpi7d = $("reloadKpi7d");
         kpiToday.textContent = `Today: ${fmtMoney(todayTotal)}`;
         kpi7d.textContent = `7-day: ${fmtMoney(sevenDayTotal)}`;
         show(kpiToday); show(kpi7d);
+
+        // Update stat cards
+        if ($('recentTotalCount')) $('recentTotalCount').textContent = totalCount;
+        if ($('recentTotalAmount')) $('recentTotalAmount').textContent = fmtMoney(totalAmount);
+        if ($('recentAvgAmount')) $('recentAvgAmount').textContent = fmtMoney(avgAmount);
+        if ($('recentHighestAmount')) $('recentHighestAmount').textContent = fmtMoney(highest);
 
         try {
           // Render chart based on current view
@@ -4444,8 +4732,12 @@ function logout(){
             },
             y: {
               ticks: { 
-                color: theme.text, 
-                callback: (v) => '?' + Number(v).toLocaleString() 
+                color: theme.text,
+                font: {
+                  size: 11,
+                  family: 'Segoe UI, Segoe UI Symbol, Arial Unicode MS, Noto Sans, system-ui, sans-serif'
+                }, 
+                callback: (v) => '₱' + Number(v).toLocaleString() 
               },
               grid: { color: theme.border }
             }
@@ -5770,6 +6062,7 @@ function logout(){
         $("adminTotalStudents").textContent = stats.total_students || 0;
         $("adminTotalStaff").textContent = stats.total_staff || 0;
         $("adminTotalVendors").textContent = stats.total_vendors || 0;
+  if ($("adminTotalManagers")) { $("adminTotalManagers").textContent = stats.total_managers || 0; }
       } catch(e) {
         console.error("Admin stats error:", e);
       }
@@ -6987,4 +7280,303 @@ function logout(){
         }
       });
     }
+
+// ==================== RFID LINKING PAGE ====================
+
+let rfidLinkingActive = false;
+let rfidLinkingUserId = null;
+let rfidLinkingPollInterval = null;
+
+// Show RFID Linking Page
+function showRfidLinking() {
+  const dashboard = $('staffDashboard');
+  const linkingPage = $('rfidLinkingPage');
+  
+  if (dashboard) dashboard.classList.add('d-none');
+  if (linkingPage) {
+    linkingPage.classList.remove('d-none');
+    // Auto-search for users without RFID
+    $('rfidFilterNoRfid').checked = true;
+    searchRfidUsers();
+  }
+}
+
+// Hide RFID Linking Page
+function hideRfidLinking() {
+  const dashboard = $('staffDashboard');
+  const linkingPage = $('rfidLinkingPage');
+  
+  if (linkingPage) linkingPage.classList.add('d-none');
+  if (dashboard) dashboard.classList.remove('d-none');
+  
+  // Clear search
+  $('rfidSearchInput').value = '';
+  $('rfidFilterNoRfid').checked = false;
+}
+
+// Search users for RFID linking
+async function searchRfidUsers() {
+  try {
+    const searchInput = $('rfidSearchInput');
+    const filterNoRfid = $('rfidFilterNoRfid');
+    const tbody = $('rfidUsersTbody');
+    const searchInfo = $('rfidSearchInfo');
+
+    if (!tbody) return;
+
+    // Show loading
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-secondary py-4"><i class="bi bi-arrow-repeat spin me-2"></i>Searching...</td></tr>';
+
+    const query = searchInput.value.trim();
+    const onlyNoRfid = filterNoRfid.checked;
+
+    const params = new URLSearchParams();
+    if (query) params.append('q', query);
+    if (onlyNoRfid) params.append('onlyNoRfid', 'true');
+
+    const res = await fetch(API_BASE + '/rfid/search-users?' + params, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const users = data.users || [];
+
+    if (users.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center text-secondary py-4">
+            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+            No students found matching your search
+          </td>
+        </tr>
+      `;
+      searchInfo.textContent = 'No results found';
+      return;
+    }
+
+    // Render results
+    tbody.innerHTML = users.map(user => {
+      const hasRfid = user.has_rfid;
+      const statusBadge = hasRfid
+        ? '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>RFID Linked</span>'
+        : '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>No RFID</span>';
+      
+      const actionButton = hasRfid
+        ? `<button class="btn btn-sm btn-outline-secondary" onclick="confirmUnlinkRfid(${user.user_id}, '${user.name}')" title="Unlink RFID">
+             <i class="bi bi-x-circle me-1"></i>Unlink
+           </button>`
+        : `<button class="btn btn-sm btn-accent" onclick="startRfidLink(${user.user_id}, '${user.name}', '${user.student_number}')">
+             <i class="bi bi-credit-card-2-front me-1"></i>Link RFID
+           </button>`;
+
+      return `
+        <tr>
+          <td><span class="font-monospace">${user.student_number}</span></td>
+          <td>${user.name}</td>
+          <td>${user.course}</td>
+          <td>${statusBadge}</td>
+          <td class="text-end">${actionButton}</td>
+        </tr>
+      `;
+    }).join('');
+
+    searchInfo.textContent = `Found ${users.length} student${users.length !== 1 ? 's' : ''}`;
+
+  } catch (err) {
+    console.error('Error searching users:', err);
+    toast('Failed to search users: ' + err.message, 'danger');
+    const tbody = $('rfidUsersTbody');
+    if (tbody) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center text-danger py-4">
+            <i class="bi bi-exclamation-triangle fs-3 d-block mb-2"></i>
+            Error loading results: ${err.message}
+          </td>
+        </tr>
+      `;
+    }
+  }
+}
+
+// Start RFID linking process
+function startRfidLink(userId, userName, studentNo) {
+  rfidLinkingUserId = userId;
+  rfidLinkingActive = true;
+
+  // Update modal content
+  $('linkUserName').textContent = userName;
+  $('linkUserInfo').textContent = `Student No: ${studentNo}`;
+
+  // Reset modal state
+  $('linkStatusWaiting').classList.remove('d-none');
+  $('linkStatusSuccess').classList.add('d-none');
+  $('linkStatusError').classList.add('d-none');
+  $('linkStatusTimeout').classList.add('d-none');
+  $('linkBtnRetry').classList.add('d-none');
+  $('linkBtnCancelText').textContent = 'Cancel';
+
+  // Show modal
+  const modal = new bootstrap.Modal($('rfidLinkModal'));
+  modal.show();
+
+  // Start polling for RFID scans
+  startRfidPolling();
+
+  // Set timeout (60 seconds)
+  setTimeout(() => {
+    if (rfidLinkingActive && rfidLinkingUserId === userId) {
+      handleRfidTimeout();
+    }
+  }, 60000);
+}
+
+// Poll for pending RFID scans
+function startRfidPolling() {
+  if (rfidLinkingPollInterval) {
+    clearInterval(rfidLinkingPollInterval);
+  }
+
+  rfidLinkingPollInterval = setInterval(async () => {
+    if (!rfidLinkingActive || !rfidLinkingUserId) {
+      stopRfidPolling();
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        API_BASE + '/rfid/pending?userId=' + rfidLinkingUserId,
+        { headers: { 'Authorization': 'Bearer ' + token } }
+      );
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      if (data.status === 'success') {
+        handleRfidSuccess(data);
+      } else if (data.status === 'error') {
+        handleRfidError(data.message);
+      }
+      // If status === 'waiting', continue polling
+
+    } catch (err) {
+      console.error('Polling error:', err);
+      // Continue polling on network errors
+    }
+  }, 500); // Poll every 500ms
+}
+
+// Stop polling
+function stopRfidPolling() {
+  if (rfidLinkingPollInterval) {
+    clearInterval(rfidLinkingPollInterval);
+    rfidLinkingPollInterval = null;
+  }
+  rfidLinkingActive = false;
+}
+
+// Handle successful link
+function handleRfidSuccess(data) {
+  stopRfidPolling();
+
+  $('linkStatusWaiting').classList.add('d-none');
+  $('linkStatusSuccess').classList.remove('d-none');
+  $('linkSuccessUid').textContent = data.uid;
+  $('linkBtnCancelText').textContent = 'Close';
+
+  toast(`RFID card linked successfully to ${data.user.name}`, 'success');
+
+  // Refresh the search results after 2 seconds
+  setTimeout(() => {
+    searchRfidUsers();
+  }, 2000);
+}
+
+// Handle link error
+function handleRfidError(message) {
+  stopRfidPolling();
+
+  $('linkStatusWaiting').classList.add('d-none');
+  $('linkStatusError').classList.remove('d-none');
+  $('linkErrorMessage').textContent = message;
+  $('linkBtnRetry').classList.remove('d-none');
+  $('linkBtnCancelText').textContent = 'Cancel';
+
+  toast('RFID linking failed: ' + message, 'danger');
+}
+
+// Handle timeout
+function handleRfidTimeout() {
+  stopRfidPolling();
+
+  $('linkStatusWaiting').classList.add('d-none');
+  $('linkStatusTimeout').classList.remove('d-none');
+  $('linkBtnRetry').classList.remove('d-none');
+  $('linkBtnCancelText').textContent = 'Cancel';
+
+  toast('No card detected. Please try again.', 'warning');
+}
+
+// Cancel linking
+function cancelRfidLink() {
+  stopRfidPolling();
+  rfidLinkingUserId = null;
+}
+
+// Retry linking
+function retryRfidLink() {
+  if (!rfidLinkingUserId) return;
+
+  // Get user info from modal
+  const userName = $('linkUserName').textContent;
+  const studentNo = $('linkUserInfo').textContent.replace('Student No: ', '');
+
+  // Restart the process
+  startRfidLink(rfidLinkingUserId, userName, studentNo);
+}
+
+// Confirm unlinking RFID
+function confirmUnlinkRfid(userId, userName) {
+  if (!confirm(`Are you sure you want to unlink the RFID card from ${userName}?\n\nThey will need to link a new card to use the system.`)) {
+    return;
+  }
+
+  unlinkRfid(userId);
+}
+
+// Unlink RFID from user
+async function unlinkRfid(userId) {
+  try {
+    const res = await fetch(API_BASE + '/rfid/unlink', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ user_id: userId })
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP ${res.status}`);
+    }
+
+    toast('RFID card unlinked successfully', 'success');
+    
+    // Refresh search results
+    searchRfidUsers();
+
+  } catch (err) {
+    console.error('Error unlinking RFID:', err);
+    toast('Failed to unlink RFID: ' + err.message, 'danger');
+  }
+}
 
